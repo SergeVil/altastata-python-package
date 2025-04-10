@@ -9,7 +9,7 @@ setup(
         'altastata_api': ['lib/*.jar']
     },
     install_requires=[
-        'py4j',
+        'py4j==0.10.9.5',
     ],
 )
 
