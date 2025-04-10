@@ -43,168 +43,30 @@ altastata-python-package/
 ## Quick Start
 
 ```bash
-# Kill the existing one
-docker ps | grep 8888
-docker stop <id>
 
 # Build the image
 docker build -t altastata:latest -f openshift/Dockerfile .
 
-# Run the container
-docker run --platform linux/amd64 -p 8888:8888 altastata:latest
+# Kill the existing one
+docker rm -f altastata-jupyter
+
+# Run the container with .altastata volume mount
+docker run --platform linux/amd64 \
+  --name altastata-jupyter \
+  -p 8888:8888 \
+  -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
+  -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
+  altastata:latest
 
 # Access Jupyter Lab at http://127.0.0.1:8888/lab
+
+# In your Python code, use the container path:
+from altastata import AltaStataFunctions
+altastata_functions = AltaStataFunctions('/opt/app-root/src/.altastata/accounts/amazon.pqc.alice786')
+altastata_functions.set_password("123")
+
+# Store
+result = altastata_functions.store(['/opt/app-root/src/Desktop/serge.png',
+                                    '/opt/app-root/src/Desktop/meeting_saved_chat.txt'],
+                                   '/opt/app-root/src/Desktop', 'StoreTest', True)
 ```
-
-## Detailed Instructions
-
-### Building the Image
-
-1. Navigate to the project root directory:
-```bash
-cd /path/to/altastata-python-package
-```
-
-2. Build the Docker image:
-```bash
-docker build -t altastata:latest -f openshift/Dockerfile .
-```
-
-### Running the Container
-
-1. Run Jupyter Lab (interactive mode):
-```bash
-docker run --platform linux/amd64 -p 8888:8888 altastata:latest
-```
-
-2. Run Jupyter Lab in detached mode (background):
-```bash
-docker run -d --platform linux/amd64 -p 8888:8888 altastata:latest
-```
-
-3. Run with persistent storage for notebooks:
-```bash
-docker run --platform linux/amd64 -p 8888:8888 -v $(pwd)/notebooks:/home/jovyan/notebooks altastata:latest
-```
-
-### Container Management
-
-#### Basic Operations
-```bash
-# List running containers
-docker ps
-
-# List all containers (including stopped)
-docker ps -a
-
-# Stop container gracefully
-docker stop <container_id>
-
-# Force stop container
-docker kill <container_id>
-
-# Remove container
-docker rm <container_id>
-
-# Stop and remove in one command
-docker rm -f <container_id>
-```
-
-#### Bulk Operations
-```bash
-# Stop all running containers
-docker stop $(docker ps -q)
-
-# Kill all running containers
-docker kill $(docker ps -q)
-
-# Remove all stopped containers
-docker container prune
-```
-
-### Shell Access and Logs
-
-#### Shell Access
-```bash
-# Get interactive shell in running container
-docker exec -it <container_id> /bin/bash
-
-# Start new container with shell
-docker run -it --rm altastata:latest /bin/bash
-```
-
-#### Logs
-```bash
-# View container logs
-docker logs <container_id>
-
-# View real-time logs
-docker logs -f <container_id>
-
-# View last N lines
-docker logs --tail 100 <container_id>
-```
-
-### Local Registry Setup
-
-1. Start local registry (using port 5001 to avoid conflicts):
-```bash
-docker run -d -p 5001:5000 --restart=always --name registry registry:2
-```
-
-2. Tag image for local registry:
-```bash
-docker tag altastata:latest localhost:5001/altastata:latest
-```
-
-3. Push to local registry:
-```bash
-docker push localhost:5001/altastata:latest
-```
-
-## Verification and Troubleshooting
-
-### Package Verification
-```bash
-# Check Java version
-java -version
-
-# Check Java home
-echo $JAVA_HOME
-
-# Check Python packages
-pip list | grep altastata
-
-# Check Python path
-python -c "import altastata; print(altastata.__file__)"
-```
-
-### Common Issues
-1. Port 8888 already in use:
-```bash
-# Find container using port 8888
-docker ps | grep 8888
-
-# Stop the container
-docker stop <container_id>
-```
-
-2. Container won't start:
-```bash
-# Check container logs
-docker logs <container_id>
-
-# Verify image exists
-docker images | grep altastata
-```
-
-## Notes and Considerations
-
-- The container runs Jupyter Lab on port 8888
-- Default user is jovyan (UID: 1001)
-- Java 17 is installed and configured
-- The Altastata package is installed in development mode
-- All Python dependencies from requirements.txt are installed
-- The container uses the linux/amd64 platform
-- Jupyter authentication is disabled for easier access
-- Use `--platform linux/amd64` flag when running on ARM-based systems (e.g., M1/M2 Macs) 
