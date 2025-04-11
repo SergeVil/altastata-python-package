@@ -11,7 +11,11 @@ import mmap
 class AltaStataFunctions(BaseGateway):
     def __init__(self, account_dir_path, port=25333):
         super().__init__(port)
-        self.altastata_file_system = self.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)  #my_package.MyMath(test)
+        self.altastata_file_system = self.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
+
+    def __init__(self, user_properties, private_key_encrypted, port=25333):
+        super().__init__(port)
+        self.altastata_file_system = self.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
 
     def convert_java_list_to_python(self, java_list):
         # Ensure the input is a JavaList
