@@ -5,7 +5,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, random_split, Dataset
 from torchvision import transforms
 import numpy as np
-from altastata_pytorch_dataset.altastata_pytorch_dataset import AltaStataPyTorchDataset
+from altastata import AltaStataPyTorchDataset
 
 # Simple CNN for image classification
 class SimpleCNN(nn.Module):
@@ -103,15 +103,14 @@ def main():
     
     # Data transforms
     transform = transforms.Compose([
-        transforms.Resize((100, 100)),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                           std=[0.229, 0.224, 0.225])
+        transforms.PILToTensor(),
+        transforms.ConvertImageDtype(torch.float32),
+        transforms.Resize((100, 100))
     ])
     
     # Create base dataset
     base_dataset = AltaStataPyTorchDataset(
-        data_dir="data/images",
+        root_dir="data/images",
         pattern="*.jpg",
         transform=transform
     )
