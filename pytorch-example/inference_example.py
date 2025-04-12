@@ -1,8 +1,10 @@
+import os
 import torch
 import torch.nn as nn
-from torchvision import transforms
-from torchvision.transforms import functional as F
+import torchvision.transforms as transforms
 from PIL import Image
+from torch.utils.data import DataLoader
+from altastata import AltaStataPyTorchDataset
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -19,111 +21,128 @@ except:
 
 # Define the same model architecture as in training
 class SimpleCNN(nn.Module):
-    def __init__(self, num_classes=2):
+    def __init__(self):
         super(SimpleCNN, self).__init__()
         self.features = nn.Sequential(
-            nn.Conv2d(3, 16, kernel_size=3, padding=1),
+            # First conv block
+            nn.Conv2d(3, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.MaxPool2d(2, 2),
-            nn.Conv2d(16, 32, kernel_size=3, padding=1),
+            nn.Dropout2d(0.25),
+            
+            # Second conv block
+            nn.Conv2d(32, 64, kernel_size=3, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.MaxPool2d(2, 2)
-        )
-        self.classifier = nn.Sequential(
-            nn.Linear(32 * 25 * 25, 128),
+            nn.MaxPool2d(2, 2),
+            nn.Dropout2d(0.25),
+            
+            # Third conv block
+            nn.Conv2d(64, 128, kernel_size=3, padding=1),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(128, num_classes)
+            nn.MaxPool2d(2, 2),
+            nn.Dropout2d(0.25)
         )
         
+        self.classifier = nn.Sequential(
+            nn.Linear(128 * 12 * 12, 512),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Dropout(0.5),
+            nn.Linear(512, 2)
+        )
+    
     def forward(self, x):
         x = self.features(x)
         x = x.view(x.size(0), -1)
         x = self.classifier(x)
         return x
 
-def load_model(model_path='best_model.pth'):
-    """Load the trained model"""
-    model = SimpleCNN(num_classes=2)
+def load_model(model_path):
+    """Load the trained model."""
+    model = SimpleCNN()
     model.load_state_dict(torch.load(model_path))
-    model.eval()  # Set to evaluation mode
+    model.eval()
     return model
 
-def preprocess_image(image_path):
-    """Preprocess image for model input"""
-    # Load and convert to RGB
-    image = Image.open(image_path).convert('RGB')
+def display_images(images, predictions, confidences):
+    fig, axes = plt.subplots(1, len(images), figsize=(12, 6))
+    if len(images) == 1:
+        axes = [axes]
     
-    # Resize
-    image = F.resize(image, [100, 100])
+    for ax, image, pred, conf in zip(axes, images, predictions, confidences):
+        ax.imshow(np.array(image))
+        ax.set_title(f'Predicted: {"Circle" if pred == 1 else "Rectangle"}\nConfidence: {conf:.2f}%')
+        ax.axis('off')
     
-    # Convert to tensor
-    image_tensor = F.pil_to_tensor(image).float() / 255.0
-    
-    # Normalize
-    image_tensor = F.normalize(
-        image_tensor,
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-    
-    # Add batch dimension
-    image_tensor = image_tensor.unsqueeze(0)
-    
-    return image_tensor, image
-
-def predict(model, image_tensor):
-    """Make prediction on a single image"""
-    with torch.no_grad():
-        outputs = model(image_tensor)
-        probabilities = torch.nn.functional.softmax(outputs, dim=1)
-        predicted_class = torch.argmax(probabilities, dim=1).item()
-        confidence = probabilities[0][predicted_class].item()
-    return predicted_class, confidence
-
-def main():
-    # Load the model
-    model = load_model()
-    print("Model loaded successfully!")
-    
-    # Get list of test images
-    import os
-    test_images = [f for f in os.listdir('data/images') if f.endswith('.jpg')]
-    test_images.sort()  # Sort for consistent order
-    
-    # Create a figure with subplots for all images
-    n_images = len(test_images)
-    n_cols = 5
-    n_rows = (n_images + n_cols - 1) // n_cols
-    fig = plt.figure(figsize=(15, 3 * n_rows))
-    
-    # Process each image
-    for idx, image_name in enumerate(test_images):
-        image_path = os.path.join('data/images', image_name)
-        
-        try:
-            # Preprocess image
-            image_tensor, original_image = preprocess_image(image_path)
-            
-            # Make prediction
-            predicted_class, confidence = predict(model, image_tensor)
-            
-            # Create subplot
-            plt.subplot(n_rows, n_cols, idx + 1)
-            plt.imshow(original_image)
-            plt.title(f'{"Rectangle" if predicted_class else "Circle"}\n{confidence:.1%}')
-            plt.axis('off')
-            
-            print(f"\nImage: {image_name}")
-            print(f"Predicted class: {'Rectangle' if predicted_class else 'Circle'}")
-            print(f"Confidence: {confidence:.2%}")
-            
-        except Exception as e:
-            print(f"Error processing {image_name}: {str(e)}")
-    
-    # Adjust layout and display
     plt.tight_layout()
     plt.show()
+
+def main():
+    # Define the same transforms as in training
+    transform = transforms.Compose([
+        transforms.Resize((100, 100)),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2),
+        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+        transforms.PILToTensor(),
+        transforms.ConvertImageDtype(torch.float32),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    
+    # Load the trained model
+    model = load_model('best_model.pth')
+    print("Model loaded successfully!")
+    print("=" * 50)
+    
+    # Create dataset for inference
+    test_dataset = AltaStataPyTorchDataset(
+        root_dir="data/images",
+        file_pattern="*.png",
+        transform=transform
+    )
+    
+    # Print all available files
+    print("\nAvailable files in dataset:")
+    for path in test_dataset.file_paths:
+        print(path.name)
+    print()
+    
+    # Test on specific images
+    test_indices = [0, 5]  # circle_0.png and rectangle_0.png
+    
+    # Collect results for batch display
+    images = []
+    predictions = []
+    confidences = []
+    
+    for idx in test_indices:
+        # Get data and label from dataset
+        image_tensor, true_label = test_dataset[idx]
+        original_image = Image.open(test_dataset.file_paths[idx]).convert('RGB')
+        
+        # Make prediction
+        with torch.no_grad():
+            output = model(image_tensor.unsqueeze(0))
+            probabilities = torch.softmax(output, dim=1)
+            predicted_class = torch.argmax(probabilities, dim=1).item()
+            confidence = probabilities[0][predicted_class].item() * 100
+        
+        # Store results
+        images.append(original_image)
+        predictions.append(predicted_class)
+        confidences.append(confidence)
+        
+        # Print results
+        print(f"\nImage: {test_dataset.file_paths[idx].name}")
+        print(f"True Label: {'Circle' if true_label == 1 else 'Rectangle'}")
+        print(f"Predicted: {'Circle' if predicted_class == 1 else 'Rectangle'}")
+        print(f"Confidence: {confidence:.2f}%")
+        print("-" * 50)
+    
+    # Display all images together
+    display_images(images, predictions, confidences)
 
 if __name__ == "__main__":
     main() 
