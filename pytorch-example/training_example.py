@@ -123,12 +123,15 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
 
 def main():
     # Create transforms with data augmentation
-    transform = transforms.Compose([
-        transforms.Resize((100, 100)),
-        transforms.RandomHorizontalFlip(p=0.5),
-        transforms.RandomRotation(10),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
+    train_transform = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.PILToTensor(),
+        transforms.ConvertImageDtype(torch.float32),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+    
+    # Create validation transform without augmentation
+    val_transform = transforms.Compose([
         transforms.PILToTensor(),
         transforms.ConvertImageDtype(torch.float32),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -136,15 +139,15 @@ def main():
     
     # Create datasets
     train_dataset = AltaStataPyTorchDataset(
-        root_dir="data",  # Changed to use root data directory
-        file_pattern="images/*.png",  # Updated pattern to match subdirectory
-        transform=transform
+        root_dir="data/images",  # Changed to use images directory
+        file_pattern="*.png",  # Updated pattern to match files directly
+        transform=train_transform
     )
     
     val_dataset = AltaStataPyTorchDataset(
-        root_dir="data",  # Changed to use root data directory
-        file_pattern="images/*.png",  # Updated pattern to match subdirectory
-        transform=transform
+        root_dir="data/images",  # Changed to use images directory
+        file_pattern="*.png",  # Updated pattern to match files directly
+        transform=val_transform
     )
     
     print("\nAll file paths in dataset:")
