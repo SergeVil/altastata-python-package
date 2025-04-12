@@ -9,25 +9,32 @@ import os
 from typing import Dict, Any
 
 class AltaStataPyTorchDataset(Dataset):
-    def __init__(self, root_dir, file_pattern="**/*", transform=None, require_files=True):
+    def __init__(self, root_dir, file_pattern=None, transform=None, require_files=True):
         """
         A PyTorch Dataset for loading various file types (images, CSV, NumPy) from a directory.
         
         Args:
             root_dir (str): Root directory containing the data
-            file_pattern (str): Glob pattern to match files (default: "**/*")
-            transform (callable, optional): Optional transform to be applied on a sample
+            file_pattern (str, optional): Pattern to filter files (default: None)
+            transform (callable, optional): Transform to be applied on image samples. 
+                For non-image files, basic tensor conversion is applied.
             require_files (bool): Whether to require files matching the pattern (default: True)
         """
         self.root_dir = Path(root_dir).expanduser().resolve()
-        self.file_pattern = file_pattern
         self.transform = transform
         
-        # Get list of files matching the pattern
-        self.file_paths = sorted(list(self.root_dir.glob(self.file_pattern)))
+        # Get all files first
+        all_files = sorted(list(self.root_dir.iterdir()))
+        
+        # Filter by pattern if provided
+        if file_pattern is not None:
+            self.file_paths = [f for f in all_files if f.match(file_pattern)]
+        else:
+            self.file_paths = all_files
         
         if require_files and not self.file_paths:
-            raise ValueError(f"No files found in {root_dir} matching pattern {file_pattern}")
+            raise ValueError(f"No files found in {root_dir}" + 
+                           (f" matching pattern {file_pattern}" if file_pattern else ""))
             
         # Create labels based on filenames
         self.labels = [1 if 'circle' in str(path) else 0 for path in self.file_paths]
@@ -36,31 +43,31 @@ class AltaStataPyTorchDataset(Dataset):
         return len(self.file_paths)
 
     def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+            
         file_path = self.file_paths[idx]
-
+        label = self.labels[idx]
+        
         # Read file content once and create BytesIO object
         with open(file_path, 'rb') as f:
             file_content = io.BytesIO(f.read())
-
-        if torch.is_tensor(idx):
-            idx = idx.tolist()
-
-        label = self.labels[idx]
-
+        
         # Load different file types based on extension
         if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
             # Convert bytes to PIL Image
             data = Image.open(file_content).convert('RGB')
+            # Apply transform if provided, otherwise just convert to tensor
             if self.transform:
                 data = self.transform(data)
             else:
                 data = F.pil_to_tensor(data).float() / 255.0
         elif file_path.suffix.lower() == '.csv':
-            # Convert bytes to numpy array
+            # Convert bytes to numpy array and then to tensor
             data = np.genfromtxt(file_content, delimiter=',')
             data = torch.FloatTensor(data)
         elif file_path.suffix.lower() == '.npy':
-            # Convert bytes to numpy array
+            # Convert bytes to numpy array and then to tensor
             data = np.load(file_content)
             data = torch.FloatTensor(data)
         else:
@@ -103,4 +110,4 @@ class AltaStataPyTorchDataset(Dataset):
         serialized_data = self._read_file(load_path)
         
         # Deserialize using PyTorch
-        return torch.load(io.BytesIO(serialized_data)) 
+        return torch.load(io.BytesIO(serialized_data))

@@ -63,8 +63,8 @@ def load_model(model_path):
     model = SimpleCNN()
     # Load the model using the dataset
     test_dataset = AltaStataPyTorchDataset(
-        root_dir="data",  # Use root data directory
-        file_pattern="images/*.png",  # Updated pattern to match subdirectory
+        root_dir="data/images",  # Use root data directory
+        file_pattern="*.png",  # Updated pattern to match subdirectory
         transform=None,  # No transform needed for model loading
         require_files=False  # Don't require image files for model loading
     )
@@ -86,11 +86,8 @@ def display_images(images, predictions, confidences):
     plt.show()
 
 def main():
-    # Define the same transforms as in training
+    # Define transforms for inference (no augmentation needed)
     transform = transforms.Compose([
-        transforms.Resize((100, 100)),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
-        transforms.RandomAffine(degrees=0, translate=(0.1, 0.1)),
         transforms.PILToTensor(),
         transforms.ConvertImageDtype(torch.float32),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -103,8 +100,8 @@ def main():
     
     # Create dataset for inference
     test_dataset = AltaStataPyTorchDataset(
-        root_dir="data",  # Changed to use root data directory
-        file_pattern="images/*.png",  # Updated pattern to match subdirectory
+        root_dir="data/images",  # Changed to use root data directory
+        file_pattern="*.png",  # Updated pattern to match subdirectory
         transform=transform
     )
     
