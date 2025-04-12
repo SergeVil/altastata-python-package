@@ -4,9 +4,12 @@ from pathlib import Path
 from PIL import Image
 import numpy as np
 import torchvision.transforms.functional as F
+import io
+import os
+from typing import Dict, Any
 
 class AltaStataPyTorchDataset(Dataset):
-    def __init__(self, root_dir, file_pattern="**/*", transform=None):
+    def __init__(self, root_dir, file_pattern="**/*", transform=None, require_files=True):
         """
         A PyTorch Dataset for loading various file types (images, CSV, NumPy) from a directory.
         
@@ -14,6 +17,7 @@ class AltaStataPyTorchDataset(Dataset):
             root_dir (str): Root directory containing the data
             file_pattern (str): Glob pattern to match files (default: "**/*")
             transform (callable, optional): Optional transform to be applied on a sample
+            require_files (bool): Whether to require files matching the pattern (default: True)
         """
         self.root_dir = Path(root_dir).expanduser().resolve()
         self.file_pattern = file_pattern
@@ -22,7 +26,7 @@ class AltaStataPyTorchDataset(Dataset):
         # Get list of files matching the pattern
         self.file_paths = sorted(list(self.root_dir.glob(self.file_pattern)))
         
-        if not self.file_paths:
+        if require_files and not self.file_paths:
             raise ValueError(f"No files found in {root_dir} matching pattern {file_pattern}")
             
         # Create labels based on filenames
@@ -54,4 +58,41 @@ class AltaStataPyTorchDataset(Dataset):
         else:
             raise ValueError(f"Unsupported file type: {file_path.suffix}")
             
-        return data, label 
+        return data, label
+
+    def _write_file(self, path: str, data: bytes) -> None:
+        """Write bytes to a file using Python's file operations."""
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        
+        # Write data
+        with open(path, 'wb') as f:
+            f.write(data)
+
+    def _read_file(self, path: str) -> bytes:
+        """Read bytes from a file using Python's file operations."""
+        with open(path, 'rb') as f:
+            return f.read()
+
+    def save_model(self, state_dict: Dict[str, torch.Tensor], filename: str) -> None:
+        """Save a model's state dictionary to a file."""
+        save_path = str(self.root_dir / filename)
+        
+        # Serialize using PyTorch
+        buffer = io.BytesIO()
+        torch.save(state_dict, buffer)
+        
+        # Write using our own file I/O
+        self._write_file(save_path, buffer.getvalue())
+
+    def load_model(self, filename: str) -> Dict[str, torch.Tensor]:
+        """Load a model's state dictionary from a file."""
+        load_path = str(self.root_dir / filename)
+        if not os.path.exists(load_path):
+            raise FileNotFoundError(f"Model file not found: {load_path}")
+
+        # Read using our own file I/O
+        serialized_data = self._read_file(load_path)
+        
+        # Deserialize using PyTorch
+        return torch.load(io.BytesIO(serialized_data)) 

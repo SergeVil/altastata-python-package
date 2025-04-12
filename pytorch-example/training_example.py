@@ -50,31 +50,20 @@ class SimpleCNN(nn.Module):
         x = self.classifier(x)
         return x
 
-def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=100, patience=10):
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = model.to(device)
-    
+def train_model(model, train_loader, val_loader, train_dataset, criterion, optimizer, num_epochs=100, patience=10):
+    """Train the model with early stopping."""
     best_val_loss = float('inf')
-    patience_counter = 0
     best_model_state = None
+    patience_counter = 0
     
     for epoch in range(num_epochs):
+        # Training phase
         model.train()
-        train_loss = 0
+        train_loss = 0.0
         train_correct = 0
         train_total = 0
         
-        # Print first batch info
-        for i, (images, labels) in enumerate(train_loader):
-            if i == 0:
-                print("\nFirst training batch:")
-                print(f"Images shape: {images.shape}")
-                print(f"Labels shape: {labels.shape}\n")
-            break
-            
         for images, labels in train_loader:
-            images, labels = images.to(device), labels.to(device)
-            
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -86,16 +75,17 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             train_total += labels.size(0)
             train_correct += (predicted == labels).sum().item()
         
+        train_loss = train_loss / len(train_loader)
+        train_accuracy = 100 * train_correct / train_total
+        
         # Validation phase
         model.eval()
-        val_loss = 0
+        val_loss = 0.0
         val_correct = 0
         val_total = 0
         
         with torch.no_grad():
             for images, labels in val_loader:
-                images, labels = images.to(device), labels.to(device)
-                
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 
@@ -104,15 +94,14 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
         
-        train_loss = train_loss / len(train_loader)
         val_loss = val_loss / len(val_loader)
-        train_acc = 100 * train_correct / train_total
-        val_acc = 100 * val_correct / val_total
+        val_accuracy = 100 * val_correct / val_total
         
-        print(f"Epoch {epoch + 1}:")
-        print(f"  Train - Loss: {train_loss:.4f}, Accuracy: {train_acc:.2f}%")
-        print(f"  Val   - Loss: {val_loss:.4f}, Accuracy: {val_acc:.2f}%")
+        print(f"\nEpoch {epoch + 1}:")
+        print(f"  Train - Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
+        print(f"  Val   - Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.2f}%")
         
+        # Early stopping check
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model_state = model.state_dict()
@@ -120,14 +109,15 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
             print("  Model saved!")
         else:
             patience_counter += 1
-            
-        if patience_counter >= patience:
-            print("\nEarly stopping triggered!")
-            break
+            if patience_counter >= patience:
+                print("\nEarly stopping triggered!")
+                break
     
+    # Load and save the best model
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
-        torch.save(model.state_dict(), 'best_model.pth')
+        # Save using the dataset
+        train_dataset.save_model(best_model_state, 'models/best_model.pth')
     
     print("\nTraining completed!")
 
@@ -146,14 +136,14 @@ def main():
     
     # Create datasets
     train_dataset = AltaStataPyTorchDataset(
-        root_dir="data/images",
-        file_pattern="*.png",
+        root_dir="data",  # Changed to use root data directory
+        file_pattern="images/*.png",  # Updated pattern to match subdirectory
         transform=transform
     )
     
     val_dataset = AltaStataPyTorchDataset(
-        root_dir="data/images",
-        file_pattern="*.png",
+        root_dir="data",  # Changed to use root data directory
+        file_pattern="images/*.png",  # Updated pattern to match subdirectory
         transform=transform
     )
     
@@ -192,7 +182,7 @@ def main():
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-4)
     
-    train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=100, patience=10)
+    train_model(model, train_loader, val_loader, train_dataset, criterion, optimizer, num_epochs=100, patience=10)
 
 if __name__ == '__main__':
     main()
