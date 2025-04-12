@@ -1,6 +1,5 @@
 import os
 import numpy as np
-import pandas as pd
 from PIL import Image, ImageDraw
 
 def create_sample_data():

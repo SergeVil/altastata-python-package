@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader, SubsetRandomSampler
 import torchvision.transforms as transforms
 from altastata import AltaStataPyTorchDataset
 import numpy as np
-import os
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
