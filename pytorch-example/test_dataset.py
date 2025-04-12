@@ -1,10 +1,11 @@
 import torch
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
-from altastata import AltaStataPyTorch, AltaStataFunctions
+from altastata import AltaStataPyTorch
+from altastata_config import altastata_functions
 
 # Global AltaStataPyTorch instance
-altastata = AltaStataPyTorch(None)
+altastata = AltaStataPyTorch(altastata_functions)
 
 def test_dataset_with_transforms(root_dir, pattern, expected_shape):
     """Test dataset with transforms and print results."""
