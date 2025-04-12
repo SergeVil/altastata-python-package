@@ -4,7 +4,10 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-from altastata import AltaStataPyTorchDataset
+from altastata import AltaStataPyTorch, AltaStataFunctions
+
+# Global AltaStataPyTorch instance
+altastata = AltaStataPyTorch(None)
 
 # Configure matplotlib for Jupyter notebook if running in one
 try:
@@ -62,7 +65,7 @@ def load_model(model_path):
     """Load the trained model."""
     model = SimpleCNN()
     # Load the model using the dataset
-    test_dataset = AltaStataPyTorchDataset(
+    test_dataset = altastata.create_dataset(
         root_dir="data/images",  # Use root data directory
         file_pattern="*.png",  # Updated pattern to match subdirectory
         transform=None,  # No transform needed for model loading
@@ -99,7 +102,7 @@ def main():
     print("=" * 50)
     
     # Create dataset for inference
-    test_dataset = AltaStataPyTorchDataset(
+    test_dataset = altastata.create_dataset(
         root_dir="data/images",  # Changed to use root data directory
         file_pattern="*.png",  # Updated pattern to match subdirectory
         transform=transform
