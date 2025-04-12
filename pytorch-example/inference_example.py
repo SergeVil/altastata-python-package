@@ -4,10 +4,11 @@ import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
-from altastata import AltaStataPyTorch, AltaStataFunctions
+from altastata import AltaStataPyTorch
+from altastata_config import altastata_functions
 
-# Global AltaStataPyTorch instance
-altastata = AltaStataPyTorch(None)
+# Create a global AltaStataPyTorch instance
+altastata = AltaStataPyTorch(altastata_functions)
 
 # Configure matplotlib for Jupyter notebook if running in one
 try:

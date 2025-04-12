@@ -1,17 +1,19 @@
+import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 import torchvision.transforms as transforms
-from altastata import AltaStataPyTorch, AltaStataFunctions
+from altastata import AltaStataPyTorch
+from altastata_config import altastata_functions
 import numpy as np
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
 
-# Global AltaStataPyTorch instance
-altastata = AltaStataPyTorch(None)
+# Create a global AltaStataPyTorch instance
+altastata = AltaStataPyTorch(altastata_functions)
 
 class SimpleCNN(nn.Module):
     def __init__(self):
