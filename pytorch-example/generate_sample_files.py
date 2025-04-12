@@ -1,6 +1,6 @@
-import os
 import numpy as np
 from PIL import Image
+import os
 
 def create_sample_image(path, size=(100, 100), class_type='circle'):
     """Create a sample image with either a circle or a rectangle"""
