@@ -61,7 +61,14 @@ class SimpleCNN(nn.Module):
 def load_model(model_path):
     """Load the trained model."""
     model = SimpleCNN()
-    model.load_state_dict(torch.load(model_path))
+    # Load the model using the dataset
+    test_dataset = AltaStataPyTorchDataset(
+        root_dir="data",  # Use root data directory
+        file_pattern="images/*.png",  # Updated pattern to match subdirectory
+        transform=None,  # No transform needed for model loading
+        require_files=False  # Don't require image files for model loading
+    )
+    model.load_state_dict(test_dataset.load_model('models/best_model.pth'))
     model.eval()
     return model
 
@@ -90,14 +97,14 @@ def main():
     ])
     
     # Load the trained model
-    model = load_model('best_model.pth')
+    model = load_model("data/models/best_model.pth")
     print("Model loaded successfully!")
     print("=" * 50)
     
     # Create dataset for inference
     test_dataset = AltaStataPyTorchDataset(
-        root_dir="data/images",
-        file_pattern="*.png",
+        root_dir="data",  # Changed to use root data directory
+        file_pattern="images/*.png",  # Updated pattern to match subdirectory
         transform=transform
     )
     
