@@ -3,12 +3,15 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 import torchvision.transforms as transforms
-from altastata import AltaStataPyTorchDataset
+from altastata import AltaStataPyTorch, AltaStataFunctions
 import numpy as np
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
+
+# Global AltaStataPyTorch instance
+altastata = AltaStataPyTorch(None)
 
 class SimpleCNN(nn.Module):
     def __init__(self):
@@ -137,15 +140,15 @@ def main():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
-    # Create datasets
-    train_dataset = AltaStataPyTorchDataset(
-        root_dir="data/images",  # Changed to use images directory
+    # Create datasets using AltaStataPyTorch
+    train_dataset = altastata.create_dataset(
+        root_dir="data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=train_transform
     )
     
-    val_dataset = AltaStataPyTorchDataset(
-        root_dir="data/images",  # Changed to use images directory
+    val_dataset = altastata.create_dataset(
+        root_dir="data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=val_transform
     )
