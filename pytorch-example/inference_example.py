@@ -1,12 +1,10 @@
-import os
 import torch
 import torch.nn as nn
 import torchvision.transforms as transforms
 from PIL import Image
-from torch.utils.data import DataLoader
-from altastata import AltaStataPyTorchDataset
 import matplotlib.pyplot as plt
 import numpy as np
+from altastata import AltaStataPyTorchDataset
 
 # Configure matplotlib for Jupyter notebook if running in one
 try:
