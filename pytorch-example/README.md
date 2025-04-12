@@ -1,6 +1,6 @@
 # PyTorch Dataset Example
 
-Examples for using the `altastata` package with AltaStataPyTorchDataset - a flexible PyTorch Dataset implementation that supports working with various file types including images, CSV files, and NumPy arrays.
+Examples for using the `altastata` package with `AltaStataPyTorch` - a high-level class that provides a unified interface for PyTorch dataset operations and AltaStata functionality.
 
 ## Package Installation
 
@@ -41,11 +41,14 @@ python inference_example.py
 The examples demonstrate how to use the dataset with various file types:
 
 ```python
-# Import the dataset class from the altastata package
-from altastata import AltaStataPyTorchDataset
+# Import the required classes from the altastata package
+from altastata import AltaStataPyTorch, AltaStataFunctions
 from torch.utils.data import DataLoader
 import torchvision.transforms as transforms
 import torch
+
+# Create a global AltaStataPyTorch instance
+altastata = AltaStataPyTorch(AltaStataFunctions(...))
 
 # Create dataset with transforms
 transform = transforms.Compose([
@@ -54,8 +57,9 @@ transform = transforms.Compose([
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
-dataset = AltaStataPyTorchDataset(
-    root_dir="path/to/data",
+# Create dataset using the global instance
+dataset = altastata.create_dataset(
+    root_dir="data/images",
     file_pattern="*.jpg",  # or *.npy, *.csv
     transform=transform
 )
@@ -95,7 +99,6 @@ The inference example shows how to:
 ```
 pytorch-example/              # Examples using the altastata package
     test_dataset.py           # Basic dataset tests
-    test_local_dataset.py     # Local filesystem tests
     training_example.py       # CNN training example
     inference_example.py      # Model inference example
     generate_sample_files.py  # Creates sample data
@@ -107,7 +110,7 @@ pytorch-example/              # Examples using the altastata package
     README.md                 # This documentation file
 
 altastata/                    # Main package (separate location)
-    __init__.py               # Exports classes including AltaStataPyTorchDataset
+    __init__.py               # Exports classes including AltaStataPyTorch
     altastata_functions.py    # Original altastata functionality
     altastata_pytorch_dataset.py # Implementation of the dataset class
 ```
