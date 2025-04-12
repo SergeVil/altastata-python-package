@@ -36,24 +36,32 @@ class AltaStataPyTorchDataset(Dataset):
         return len(self.file_paths)
 
     def __getitem__(self, idx):
+        file_path = self.file_paths[idx]
+
+        # Read file content once and create BytesIO object
+        with open(file_path, 'rb') as f:
+            file_content = io.BytesIO(f.read())
+
         if torch.is_tensor(idx):
             idx = idx.tolist()
-            
-        file_path = self.file_paths[idx]
+
         label = self.labels[idx]
-        
-        # Load different file types
+
+        # Load different file types based on extension
         if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
-            data = Image.open(file_path).convert('RGB')
+            # Convert bytes to PIL Image
+            data = Image.open(file_content).convert('RGB')
             if self.transform:
                 data = self.transform(data)
             else:
                 data = F.pil_to_tensor(data).float() / 255.0
         elif file_path.suffix.lower() == '.csv':
-            data = np.genfromtxt(file_path, delimiter=',')
+            # Convert bytes to numpy array
+            data = np.genfromtxt(file_content, delimiter=',')
             data = torch.FloatTensor(data)
         elif file_path.suffix.lower() == '.npy':
-            data = np.load(file_path)
+            # Convert bytes to numpy array
+            data = np.load(file_content)
             data = torch.FloatTensor(data)
         else:
             raise ValueError(f"Unsupported file type: {file_path.suffix}")
