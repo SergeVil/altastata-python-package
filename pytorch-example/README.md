@@ -8,7 +8,7 @@ The implementation has been moved to the main `altastata` package. To install it
 
 ```bash
 # Navigate to the altastata package directory
-cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
+cd altastata-python-package
 
 # Install in development mode
 pip install -e .
@@ -51,12 +51,12 @@ import torch
 transform = transforms.Compose([
     transforms.PILToTensor(),
     transforms.ConvertImageDtype(torch.float32),
-    transforms.Resize((224, 224))
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
 ])
 
 dataset = AltaStataPyTorchDataset(
     root_dir="path/to/data",
-    pattern="*.jpg",  # or *.npy, *.csv
+    file_pattern="*.jpg",  # or *.npy, *.csv
     transform=transform
 )
 
@@ -68,8 +68,9 @@ dataloader = DataLoader(
 )
 
 # Use in training loop
-for data, file_path in dataloader:
-    # Your training code here
+for data, labels in dataloader:
+    # data is a tensor of shape [batch_size, channels, height, width] for images
+    # labels are automatically generated based on filenames (1 for 'circle', 0 for others)
     pass
 ```
 
@@ -79,6 +80,8 @@ The package includes a training example that demonstrates:
 - Training a CNN model
 - Model validation and saving
 - Binary classification (circles vs rectangles)
+- Data augmentation during training
+- Early stopping and model checkpointing
 
 ### Inference Example
 The inference example shows how to:
@@ -86,6 +89,7 @@ The inference example shows how to:
 - Preprocess new images
 - Make predictions
 - Display results with confidence scores
+- Visualize predictions
 
 ## Project Structure
 ```
@@ -99,6 +103,7 @@ pytorch-example/              # Examples using the altastata package
         images/               # Sample images
         csv/                  # CSV files
         numpy/                # NumPy arrays
+        models/              # Saved model checkpoints
     README.md                 # This documentation file
 
 altastata/                    # Main package (separate location)
