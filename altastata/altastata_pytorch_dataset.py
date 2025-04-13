@@ -8,6 +8,7 @@ import io
 import os
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
+import tempfile
 
 class AltaStataPyTorch:
     """
@@ -108,38 +109,101 @@ class AltaStataPyTorch:
             return data, label
 
         def _write_file(self, path: str, data: bytes) -> None:
-            """Write bytes to a file using Python's file operations."""
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-            
-            # Write data
-            with open(path, 'wb') as f:
-                f.write(data)
+            """Write bytes to a file using either AltaStataFunctions or local file operations."""
+            if self.outer.altastata_functions is not None:
+                # Use AltaStataFunctions to create file in the cloud
+                print(f"Writing to cloud file: {path}")
+                self.outer.altastata_functions.create_file(path, data)
+            else:
+                # Fall back to local file operations
+                local_path = str(self.root_dir / path)
+                print(f"Writing to local file: {local_path}")
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                with open(local_path, 'wb') as f:
+                    f.write(data)
 
         def _read_file(self, path: str) -> bytes:
-            """Read bytes from a file using Python's file operations."""
-            with open(path, 'rb') as f:
-                return f.read()
+            """Read bytes from a file using either AltaStataFunctions or local file operations."""
+            if self.outer.altastata_functions is not None:
+                # Use AltaStataFunctions to read file from the cloud
+                print(f"Reading from cloud file: {path}")
+                
+                # Get the latest version time using list_cloud_files_versions
+                try:
+                    # For file paths, we need to use just the path
+                    # Pass False for includingSubdirectories since we're looking for a specific file
+                    versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(path, False, None, None)
+                    
+                    # Convert iterator to list of versions
+                    versions = []
+                    for java_array in versions_iterator:
+                        for element in java_array:
+                            versions.append(int(str(element)))
+                    
+                    if not versions:
+                        raise FileNotFoundError(f"No versions found for file: {path}")
+                    
+                    # Get the latest version (last in the list)
+                    latest_version = versions[-1]
+                    print(f"Using latest version time: {latest_version}")
+                except Exception as e:
+                    print(f"Error getting file versions: {e}. Using current time.")
+                    # Fallback to current time if we can't get versions
+                    latest_version = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
+                    print(f"Using current time: {latest_version}")
+                
+                # Create a temporary file for memory mapping
+                temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
+                try:
+                    # Get the file size using the latest version
+                    try:
+                        file_size = self.outer.altastata_functions.get_file_attribute(path, latest_version, "size")
+                        if file_size is None:
+                            file_size = 50 * 1024 * 1024  # 50MB default
+                        print(f"File size: {file_size} bytes")
+                    except Exception as e:
+                        print(f"Error getting file size: {e}. Using default size.")
+                        file_size = 50 * 1024 * 1024  # 50MB default
+                    
+                    # Read the file using memory mapping with the latest version
+                    data = self.outer.altastata_functions.get_buffer_via_mapped_file(
+                        temp_file,
+                        path,
+                        latest_version,  # Use latest version time
+                        0,     # start_position
+                        4,     # how_many_chunks_in_parallel
+                        file_size
+                    )
+                    
+                    print(f"Read {len(data)} bytes from cloud")
+                    return data
+                finally:
+                    # Clean up the temporary file if it exists
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+            else:
+                # Fall back to local file operations
+                local_path = str(self.root_dir / path)
+                print(f"Reading from local file: {local_path}")
+                with open(local_path, 'rb') as f:
+                    return f.read()
 
         def save_model(self, state_dict: Dict[str, torch.Tensor], filename: str) -> None:
             """Save a model's state dictionary to a file."""
-            save_path = str(self.root_dir / filename)
-            
             # Serialize using PyTorch
             buffer = io.BytesIO()
             torch.save(state_dict, buffer)
+            data = buffer.getvalue()
+            print(f"Saving model data length: {len(data)} bytes")
             
             # Write using our own file I/O
-            self._write_file(save_path, buffer.getvalue())
+            self._write_file(filename, data)
 
         def load_model(self, filename: str) -> Dict[str, torch.Tensor]:
             """Load a model's state dictionary from a file."""
-            load_path = str(self.root_dir / filename)
-            if not os.path.exists(load_path):
-                raise FileNotFoundError(f"Model file not found: {load_path}")
-
             # Read using our own file I/O
-            serialized_data = self._read_file(load_path)
+            serialized_data = self._read_file(filename)
+            print(f"Loaded model data length: {len(serialized_data)} bytes")
             
             # Deserialize using PyTorch
             return torch.load(io.BytesIO(serialized_data))
