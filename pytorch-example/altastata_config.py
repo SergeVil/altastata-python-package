@@ -33,6 +33,6 @@ P+a7ShdrBUsD2TDhilZhwZcWl0a+FfzR47+faJs/9pSTkyFFp3D4xgKAdME1lvcI
 wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 -----END RSA PRIVATE KEY-----"""
 
-# Create and export AltaStataFunctions instance
-altastata_functions = AltaStataFunctions(user_properties, private_key)
+# Create an instance of AltaStataFunctions
+altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 altastata_functions.set_password("123")
