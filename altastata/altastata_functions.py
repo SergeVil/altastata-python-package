@@ -9,13 +9,45 @@ import os
 import mmap
 
 class AltaStataFunctions(BaseGateway):
-    def __init__(self, account_dir_path, port=25333):
+    def __init__(self, port=25333):
+        """
+        Base initialization. This should not be called directly.
+        Use from_account_dir or from_credentials instead.
+        """
         super().__init__(port)
-        self.altastata_file_system = self.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
 
-    def __init__(self, user_properties, private_key_encrypted, port=25333):
-        super().__init__(port)
-        self.altastata_file_system = self.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
+    @classmethod
+    def from_account_dir(cls, account_dir_path, port=25333):
+        """
+        Create an instance using account directory path.
+        
+        Args:
+            account_dir_path (str): Path to the account directory
+            port (int, optional): Port number for the gateway. Defaults to 25333.
+            
+        Returns:
+            AltaStataFunctions: New instance initialized with account directory
+        """
+        instance = cls(port)
+        instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
+        return instance
+
+    @classmethod
+    def from_credentials(cls, user_properties, private_key_encrypted, port=25333):
+        """
+        Create an instance using user properties and private key.
+        
+        Args:
+            user_properties (str): User properties string
+            private_key_encrypted (str): Encrypted private key
+            port (int, optional): Port number for the gateway. Defaults to 25333.
+            
+        Returns:
+            AltaStataFunctions: New instance initialized with credentials
+        """
+        instance = cls(port)
+        instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
+        return instance
 
     def convert_java_list_to_python(self, java_list):
         # Ensure the input is a JavaList
@@ -51,6 +83,37 @@ class AltaStataFunctions(BaseGateway):
 
         # Process the result
         return result
+
+    def create_file(self, cloud_file_path, buffer=None):
+        """
+        Create a new file version on cloud and add the buffer (may be empty).
+        This operation is fast but does not guarantee streaming order.
+        
+        Args:
+            cloud_file_path (str): The file path on the cloud
+            buffer (bytes, optional): Initial buffer to store in the file. Defaults to None (empty buffer).
+            
+        Returns:
+            CloudFileOperationStatus: Status of the file creation operation
+        """
+        if buffer is None:
+            buffer = bytes()
+            
+        return self.altastata_file_system.createFile(cloud_file_path, buffer)
+
+    def append_buffer_to_file(self, cloud_file_path, buffer, snapshot_time=None):
+        """
+        Append the buffer as an output stream to the File version.
+        
+        Args:
+            cloud_file_path (str): The file path on the cloud
+            buffer (bytes): The buffer to append
+            snapshot_time (Long, optional): File version creation time. Defaults to None (current time).
+            
+        Raises:
+            IOException: If there is an error during the append operation
+        """
+        self.altastata_file_system.appendBufferToFile(cloud_file_path, snapshot_time, buffer)
 
     def store(self, localFilesOrDirectories: List[str], localFSPrefix: str, cloudPathPrefix: str, waitUntilDone: bool):
         # Call the Java method
@@ -130,7 +193,6 @@ class AltaStataFunctions(BaseGateway):
         return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
 
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
-
         return self.altastata_file_system.getFileAttribute(cloud_file_path, snapshot_time, name)
 
 
