@@ -63,7 +63,8 @@ docker run --platform linux/amd64 \
 # In your Python code, use the container path:
 from altastata import AltaStataFunctions
 
-altastata_functions = AltaStataFunctions('/opt/app-root/src/.altastata/accounts/amazon.pqc.alice786')
+# Initialize with account directory
+altastata_functions = AltaStataFunctions.from_account_dir('/opt/app-root/src/.altastata/accounts/amazon.pqc.alice786')
 
 or 
 
@@ -99,7 +100,8 @@ P+a7ShdrBUsD2TDhilZhwZcWl0a+FfzR47+faJs/9pSTkyFFp3D4xgKAdME1lvcI
 wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 -----END RSA PRIVATE KEY-----"""
 
-altastata_functions = AltaStataFunctions(user_properties, private_key)
+# Initialize with credentials
+altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 
 altastata_functions.set_password("123")
 
@@ -107,4 +109,3 @@ altastata_functions.set_password("123")
 result = altastata_functions.store(['/opt/app-root/src/Desktop/serge.png',
                                     '/opt/app-root/src/Desktop/meeting_saved_chat.txt'],
                                    '/opt/app-root/src/Desktop', 'StoreTest', True)
-```
