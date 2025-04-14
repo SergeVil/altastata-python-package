@@ -164,98 +164,79 @@ class AltaStataPyTorch:
                 # Use AltaStataFunctions to read file from the cloud
                 print(f"Reading from cloud file: {path}")
 
-                latest_version_timestamp = self.get_latest_version_timestamp(path)
+                # Check if path has version suffix pattern
+                if '✹' in path:
+                    # Split on '✹' first to get the version part
+                    _, version_part = path.split('✹', 1)
 
+                    # Then split on '_' and take the last part
+                    version_timestamp = int(version_part.split('_')[-1])
+
+                    #print(f"Using latest version time: {version_timestamp}")
+                else:
+                    version_timestamp = None
+
+                #print(f"Getting file size for path: {path}, version: {version_timestamp}")
+
+                # Get specific size attribute
+                file_size_json = self.outer.altastata_functions.get_file_attribute(path, version_timestamp, "size")
+                #print(f"File size JSON: {file_size_json}")
+
+                # Access the file size
+                result = json.loads(file_size_json)
+                file_size = int(result['DataSizeAttribute']['fileSize'])
+                file_path = result['filePath']
+
+                #print(f"File size from attribute: {file_size} bytes for file_path: {file_path}")
+
+                if version_timestamp is None:
+                    # Split on '✹' first to get the version part
+                    _, version_part = file_path.split('✹', 1)
+
+                    # Then split on '_' and take the last part
+                    version_timestamp = int(version_part.split('_')[-1])
+
+                # Read the file using memory mapping with the latest version
+                temp_file = None  # Initialize temp_file
                 try:
-                    # Get the file size using the latest version
-                    try:
-                        file_size_json = self.outer.altastata_functions.get_file_attribute(path, latest_version_timestamp, "size")
+                    if file_size < 8 * 1024 * 1024:  # 8MB
+                        # For small files, use get_buffer directly
+                        data = self.outer.altastata_functions.get_buffer(
+                            path,
+                            version_timestamp,  # Use appropriate version time
+                            0,     # start_position
+                            4,     # how_many_chunks_in_parallel
+                            file_size
+                        )
+                        # Update file_size with actual size
+                        file_size = len(data)
+                        #print(f"Determined file size from actual read: {file_size} bytes")
+                    else:
+                        # For larger files, use memory mapping
+                        # Create a temporary file for memory mapping
+                        temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
 
-                        # Access the file size
-                        result = json.loads(file_size_json)
-                        file_size = int(result['DataSizeAttribute']['fileSize'])
+                        data = self.outer.altastata_functions.get_buffer_via_mapped_file(
+                            temp_file,
+                            path,
+                            version_timestamp,  # Use appropriate version time
+                            0,     # start_position
+                            4,     # how_many_chunks_in_parallel
+                            file_size
+                        )
 
-                        print(f"File size: {file_size} bytes")
-                    except Exception as e:
-                        print(f"Error getting file size: {e}. Using default size.")
-                        file_size = 50 * 1024 * 1024  # 50MB default
-
-                    # Read the file using memory mapping with the latest version
-                    temp_file = None  # Initialize temp_file
-                    try:
-                        if file_size < 8 * 1024 * 1024:  # 8MB
-                            # For small files, use get_buffer directly
-                            data = self.outer.altastata_functions.get_buffer(
-                                path,
-                                latest_version_timestamp,  # Use latest version timestamp
-                                0,     # start_position
-                                4,     # how_many_chunks_in_parallel
-                                file_size
-                            )
-                        else:
-                            # For larger files, use memory mapping
-                            # Create a temporary file for memory mapping
-                            temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-
-                            data = self.outer.altastata_functions.get_buffer_via_mapped_file(
-                                temp_file,
-                                path,
-                                latest_version_timestamp,  # Use latest version timestamp
-                                0,     # start_position
-                                4,     # how_many_chunks_in_parallel
-                                file_size
-                            )
-                        
-                        print(f"Read {len(data)} bytes from cloud")
-                        return data
-                    finally:
-                        # Clean up the temporary file if it exists
-                        if temp_file and os.path.exists(temp_file):
-                            os.remove(temp_file)
-                except Exception as e:
-                    raise RuntimeError(f"Error reading cloud file {path}: {e}") from e
+                    print(f"Successfully read {len(data)} bytes from cloud")
+                    return data
+                finally:
+                    # Clean up the temporary file if it exists
+                    if temp_file and os.path.exists(temp_file):
+                        os.remove(temp_file)
             else:
                 # Fall back to local file operations
                 local_path = str(self.root_dir / path)
                 print(f"Reading from local file: {local_path}")
                 with open(local_path, 'rb') as f:
                     return f.read()
-
-        def get_latest_version_timestamp(self, path):
-            # Get the latest version time using list_cloud_files_versions
-            try:
-                if '✹' in path:
-                    latest_version = path
-                else:
-                    # For file paths, we need to use just the path
-                    # Pass False for includingSubdirectories since we're looking for a specific file
-                    versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(path, True, None, None)
-
-                    # Convert iterator to list of versions
-                    versions = []
-                    for java_array in versions_iterator:
-                        for element in java_array:
-                            versions.append(str(element))
-
-                    if not versions:
-                        raise FileNotFoundError(f"No versions found for file: {path}")
-
-                    # Get the latest version (last in the list)
-                    latest_version = versions[-1]
-
-                # Split on '✹' first to get the version part
-                _, version_part = latest_version.split('✹', 1)
-
-                # Then split on '_' and take the last part
-                latest_version_timestamp = int(version_part.split('_')[-1])
-
-                print(f"Using latest version time: {latest_version_timestamp}")
-            except Exception as e:
-                print(f"Error getting file versions: {e}. Using current time.")
-                # Fallback to current time if we can't get versions
-                latest_version_timestamp = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
-                print(f"Using current time: {latest_version_timestamp}")
-            return latest_version_timestamp
 
         def save_model(self, state_dict: Dict[str, torch.Tensor], filename: str) -> None:
             """Save a model's state dictionary to a file."""
