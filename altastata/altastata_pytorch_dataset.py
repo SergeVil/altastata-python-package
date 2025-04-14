@@ -123,16 +123,23 @@ class AltaStataPyTorch:
                 with open(local_path, 'wb') as f:
                     f.write(data)
 
-        def _read_file(self, path: str) -> bytes:
-            """Read bytes from a file using either AltaStataFunctions or local file operations."""
-            if self.outer.altastata_functions is not None:
-                # Use AltaStataFunctions to read file from the cloud
-                print(f"Reading from cloud file: {path}")
+        def get_latest_version_timestamp(self, path: str) -> int:
+            """Get the latest version timestamp for a file path.
+            
+            Args:
+                path (str): The file path
                 
-                # Get the latest version time using list_cloud_files_versions
-                try:
-                    # For file paths, we need to use just the path
-                    # Pass False for includingSubdirectories since we're looking for a specific file
+            Returns:
+                int: The latest version timestamp
+            """
+
+            try:
+                if '✹' in path:
+                    # Extract version from path
+                    _, version_part = path.split('✹', 1)
+                    return int(version_part.split('_')[-1])
+                else:
+                    # Get versions from cloud
                     versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(path, True, None, None)
 
                     # Convert iterator to list of versions
@@ -140,28 +147,31 @@ class AltaStataPyTorch:
                     for java_array in versions_iterator:
                         for element in java_array:
                             versions.append(str(element))
-                    
+
                     if not versions:
                         raise FileNotFoundError(f"No versions found for file: {path}")
-                    
+
                     # Get the latest version (last in the list)
                     latest_version = versions[-1]
+                    return int(latest_version)
 
-                    # Split on '✹' first to get the version part
-                    _, version_part = latest_version.split('✹', 1)
+            except Exception as e:
+                print(f"Error getting file versions: {e}. Using current time.")
+                # Fallback to current time if we can't get versions
+                latest_version_timestamp = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
+                print(f"Using current time: {latest_version_timestamp}")
 
-                    # Then split on '_' and take the last part
-                    latest_version_timestamp = int(version_part.split('_')[-1])
+                return latest_version_timestamp
 
-                    print(f"Using latest version time: {latest_version_timestamp}")
-                except Exception as e:
-                    print(f"Error getting file versions: {e}. Using current time.")
-                    # Fallback to current time if we can't get versions
-                    latest_version_timestamp = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
-                    print(f"Using current time: {latest_version_timestamp}")
+        def _read_file(self, path: str) -> bytes:
+            """Read bytes from a file using either AltaStataFunctions or local file operations."""
+            if self.outer.altastata_functions is not None:
+                # Use AltaStataFunctions to read file from the cloud
+                print(f"Reading from cloud file: {path}")
+
+                # Get the latest version time
+                latest_version_timestamp = self.get_latest_version_timestamp(path)
                 
-                # Create a temporary file for memory mapping
-                temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
                 try:
                     # Get the file size using the latest version
                     try:
@@ -176,6 +186,9 @@ class AltaStataPyTorch:
                         print(f"Error getting file size: {e}. Using default size.")
                         file_size = 50 * 1024 * 1024  # 50MB default
                     
+                    # Create a temporary file for memory mapping
+                    temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
+
                     # Read the file using memory mapping with the latest version
                     data = self.outer.altastata_functions.get_buffer_via_mapped_file(
                         temp_file,
