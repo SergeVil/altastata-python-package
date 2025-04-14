@@ -7,6 +7,7 @@ import torchvision.transforms as transforms
 from altastata import AltaStataPyTorch
 from altastata_config import altastata_functions
 import numpy as np
+from pathlib import Path
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
@@ -155,9 +156,14 @@ def main():
         transform=val_transform
     )
     
+    # Print all available files
     print("\nAll file paths in dataset:")
     for path in train_dataset.file_paths:
-        print(path.name)
+        if isinstance(path, Path):
+            print(f"  {path.name}")
+        else:
+            # For cloud storage, print the full path
+            print(f"  {path}")
     print()
     
     # Create data indices for training and validation splits

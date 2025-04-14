@@ -6,6 +6,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from altastata import AltaStataPyTorch
 from altastata_config import altastata_functions
+import os
+from pathlib import Path
+import io
 
 # Create a global AltaStataPyTorch instance
 altastata = AltaStataPyTorch(altastata_functions)
@@ -109,10 +112,14 @@ def main():
         transform=transform
     )
     
-    # Print all available files
+    # Print available files
     print("\nAvailable files in dataset:")
     for path in test_dataset.file_paths:
-        print(path.name)
+        if isinstance(path, Path):
+            print(f"  {path.name}")
+        else:
+            # For cloud storage, print the full path
+            print(f"  {path}")
     print()
     
     # Test on specific images
@@ -126,7 +133,14 @@ def main():
     for idx in test_indices:
         # Get data and label from dataset
         image_tensor, true_label = test_dataset[idx]
-        original_image = Image.open(test_dataset.file_paths[idx]).convert('RGB')
+        
+        # Get the original image
+        if isinstance(test_dataset.file_paths[idx], Path):
+            original_image = Image.open(test_dataset.file_paths[idx]).convert('RGB')
+        else:
+            # For cloud storage, use _read_file
+            image_bytes = test_dataset._read_file(test_dataset.file_paths[idx])
+            original_image = Image.open(io.BytesIO(image_bytes)).convert('RGB')
         
         # Make prediction
         with torch.no_grad():
@@ -141,7 +155,12 @@ def main():
         confidences.append(confidence)
         
         # Print results
-        print(f"\nImage: {test_dataset.file_paths[idx].name}")
+        file_path = test_dataset.file_paths[idx]
+        if isinstance(file_path, Path):
+            print(f"\nImage: {file_path.name}")
+        else:
+            # For cloud storage, get the base filename
+            print(f"\nImage: {os.path.basename(file_path.split('✹')[0])}")
         print(f"True Label: {'Circle' if true_label == 1 else 'Rectangle'}")
         print(f"Predicted: {'Circle' if predicted_class == 1 else 'Rectangle'}")
         print(f"Confidence: {confidence:.2f}%")
