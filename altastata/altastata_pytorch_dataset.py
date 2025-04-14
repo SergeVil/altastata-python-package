@@ -180,25 +180,40 @@ class AltaStataPyTorch:
                         print(f"Error getting file size: {e}. Using default size.")
                         file_size = 50 * 1024 * 1024  # 50MB default
 
-                    # Create a temporary file for memory mapping
-                    temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-
                     # Read the file using memory mapping with the latest version
-                    data = self.outer.altastata_functions.get_buffer_via_mapped_file(
-                        temp_file,
-                        path,
-                        latest_version_timestamp,  # Use latest version timestamp
-                        0,     # start_position
-                        4,     # how_many_chunks_in_parallel
-                        file_size
-                    )
-                    
-                    print(f"Read {len(data)} bytes from cloud")
-                    return data
-                finally:
-                    # Clean up the temporary file if it exists
-                    if os.path.exists(temp_file):
-                        os.remove(temp_file)
+                    temp_file = None  # Initialize temp_file
+                    try:
+                        if file_size < 8 * 1024 * 1024:  # 8MB
+                            # For small files, use get_buffer directly
+                            data = self.outer.altastata_functions.get_buffer(
+                                path,
+                                latest_version_timestamp,  # Use latest version timestamp
+                                0,     # start_position
+                                4,     # how_many_chunks_in_parallel
+                                file_size
+                            )
+                        else:
+                            # For larger files, use memory mapping
+                            # Create a temporary file for memory mapping
+                            temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
+
+                            data = self.outer.altastata_functions.get_buffer_via_mapped_file(
+                                temp_file,
+                                path,
+                                latest_version_timestamp,  # Use latest version timestamp
+                                0,     # start_position
+                                4,     # how_many_chunks_in_parallel
+                                file_size
+                            )
+                        
+                        print(f"Read {len(data)} bytes from cloud")
+                        return data
+                    finally:
+                        # Clean up the temporary file if it exists
+                        if temp_file and os.path.exists(temp_file):
+                            os.remove(temp_file)
+                except Exception as e:
+                    raise RuntimeError(f"Error reading cloud file {path}: {e}") from e
             else:
                 # Fall back to local file operations
                 local_path = str(self.root_dir / path)
