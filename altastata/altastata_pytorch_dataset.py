@@ -6,6 +6,7 @@ import numpy as np
 import torchvision.transforms.functional as F
 import io
 import os
+import json
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
 import tempfile
@@ -132,34 +133,44 @@ class AltaStataPyTorch:
                 try:
                     # For file paths, we need to use just the path
                     # Pass False for includingSubdirectories since we're looking for a specific file
-                    versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(path, False, None, None)
-                    
+                    versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(path, True, None, None)
+
                     # Convert iterator to list of versions
                     versions = []
                     for java_array in versions_iterator:
                         for element in java_array:
-                            versions.append(int(str(element)))
+                            versions.append(str(element))
                     
                     if not versions:
                         raise FileNotFoundError(f"No versions found for file: {path}")
                     
                     # Get the latest version (last in the list)
                     latest_version = versions[-1]
-                    print(f"Using latest version time: {latest_version}")
+
+                    # Split on '✹' first to get the version part
+                    _, version_part = latest_version.split('✹', 1)
+
+                    # Then split on '_' and take the last part
+                    latest_version_timestamp = int(version_part.split('_')[-1])
+
+                    print(f"Using latest version time: {latest_version_timestamp}")
                 except Exception as e:
                     print(f"Error getting file versions: {e}. Using current time.")
                     # Fallback to current time if we can't get versions
-                    latest_version = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
-                    print(f"Using current time: {latest_version}")
+                    latest_version_timestamp = self.outer.altastata_functions.gateway.jvm.java.lang.System.currentTimeMillis()
+                    print(f"Using current time: {latest_version_timestamp}")
                 
                 # Create a temporary file for memory mapping
                 temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
                 try:
                     # Get the file size using the latest version
                     try:
-                        file_size = self.outer.altastata_functions.get_file_attribute(path, latest_version, "size")
-                        if file_size is None:
-                            file_size = 50 * 1024 * 1024  # 50MB default
+                        file_size_json = self.outer.altastata_functions.get_file_attribute(path, latest_version_timestamp, "size")
+
+                        # Access the file size
+                        result = json.loads(file_size_json)
+                        file_size = int(result['DataSizeAttribute']['fileSize'])
+
                         print(f"File size: {file_size} bytes")
                     except Exception as e:
                         print(f"Error getting file size: {e}. Using default size.")
@@ -169,7 +180,7 @@ class AltaStataPyTorch:
                     data = self.outer.altastata_functions.get_buffer_via_mapped_file(
                         temp_file,
                         path,
-                        latest_version,  # Use latest version time
+                        latest_version_timestamp,  # Use latest version timestamp
                         0,     # start_position
                         4,     # how_many_chunks_in_parallel
                         file_size
