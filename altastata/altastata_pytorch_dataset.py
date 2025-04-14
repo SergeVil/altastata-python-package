@@ -10,6 +10,7 @@ import json
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
 import tempfile
+import fnmatch
 
 class AltaStataPyTorch:
     """
@@ -54,15 +55,43 @@ class AltaStataPyTorch:
                 require_files (bool): Whether to require files matching the pattern (default: True)
             """
             self.outer = outer_instance
-            self.root_dir = Path(root_dir).expanduser().resolve()
+            if self.outer.altastata_functions is not None:
+                self.root_dir = root_dir
+
+                versions_iterator = self.outer.altastata_functions.list_cloud_files_versions(root_dir, False, None, None)
+
+                # Convert iterator to list of versions
+                all_files = []
+                for java_array in versions_iterator:
+                    for element in java_array:
+                        all_files.append(str(element))
+
+                if not all_files:
+                    raise FileNotFoundError(f"No versions found for file: {root_dir}")
+                else:
+                    print('all_files:')
+                    for file in all_files:
+                        print(f'  {file}')
+            else:
+                self.root_dir = Path(root_dir).expanduser().resolve()
+
+                # Get all files first
+                all_files = sorted(list(self.root_dir.iterdir()))
+                print('all_files:')
+                for file in all_files:
+                    print(f'  {file}')
+
             self.transform = transform
-            
-            # Get all files first
-            all_files = sorted(list(self.root_dir.iterdir()))
-            
+
             # Filter by pattern if provided
             if file_pattern is not None:
-                self.file_paths = [f for f in all_files if f.match(file_pattern)]
+                if self.outer.altastata_functions is not None:
+                    # For cloud storage, use fnmatch for pattern matching
+                    # Remove version suffix before matching
+                    self.file_paths = [f for f in all_files if fnmatch.fnmatch(f.split('✹')[0], file_pattern)]
+                else:
+                    # For local storage, all_files are Path objects
+                    self.file_paths = [f for f in all_files if f.match(file_pattern)]
             else:
                 self.file_paths = all_files
             
@@ -83,29 +112,35 @@ class AltaStataPyTorch:
             file_path = self.file_paths[idx]
             label = self.labels[idx]
             
-            # Read file content once and create BytesIO object
-            with open(file_path, 'rb') as f:
-                file_content = io.BytesIO(f.read())
+            # Read file content using _read_file method
+            file_content = self._read_file(file_path)
+            
+            # Get file extension for type checking
+            if isinstance(file_path, Path):
+                file_ext = file_path.suffix.lower()
+            else:
+                # For cloud storage, file_path is a string
+                file_ext = os.path.splitext(file_path.split('✹')[0])[1].lower()
             
             # Load different file types based on extension
-            if file_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+            if file_ext in ['.jpg', '.jpeg', '.png']:
                 # Convert bytes to PIL Image
-                data = Image.open(file_content).convert('RGB')
+                data = Image.open(io.BytesIO(file_content)).convert('RGB')
                 # Apply transform if provided, otherwise just convert to tensor
                 if self.transform:
                     data = self.transform(data)
                 else:
                     data = F.pil_to_tensor(data).float() / 255.0
-            elif file_path.suffix.lower() == '.csv':
+            elif file_ext == '.csv':
                 # Convert bytes to numpy array and then to tensor
-                data = np.genfromtxt(file_content, delimiter=',')
+                data = np.genfromtxt(io.BytesIO(file_content), delimiter=',')
                 data = torch.FloatTensor(data)
-            elif file_path.suffix.lower() == '.npy':
+            elif file_ext == '.npy':
                 # Convert bytes to numpy array and then to tensor
-                data = np.load(file_content)
+                data = np.load(io.BytesIO(file_content))
                 data = torch.FloatTensor(data)
             else:
-                raise ValueError(f"Unsupported file type: {file_path.suffix}")
+                raise ValueError(f"Unsupported file type: {file_ext}")
             
             return data, label
 
@@ -131,8 +166,6 @@ class AltaStataPyTorch:
 
                 latest_version_timestamp = self.get_latest_version_timestamp(path)
 
-                # Create a temporary file for memory mapping
-                temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
                 try:
                     # Get the file size using the latest version
                     try:
@@ -146,6 +179,9 @@ class AltaStataPyTorch:
                     except Exception as e:
                         print(f"Error getting file size: {e}. Using default size.")
                         file_size = 50 * 1024 * 1024  # 50MB default
+
+                    # Create a temporary file for memory mapping
+                    temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
 
                     # Read the file using memory mapping with the latest version
                     data = self.outer.altastata_functions.get_buffer_via_mapped_file(
