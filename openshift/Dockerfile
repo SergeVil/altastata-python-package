@@ -29,10 +29,12 @@ RUN echo "Installing softwares and packages" && \
 RUN mkdir -p /opt/app-root/src/altastata-package
 COPY --chown=1001:0 setup.py README.md /opt/app-root/src/altastata-package/
 COPY --chown=1001:0 altastata /opt/app-root/src/altastata-package/altastata/
+# Copy PyTorch examples
+COPY --chown=1001:0 pytorch-example /opt/app-root/src/pytorch-example/
 
 # Set proper permissions for package installation
-RUN chown -R 1001:0 /opt/app-root/src/altastata-package && \
-    chmod -R g+rwX /opt/app-root/src/altastata-package
+RUN chown -R 1001:0 /opt/app-root/src/altastata-package /opt/app-root/src/pytorch-example && \
+    chmod -R g+rwX /opt/app-root/src/altastata-package /opt/app-root/src/pytorch-example
 
 # Switch to non-root user for remaining operations
 USER 1001
