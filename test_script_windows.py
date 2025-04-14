@@ -1,7 +1,8 @@
 from altastata import AltaStataFunctions
+import time
 
-altastata_functions = AltaStataFunctions('/Users/serge/.altastata/accounts/alice2.pqc')
-altastata_functions.set_password("222");
+altastata_functions = AltaStataFunctions.from_account_dir('/Users/serge/.altastata/accounts/alice2.pqc')
+altastata_functions.set_password("123");
 
 # Store
 result = altastata_functions.store(['/Users/serge/Desktop/desktop.ini', 

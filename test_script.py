@@ -1,8 +1,30 @@
 from altastata import AltaStataFunctions
 import time
 
-altastata_functions = AltaStataFunctions('/Users/sergevilvovsky/.altastata/accounts/amazon.pqc.alice786')
+altastata_functions = AltaStataFunctions.from_account_dir('/Users/sergevilvovsky/.altastata/accounts/amazon.pqc.alice786')
 altastata_functions.set_password("123");
+
+# Test create_file and append_buffer_to_file
+print("\nTesting create_file and append_buffer_to_file:")
+
+# Create an empty file
+result = altastata_functions.create_file('StoreTest/empty_file.txt')
+print('create empty file: ' + str(result.getOperationStateValue()) + " " + result.getCloudFileCreateTime())
+file_create_time_id = int(result.getCloudFileCreateTime())
+
+# Create a file with initial content
+initial_content = b"Initial content\n"
+result = altastata_functions.create_file('StoreTest/initial_content.txt', initial_content)
+print('create file with content: ' + str(result.getOperationStateValue()) + " " + result.getCloudFileCreateTime())
+initial_file_time_id = int(result.getCloudFileCreateTime())
+
+# Append content to the empty file
+append_content = b"Appended content\n"
+altastata_functions.append_buffer_to_file('StoreTest/empty_file.txt', append_content, file_create_time_id)
+
+# Verify the content by reading it back
+buffer = altastata_functions.get_buffer('StoreTest/empty_file.txt', file_create_time_id, 0, 4, 100)
+print("Appended file content: " + buffer.decode('utf-8'))
 
 # Store
 result = altastata_functions.store(['/Users/sergevilvovsky/Desktop/serge.png',
