@@ -42,6 +42,10 @@ class AltaStataPyTorchDataset(Dataset):
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
+        self.file_content_cache = {}  # Cache for small files
+        self.cache_size_limit = 1024 * 1024 * 1024  # 1GB limit
+        self.current_cache_size = 0
+        self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
 
         altastata_functions = get_altastata_functions(account_id)
 
@@ -136,9 +140,15 @@ class AltaStataPyTorchDataset(Dataset):
 
     def _write_file(self, path: str, data: bytes) -> None:
         """Write bytes to a file using either AltaStataFunctions or local file operations."""
-        
+
+        # Remove from cache if present
+        if path in self.file_content_cache:
+            self.current_cache_size -= len(self.file_content_cache[path])
+            del self.file_content_cache[path]
+            print(f"Worker {os.getpid()} - Removed {path} from cache")
+
         altastata_functions = get_altastata_functions(self.account_id)
-        
+
         if altastata_functions is not None:
             # Use AltaStataFunctions to create file in the cloud
             print(f"Writing to cloud file: {path}")
@@ -154,6 +164,11 @@ class AltaStataPyTorchDataset(Dataset):
 
     def _read_file(self, path: str) -> bytes:
         """Read bytes from a file using either AltaStataFunctions or local file operations."""
+        
+        # Check if file is in cache
+        if path in self.file_content_cache:
+            print(f"Worker {os.getpid()} - Reading from cache: {path}")
+            return self.file_content_cache[path]
         
         altastata_functions = get_altastata_functions(self.account_id)
         worker_pid = os.getpid()
@@ -197,7 +212,7 @@ class AltaStataPyTorchDataset(Dataset):
             # Read the file using memory mapping with the latest version
             temp_file = None  # Initialize temp_file
             try:
-                if file_size <= 16 * 1024 * 1024:  # 16MB
+                if file_size <= self.max_file_size_for_cache:
                     # For small files, use get_buffer directly
                     print(f"Worker {worker_pid} - Reading small file {path} directly")
                     data = altastata_functions.get_buffer(
@@ -210,6 +225,14 @@ class AltaStataPyTorchDataset(Dataset):
                     # Update file_size with actual size
                     file_size = len(data)
                     #print(f"Worker {worker_pid} - Determined file size from actual read: {file_size} bytes")
+                    
+                    # Cache the file if it's small enough and we have space
+                    if self.current_cache_size + file_size <= self.cache_size_limit:
+                        self.file_content_cache[path] = data
+                        self.current_cache_size += file_size
+                        print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
+                    else:
+                        print(f"Worker {worker_pid} - Not enough space in cache for {path}")
                 else:
                     # For larger files, use memory mapping
                     # Create a temporary file for memory mapping
