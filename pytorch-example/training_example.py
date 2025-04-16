@@ -4,17 +4,14 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
 import torchvision.transforms as transforms
-from altastata import AltaStataPyTorch
-from altastata_config import altastata_functions
+from altastata import AltaStataPyTorchDataset
+import altastata_config
 import numpy as np
 from pathlib import Path
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
-
-# Create a global AltaStataPyTorch instance
-altastata = AltaStataPyTorch(altastata_functions)
 
 class SimpleCNN(nn.Module):
     def __init__(self):
@@ -144,13 +141,15 @@ def main():
     ])
     
     # Create datasets using AltaStataPyTorch
-    train_dataset = altastata.create_dataset(
+    train_dataset = AltaStataPyTorchDataset(
+        "bob123_rsa",
         root_dir="data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=train_transform
     )
     
-    val_dataset = altastata.create_dataset(
+    val_dataset = AltaStataPyTorchDataset(
+        "bob123_rsa",
         root_dir="data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=val_transform
