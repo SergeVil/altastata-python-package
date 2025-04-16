@@ -35,6 +35,23 @@ python training_example.py
 python inference_example.py
 ```
 
+## Features
+
+### File Content Cache
+The dataset includes an intelligent file content cache that:
+- Automatically caches files up to 16MB in size
+- Maintains a total cache size limit of 1GB
+- Removes files from cache when they are modified
+- Provides detailed logging of cache operations
+- Improves performance for frequently accessed files
+
+### Multi-Process Support
+The dataset is designed to work efficiently with PyTorch's DataLoader:
+- Supports multiple worker processes
+- Properly handles file access across processes
+- Includes process-specific logging
+- Maintains cache consistency across processes
+
 ## Example Descriptions
 
 ### Basic Dataset Usage
@@ -86,6 +103,7 @@ The package includes a training example that demonstrates:
 - Binary classification (circles vs rectangles)
 - Data augmentation during training
 - Early stopping and model checkpointing
+- Efficient multi-process data loading
 
 ### Inference Example
 The inference example shows how to:
@@ -94,6 +112,7 @@ The inference example shows how to:
 - Make predictions
 - Display results with confidence scores
 - Visualize predictions
+- Use the file content cache for faster inference
 
 ## Project Structure
 ```

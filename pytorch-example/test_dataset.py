@@ -1,11 +1,8 @@
 import torch
 from torch.utils.data import DataLoader
-import torchvision.transforms as transforms
-from altastata import AltaStataPyTorch
-from altastata_config import altastata_functions
-
-# Global AltaStataPyTorch instance
-altastata = AltaStataPyTorch(altastata_functions)
+from torchvision import transforms
+from altastata import AltaStataPyTorchDataset
+from altastata_config import register_altastata_functions
 
 def test_dataset_with_transforms(root_dir, pattern, expected_shape):
     """Test dataset with transforms and print results."""
@@ -18,7 +15,8 @@ def test_dataset_with_transforms(root_dir, pattern, expected_shape):
         transforms.Resize((224, 224))
     ])
     
-    dataset = altastata.create_dataset(
+    dataset = AltaStataPyTorchDataset(
+        "bob123_rsa",
         root_dir=root_dir,
         file_pattern=pattern,
         transform=transform
@@ -26,7 +24,7 @@ def test_dataset_with_transforms(root_dir, pattern, expected_shape):
     
     print(f"Number of files found: {len(dataset)}")
     
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=2, num_workers=0, shuffle=True)
     batch_data, batch_labels = next(iter(dataloader))
     
     print(f"Data shape: {batch_data.shape}")
