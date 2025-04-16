@@ -1,4 +1,5 @@
 from altastata import AltaStataFunctions
+from altastata.altastata_pytorch_dataset import register_altastata_functions
 
 # Configuration parameters
 user_properties = """#My Properties
@@ -36,3 +37,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 # Create an instance of AltaStataFunctions
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 altastata_functions.set_password("123")
+
+# register the altastata functions
+register_altastata_functions(altastata_functions, "bob123_rsa")

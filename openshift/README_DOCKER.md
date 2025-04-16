@@ -60,6 +60,12 @@ docker run --platform linux/amd64 \
 
 # Access Jupyter Lab at http://127.0.0.1:8888/lab
 
+docker exec -it altastata-jupyter /bin/bash
+
+cd /opt/app-root/src/pytorch-example
+python training_example.py
+python inference_example.py
+
 # In your Python code, use the container path:
 from altastata import AltaStataFunctions
 
