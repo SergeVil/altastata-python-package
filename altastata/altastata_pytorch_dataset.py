@@ -156,10 +156,11 @@ class AltaStataPyTorchDataset(Dataset):
         """Read bytes from a file using either AltaStataFunctions or local file operations."""
         
         altastata_functions = get_altastata_functions(self.account_id)
+        worker_pid = os.getpid()
         
         if altastata_functions is not None:
             # Use AltaStataFunctions to read file from the cloud
-            print(f"Reading from cloud file: {path}")
+            print(f"Worker {worker_pid} - Reading from cloud file: {path}")
 
             # Check if path has version suffix pattern
             if '✹' in path:
@@ -169,22 +170,22 @@ class AltaStataPyTorchDataset(Dataset):
                 # Then split on '_' and take the last part
                 version_timestamp = int(version_part.split('_')[-1])
 
-                #print(f"Using latest version time: {version_timestamp}")
+                #print(f"Worker {worker_pid} - Using latest version time: {version_timestamp}")
             else:
                 version_timestamp = None
 
-            #print(f"Getting file size for path: {path}, version: {version_timestamp}")
+            #print(f"Worker {worker_pid} - Getting file size for path: {path}, version: {version_timestamp}")
 
             # Get specific size attribute
             file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-            #print(f"File size JSON: {file_size_json}")
+            #print(f"Worker {worker_pid} - File size JSON: {file_size_json}")
 
             # Access the file size
             result = json.loads(file_size_json)
             file_size = int(result['DataSizeAttribute']['fileSize'])
             file_path = result['filePath']
 
-            #print(f"File size from attribute: {file_size} bytes for file_path: {file_path}")
+            #print(f"Worker {worker_pid} - File size from attribute: {file_size} bytes for file_path: {file_path}")
 
             if version_timestamp is None:
                 # Split on '✹' first to get the version part
@@ -196,8 +197,9 @@ class AltaStataPyTorchDataset(Dataset):
             # Read the file using memory mapping with the latest version
             temp_file = None  # Initialize temp_file
             try:
-                if file_size < 8 * 1024 * 1024:  # 8MB
+                if file_size <= 16 * 1024 * 1024:  # 16MB
                     # For small files, use get_buffer directly
+                    print(f"Worker {worker_pid} - Reading small file {path} directly")
                     data = altastata_functions.get_buffer(
                         path,
                         version_timestamp,  # Use appropriate version time
@@ -207,11 +209,13 @@ class AltaStataPyTorchDataset(Dataset):
                     )
                     # Update file_size with actual size
                     file_size = len(data)
-                    #print(f"Determined file size from actual read: {file_size} bytes")
+                    #print(f"Worker {worker_pid} - Determined file size from actual read: {file_size} bytes")
                 else:
                     # For larger files, use memory mapping
                     # Create a temporary file for memory mapping
                     temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
+
+                    print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
 
                     data = altastata_functions.get_buffer_via_mapped_file(
                         temp_file,
@@ -222,7 +226,7 @@ class AltaStataPyTorchDataset(Dataset):
                         file_size
                     )
 
-                print(f"Successfully read {len(data)} bytes from cloud")
+                print(f"Worker {worker_pid} - Successfully read {len(data)} bytes from cloud")
                 return data
             finally:
                 # Clean up the temporary file if it exists
@@ -231,7 +235,7 @@ class AltaStataPyTorchDataset(Dataset):
         else:
             # Fall back to local file operations
             local_path = str(self.root_dir / path)
-            print(f"Reading from local file: {local_path}")
+            print(f"Worker {worker_pid} - Reading from local file: {local_path}")
             with open(local_path, 'rb') as f:
                 return f.read()
 

@@ -24,7 +24,7 @@ def test_dataset_with_transforms(root_dir, pattern, expected_shape):
     
     print(f"Number of files found: {len(dataset)}")
     
-    dataloader = DataLoader(dataset, batch_size=2, shuffle=True)
+    dataloader = DataLoader(dataset, batch_size=2, num_workers=0, shuffle=True)
     batch_data, batch_labels = next(iter(dataloader))
     
     print(f"Data shape: {batch_data.shape}")
