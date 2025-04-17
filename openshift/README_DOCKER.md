@@ -47,6 +47,9 @@ altastata-python-package/
 # Build the image
 docker build -t altastata:jupyter-datascience-py311_latest -f openshift/Dockerfile .
 
+# Save as image
+docker save altastata:jupyter-datascience-py311_latest | gzip > altastata-jupyter-ds-py311.tar.gz
+
 # Kill the existing one
 docker rm -f altastata-jupyter
 
