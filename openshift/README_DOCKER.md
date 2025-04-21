@@ -43,14 +43,13 @@ altastata-python-package/
 ## Quick Start
 
 ```bash
-
 # Build the image
-docker build -t altastata:jupyter-datascience-py311_latest -f openshift/Dockerfile .
+docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile .
 
 # Save as image
-docker save altastata:jupyter-datascience-py311_latest | gzip > altastata-jupyter-ds-py311.tar.gz
+docker save altastata/jupyter-datascience:latest | gzip > altastata-jupyter-ds.tar.gz
 
-# Kill the existing one
+# Kill the existing container if it exists
 docker rm -f altastata-jupyter
 
 # Run the container with .altastata volume mount
@@ -59,17 +58,30 @@ docker run --platform linux/amd64 \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  altastata:jupyter-datascience-py311_latest
+  altastata/jupyter-datascience:latest
 
 # Access Jupyter Lab at http://127.0.0.1:8888/lab
 
+# Access container shell
 docker exec -it altastata-jupyter /bin/bash
 
+# Run examples
 cd /opt/app-root/src/pytorch-example
 python training_example.py
 python inference_example.py
+```
 
-# In your Python code, use the container path:
+## Image Size Optimization
+
+The image size has been optimized by:
+1. Using `java-17-openjdk-headless` instead of the full JDK
+2. Cleaning up package caches and temporary files
+3. Removing unnecessary debug output during build
+4. Using multi-stage builds where possible
+
+## Usage in Python Code
+
+```python
 from altastata import AltaStataFunctions
 
 # Initialize with account directory
@@ -112,9 +124,19 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 # Initialize with credentials
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 
+# Set password
 altastata_functions.set_password("123")
 
-# Store
-result = altastata_functions.store(['/opt/app-root/src/Desktop/serge.png',
-                                    '/opt/app-root/src/Desktop/meeting_saved_chat.txt'],
-                                   '/opt/app-root/src/Desktop', 'StoreTest', True)
+# Store files
+result = altastata_functions.store([
+    '/opt/app-root/src/Desktop/serge.png',
+    '/opt/app-root/src/Desktop/meeting_saved_chat.txt'
+], '/opt/app-root/src/Desktop', 'StoreTest', True)
+```
+
+## Notes and Considerations
+
+- The image is built for linux/amd64 platform
+- Jupyter Lab is accessible on port 8888
+- Volume mounts are required for persistent storage
+- The container runs as a non-root user for security
