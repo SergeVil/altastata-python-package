@@ -16,12 +16,17 @@ RUN mkdir -p /opt/app-root/src/.jupyter && \
     chown -R 1001:0 /opt/app-root/src /home/jovyan && \
     chmod -R g+rwX /opt/app-root/src /home/jovyan
 
-# Copy requirements file
+# Copy requirements files
 COPY --chown=1001:0 openshift/requirements.txt ./
+COPY --chown=1001:0 openshift/pytorch-cpu.txt ./
 
-# Install dependencies
-RUN echo "Installing softwares and packages" && \
-    pip install --no-cache-dir -r requirements.txt && \
+# Install regular dependencies first
+RUN echo "Installing regular packages" && \
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r requirements.txt
+
+# Install PyTorch CPU-only versions
+RUN echo "Installing PyTorch CPU packages" && \
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu && \
     mkdir -p /opt/app-root/lib64/python3.11/site-packages/parso/python && \
     touch /opt/app-root/lib64/python3.11/site-packages/parso/python/grammar311.txt
 
