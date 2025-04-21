@@ -65,4 +65,9 @@ ENV JUPYTER_ENABLE_LAB=yes
 ENV JUPYTER_TOKEN=""
 ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
 
+# Set the image label
+LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
+LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
+LABEL org.opencontainers.image.version="latest"
+
 CMD ["start-notebook.sh"]
