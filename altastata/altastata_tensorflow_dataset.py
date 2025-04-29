@@ -110,6 +110,68 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         """Returns the list of input datasets."""
         return []
 
+    def _read_from_altastata(self, altastata_functions, path, version_timestamp, max_file_size_for_cache, worker_pid=None, should_cache=False):
+        """Read file content from AltaStata.
+        
+        Args:
+            altastata_functions: AltaStataFunctions instance
+            path: File path
+            version_timestamp: Version timestamp
+            max_file_size_for_cache: Maximum file size for direct reading
+            worker_pid: Optional worker process ID for logging
+            should_cache: Whether to cache the file content
+            
+        Returns:
+            bytes: File content
+        """
+        # Get file size
+        file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
+        result = json.loads(file_size_json)
+        file_size = int(result['DataSizeAttribute']['fileSize'])
+        file_path = result['filePath']
+
+        if version_timestamp is None:
+            _, version_part = file_path.split('✹', 1)
+            version_timestamp = int(version_part.split('_')[-1])
+
+        # Read the file using memory mapping with the latest version
+        temp_file = None
+        try:
+            if file_size <= max_file_size_for_cache:
+                #if worker_pid:
+                #    print(f"Worker {worker_pid} - Reading small file {path} directly")
+                data = altastata_functions.get_buffer(
+                    path,
+                    version_timestamp,
+                    0,
+                    4,
+                    file_size
+                )
+                if should_cache and self.current_cache_size + file_size <= self.cache_size_limit:
+                    self.file_content_cache[path] = data
+                    self.current_cache_size += file_size
+                    if worker_pid:
+                        print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
+                elif should_cache and worker_pid:
+                    print(f"Worker {worker_pid} - Not enough space in cache for {path}")
+            else:
+                #if worker_pid:
+                #    print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
+                temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
+                data = altastata_functions.get_buffer_via_mapped_file(
+                    temp_file,
+                    path,
+                    version_timestamp,
+                    0,
+                    4,
+                    file_size
+                )
+
+            return data
+        finally:
+            if temp_file and os.path.exists(temp_file):
+                os.remove(temp_file)
+
     def _load_and_preprocess(self, file_path, label):
         """Load and preprocess a single sample."""
         def _read_file_py(path):
@@ -122,8 +184,8 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             
             if altastata_functions is not None:
                 # Use AltaStataFunctions to read file from the cloud
-                # Reduced verbosity
-                
+                #print(f"Worker {worker_pid} - Reading from cloud file: {path}")
+
                 # Check if path has version suffix pattern
                 if '✹' in path:
                     _, version_part = path.split('✹', 1)
@@ -131,47 +193,18 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
                 else:
                     version_timestamp = None
 
-                # Get file size
-                file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-                result = json.loads(file_size_json)
-                file_size = int(result['DataSizeAttribute']['fileSize'])
-                file_path = result['filePath']
-
-                if version_timestamp is None:
-                    _, version_part = file_path.split('✹', 1)
-                    version_timestamp = int(version_part.split('_')[-1])
-
-                # Read the file using memory mapping with the latest version
-                temp_file = None
-                try:
-                    if file_size <= self.max_file_size_for_cache:
-                        # For small files, use get_buffer directly
-                        data = altastata_functions.get_buffer(
-                            path,
-                            version_timestamp,
-                            0,
-                            4,
-                            file_size
-                        )
-                    else:
-                        # For larger files, use memory mapping
-                        temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-                        data = altastata_functions.get_buffer_via_mapped_file(
-                            temp_file,
-                            path,
-                            version_timestamp,
-                            0,
-                            4,
-                            file_size
-                        )
-                    return data
-                finally:
-                    # Clean up the temporary file if it exists
-                    if temp_file and os.path.exists(temp_file):
-                        os.remove(temp_file)
+                return self._read_from_altastata(
+                    altastata_functions, 
+                    path, 
+                    version_timestamp, 
+                    self.max_file_size_for_cache, 
+                    worker_pid,
+                    should_cache=False
+                )
             else:
                 # Fall back to local file operations
                 local_path = os.path.join(self.root_dir, path)
+                #print(f"Worker {worker_pid} - Reading from local file: {local_path}")
                 with open(local_path, 'rb') as f:
                     return f.read()
 
@@ -298,7 +331,6 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         worker_pid = os.getpid()
         
         if altastata_functions is not None:
-            # Use AltaStataFunctions to read file from the cloud
             print(f"Worker {worker_pid} - Reading from cloud file: {path}")
 
             # Check if path has version suffix pattern
@@ -308,59 +340,14 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             else:
                 version_timestamp = None
 
-            # Get file size
-            file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-            result = json.loads(file_size_json)
-            file_size = int(result['DataSizeAttribute']['fileSize'])
-            file_path = result['filePath']
-
-            if version_timestamp is None:
-                _, version_part = file_path.split('✹', 1)
-                version_timestamp = int(version_part.split('_')[-1])
-
-            # Read the file using memory mapping with the latest version
-            temp_file = None
-            try:
-                if file_size <= self.max_file_size_for_cache:
-                    # For small files, use get_buffer directly
-                    print(f"Worker {worker_pid} - Reading small file {path} directly")
-                    data = altastata_functions.get_buffer(
-                        path,
-                        version_timestamp,
-                        0,
-                        4,
-                        file_size
-                    )
-                    file_size = len(data)
-                    
-                    # Cache the file if it's small enough and we have space
-                    if self.current_cache_size + file_size <= self.cache_size_limit:
-                        self.file_content_cache[path] = data
-                        self.current_cache_size += file_size
-                        print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
-                    else:
-                        print(f"Worker {worker_pid} - Not enough space in cache for {path}")
-                else:
-                    # For larger files, use memory mapping
-                    temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-
-                    print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
-
-                    data = altastata_functions.get_buffer_via_mapped_file(
-                        temp_file,
-                        path,
-                        version_timestamp,
-                        0,
-                        4,
-                        file_size
-                    )
-
-                print(f"Worker {worker_pid} - Successfully read {len(data)} bytes from cloud")
-                return data
-            finally:
-                # Clean up the temporary file if it exists
-                if temp_file and os.path.exists(temp_file):
-                    os.remove(temp_file)
+            return self._read_from_altastata(
+                altastata_functions, 
+                path, 
+                version_timestamp, 
+                self.max_file_size_for_cache, 
+                worker_pid,
+                should_cache=True
+            )
         else:
             # Fall back to local file operations
             local_path = os.path.join(self.root_dir, path)
