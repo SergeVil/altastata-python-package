@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
+FROM quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
 
 USER root
 
@@ -13,6 +13,8 @@ ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 RUN mkdir -p /opt/app-root/src/.jupyter && \
     mkdir -p /opt/app-root/src/.local/share/jupyter/metadata/runtimes && \
     mkdir -p /home/jovyan/.jupyter && \
+    mkdir -p /opt/app-root/lib64/python3.11/site-packages/parso/python && \
+    touch /opt/app-root/lib64/python3.11/site-packages/parso/python/grammar311.txt && \
     chown -R 1001:0 /opt/app-root/src /home/jovyan && \
     chmod -R g+rwX /opt/app-root/src /home/jovyan
 
@@ -26,9 +28,7 @@ RUN echo "Installing regular packages" && \
 
 # Install PyTorch CPU-only versions
 RUN echo "Installing PyTorch CPU packages" && \
-    pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu && \
-    mkdir -p /opt/app-root/lib64/python3.11/site-packages/parso/python && \
-    touch /opt/app-root/lib64/python3.11/site-packages/parso/python/grammar311.txt
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu
 
 # Create package directory and copy files
 RUN mkdir -p /opt/app-root/src/altastata-package
