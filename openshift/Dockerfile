@@ -1,4 +1,4 @@
-FROM quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
+FROM --platform=linux/amd64 quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
 
 USER root
 
