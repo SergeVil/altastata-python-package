@@ -31,7 +31,7 @@ pip install -e .
 python test_script.py
 
 # build docker
-docker build -t ghcr.io/sergevil/altastata/jupyter-datascience:2024a_latest -f openshift/Dockerfile .
+docker buildx build --platform linux/amd64,linux/arm64 --push -t ghcr.io/sergevil/altastata/jupyter-datascience:2024a_latest -f openshift/Dockerfile .
 
 # push to the registry if needed
 docker push ghcr.io/sergevil/altastata/jupyter-datascience:2024a_latest
