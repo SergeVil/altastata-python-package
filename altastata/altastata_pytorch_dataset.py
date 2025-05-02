@@ -12,15 +12,15 @@ from altastata.altastata_functions import AltaStataFunctions
 import tempfile
 import fnmatch
 
-# Global hashmap to store altastata function instances by ID
-_altastata_account_registry = {}
+# Global hashmap to store altastata function instances by ID for PyTorch
+_altastata_pytorch_account_registry = {}
 
-def register_altastata_functions(altastata_functions, account_id):
-    _altastata_account_registry[account_id] = altastata_functions
+def register_altastata_functions_for_pytorch(altastata_functions, account_id):
+    _altastata_pytorch_account_registry[account_id] = altastata_functions
 
-def get_altastata_functions(account_id: str) -> AltaStataFunctions:
+def _get_altastata_functions(account_id: str) -> AltaStataFunctions:
     """Get AltaStataFunctions instance for the given account ID."""
-    functions = _altastata_account_registry.get(account_id)
+    functions = _altastata_pytorch_account_registry.get(account_id)
     if functions is None:
         print(f"WARNING: No AltaStataFunctions found for account {account_id}")
     return functions
@@ -47,7 +47,7 @@ class AltaStataPyTorchDataset(Dataset):
         self.current_cache_size = 0
         self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
 
-        altastata_functions = get_altastata_functions(account_id)
+        altastata_functions = _get_altastata_functions(account_id)
 
         if altastata_functions is not None:
             self.root_dir = root_dir
@@ -147,7 +147,7 @@ class AltaStataPyTorchDataset(Dataset):
             del self.file_content_cache[path]
             print(f"Worker {os.getpid()} - Removed {path} from cache")
 
-        altastata_functions = get_altastata_functions(self.account_id)
+        altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
             # Use AltaStataFunctions to create file in the cloud
@@ -170,7 +170,7 @@ class AltaStataPyTorchDataset(Dataset):
             print(f"Worker {os.getpid()} - Reading from cache: {path}")
             return self.file_content_cache[path]
         
-        altastata_functions = get_altastata_functions(self.account_id)
+        altastata_functions = _get_altastata_functions(self.account_id)
         worker_pid = os.getpid()
         
         if altastata_functions is not None:

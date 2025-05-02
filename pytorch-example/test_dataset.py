@@ -2,7 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from altastata import AltaStataPyTorchDataset
-from altastata_config import register_altastata_functions
+import altastata_config
 
 def test_dataset_with_transforms(root_dir, pattern, expected_shape):
     """Test dataset with transforms and print results."""
