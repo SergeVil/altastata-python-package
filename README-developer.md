@@ -63,6 +63,8 @@ twine check dist/*
 # 6. Upload to PyPI Production
 twine upload dist/*
 
+# 7. The altastata project: https://pypi.org/project/altastata/
+
 # Note: You'll need to have a PyPI account and API token
 # To create an API token:
 # 1. Go to https://pypi.org/manage/account/token/
@@ -74,4 +76,5 @@ twine upload dist/*
 # password = pypi-your-token-here
 
 # For large files (like JARs), you may need to request a file size limit increase from PyPI
+# https://docs.pypi.org/project-management/storage-limits/#requesting-a-file-size-limit-increase
 # https://github.com/pypi/support/issues/6225
