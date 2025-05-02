@@ -74,8 +74,4 @@ twine upload dist/*
 # password = pypi-your-token-here
 
 # For large files (like JARs), you may need to request a file size limit increase from PyPI
-# Contact PyPI support at support@pypi.org with:
-# - Your project name
-# - Current file sizes
-# - Reason for the increase
-# - Expected future growth
+# https://github.com/pypi/support/issues/6225
