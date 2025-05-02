@@ -49,6 +49,10 @@ python test_script.py
 
 ### Building the Image
 ```bash
+
+# build test
+docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile .
+
 # Build multi-architecture image
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
