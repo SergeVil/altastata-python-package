@@ -10,16 +10,16 @@ from altastata.altastata_functions import AltaStataFunctions
 import tempfile
 import fnmatch
 
-# Global hashmap to store altastata function instances by ID
-_altastata_account_registry = {}
+# Global hashmap to store altastata function instances by ID for TensorFlow
+_altastata_tensorflow_account_registry = {}
 _warned_accounts = set()  # Track which accounts we've warned about
 
-def register_altastata_functions(altastata_functions, account_id):
-    _altastata_account_registry[account_id] = altastata_functions
+def register_altastata_functions_for_tensorflow(altastata_functions, account_id):
+    _altastata_tensorflow_account_registry[account_id] = altastata_functions
 
-def get_altastata_functions(account_id: str) -> AltaStataFunctions:
+def _get_altastata_functions(account_id: str) -> AltaStataFunctions:
     """Get AltaStataFunctions instance for the given account ID."""
-    functions = _altastata_account_registry.get(account_id)
+    functions = _altastata_tensorflow_account_registry.get(account_id)
     if functions is None and account_id not in _warned_accounts:
         print(f"WARNING: No AltaStataFunctions found for account {account_id}")
         _warned_accounts.add(account_id)
@@ -48,7 +48,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
         self.preprocess_fn = preprocess_fn
 
-        altastata_functions = get_altastata_functions(account_id)
+        altastata_functions = _get_altastata_functions(account_id)
 
         if altastata_functions is not None:
             self.root_dir = root_dir
@@ -179,7 +179,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             if tf.is_tensor(path):
                 path = path.numpy().decode('utf-8')
             
-            altastata_functions = get_altastata_functions(self.account_id)
+            altastata_functions = _get_altastata_functions(self.account_id)
             worker_pid = os.getpid()
             
             if altastata_functions is not None:
@@ -302,7 +302,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             del self.file_content_cache[path]
             print(f"Worker {os.getpid()} - Removed {path} from cache")
 
-        altastata_functions = get_altastata_functions(self.account_id)
+        altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
             # Use AltaStataFunctions to create file in the cloud
@@ -327,7 +327,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             print(f"Worker {os.getpid()} - Reading from cache: {path}")
             return self.file_content_cache[path]
         
-        altastata_functions = get_altastata_functions(self.account_id)
+        altastata_functions = _get_altastata_functions(self.account_id)
         worker_pid = os.getpid()
         
         if altastata_functions is not None:
