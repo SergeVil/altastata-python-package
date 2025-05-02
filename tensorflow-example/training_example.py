@@ -10,20 +10,6 @@ import keras
 tf.random.set_seed(42)
 np.random.seed(42)
 
-def get_file_extension(path):
-    """Extract the file extension from a path, handling AltaStata paths."""
-    # If the path has a version suffix (✹), extract just the file part
-    if '✹' in str(path):
-        # Extract the file part before the version marker
-        file_part = str(path).split('✹')[0]
-        # Get the extension
-        _, ext = os.path.splitext(file_part)
-        return ext.lower()
-    else:
-        # Standard path handling
-        _, ext = os.path.splitext(str(path))
-        return ext.lower()
-
 @keras.saving.register_keras_serializable(package="CustomLayers")
 class EdgeDetectionLayer(tf.keras.layers.Layer):
     """Custom layer for edge detection using Sobel filters."""
