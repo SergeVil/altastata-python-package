@@ -1,5 +1,5 @@
-from altastata import AltaStataFunctions
-from altastata.altastata_tensorflow_dataset import register_altastata_functions
+from altastata.altastata_functions import AltaStataFunctions
+from altastata.altastata_tensorflow_dataset import register_altastata_functions_for_tensorflow
 
 # Configuration parameters
 user_properties = """#My Properties
@@ -38,5 +38,5 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 altastata_functions.set_password("123")
 
-# register the altastata functions
-register_altastata_functions(altastata_functions, "bob123_rsa") 
+# register the altastata functions with TensorFlow-specific registry
+register_altastata_functions_for_tensorflow(altastata_functions, "bob123_rsa")
