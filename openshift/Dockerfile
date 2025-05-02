@@ -9,14 +9,12 @@ RUN dnf install -y java-17-openjdk-devel && \
 # Set JAVA_HOME
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 
-# Create all necessary directories with proper permissions
-RUN mkdir -p /opt/app-root/src/.jupyter && \
-    mkdir -p /opt/app-root/src/.local/share/jupyter/metadata/runtimes && \
-    mkdir -p /home/jovyan/.jupyter && \
-    mkdir -p /opt/app-root/lib64/python3.11/site-packages/parso/python && \
-    touch /opt/app-root/lib64/python3.11/site-packages/parso/python/grammar311.txt && \
-    chown -R 1001:0 /opt/app-root/src /home/jovyan && \
-    chmod -R g+rwX /opt/app-root/src /home/jovyan
+# Create Jupyter configuration directory and set permissions
+RUN mkdir -p /home/jovyan/.jupyter && \
+    chown -R 1001:0 /home/jovyan/.jupyter && \
+    chmod -R g+rwX /home/jovyan/.jupyter && \
+    chown -R 1001:0 /opt/app-root/src && \
+    chmod -R g+rwX /opt/app-root/src
 
 # Copy requirements files
 COPY --chown=1001:0 openshift/requirements.txt ./
@@ -31,36 +29,40 @@ RUN echo "Installing PyTorch CPU packages" && \
     pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu
 
 # Create package directory and copy files
-RUN mkdir -p /opt/app-root/src/altastata-package
-COPY --chown=1001:0 setup.py README.md /opt/app-root/src/altastata-package/
-COPY --chown=1001:0 altastata /opt/app-root/src/altastata-package/altastata/
-# Copy PyTorch examples
-COPY --chown=1001:0 pytorch-example /opt/app-root/src/pytorch-example/
+RUN mkdir -p /opt/app-root/lib64/python3.11/site-packages/altastata-package
+COPY --chown=1001:0 setup.py README.md /opt/app-root/lib64/python3.11/site-packages/altastata-package/
+COPY --chown=1001:0 altastata /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata/
+COPY --chown=1001:0 pytorch-example /opt/app-root/lib64/python3.11/site-packages/altastata-package/pytorch-example/
 
-# Set proper permissions for package installation
-RUN chown -R 1001:0 /opt/app-root/src/altastata-package /opt/app-root/src/pytorch-example && \
-    chmod -R g+rwX /opt/app-root/src/altastata-package /opt/app-root/src/pytorch-example
+# Set proper permissions
+RUN chown -R 1001:0 /opt/app-root/lib64/python3.11/site-packages/altastata-package && \
+    chmod -R g+rwX /opt/app-root/lib64/python3.11/site-packages/altastata-package
 
 # Switch to non-root user for remaining operations
 USER 1001
 
-WORKDIR /opt/app-root/src/altastata-package
+WORKDIR /opt/app-root/lib64/python3.11/site-packages/altastata-package
 
 # Install the package in development mode and verify installation
 RUN pip install -e . && \
     echo "Directory structure:" && \
-    ls -la /opt/app-root/src/altastata-package && \
+    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package && \
     echo "\nPackage directory:" && \
-    ls -la /opt/app-root/src/altastata-package/altastata && \
+    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata && \
     echo "\nPython path:" && \
     python -c "import sys; print('\n'.join(sys.path))" && \
     echo "\nTrying to import:" && \
     python -c "import altastata; print('Module location:', altastata.__file__)" && \
     python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')"
 
-# Configure Jupyter
+# Configure Jupyter and create symbolic links
 WORKDIR /home/jovyan
-RUN echo '{"ServerApp": {"token": "", "allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json
+USER root
+RUN echo '{"ServerApp": {"token": "", "allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
+    ln -s /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata /home/jovyan/altastata && \
+    chown -R 1001:0 /home/jovyan/altastata && \
+    ln -s /opt/app-root/lib64/python3.11/site-packages/altastata-package/pytorch-example /opt/app-root/src/pytorch-example
+USER 1001
 
 # Expose Jupyter port
 EXPOSE 8888
