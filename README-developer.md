@@ -12,7 +12,8 @@
 2. Build and copy the AltaStata Hadoop JAR:
    ```bash
    # Go to altastata-hadoop directory
-   gradle clean build shadowJar -PexcludeBouncyCastle=true copyDeps
+   # gradle clean build shadowJar -PexcludeBouncyCastle=true copyDeps
+   gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true -PnoGCP=true copyDeps
    
    # Copy the built JARs
    cp ../mycloud/altastata-hadoop/build/libs/altastata-hadoop-all.jar altastata/lib/
@@ -40,6 +41,9 @@
 ```bash
 # Install the package in development mode
 pip install -e .
+
+# Install from pypi.org
+pip install altastata
 
 # Run tests
 python test_script.py
