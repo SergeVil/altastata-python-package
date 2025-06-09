@@ -372,7 +372,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
                  config=json.dumps(config).encode('utf-8'),
                  **{f'weight_{i}': w for i, w in enumerate(weights)})
         
-        # Save to AltaStata
+        # Save to AltaStata using the working _write_file method
         buffer.seek(0)
         model_data = buffer.read()
         print(f"Saving model data length: {len(model_data)} bytes")
@@ -396,8 +396,9 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         Returns:
             The loaded TensorFlow model
         """
-        # Read model data from AltaStata storage
+        # Use the working _read_file method directly (we know this works)
         model_data = self._read_file(filename)
+        print(f"Model data loaded: {len(model_data)} bytes")
         
         # Load from bytes
         buffer = io.BytesIO(model_data)
@@ -407,8 +408,14 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         config = json.loads(data['config'].tobytes().decode('utf-8'))
         weights = [data[f'weight_{i}'] for i in range(len(data.files) - 1)]  # -1 for config
         
-        # Reconstruct model
-        model = tf.keras.Model.from_config(config)
+        # Reconstruct model - handle Sequential models correctly
+        if config.get('name') == 'sequential':
+            # For Sequential models, use Sequential.from_config
+            model = tf.keras.Sequential.from_config(config)
+        else:
+            # For other models, use Model.from_config
+            model = tf.keras.Model.from_config(config)
+        
         model.set_weights(weights)
         
         return model 
