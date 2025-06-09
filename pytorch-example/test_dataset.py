@@ -42,21 +42,21 @@ def main():
     
     # Test with numpy files
     test_dataset_with_transforms(
-        "data/numpy",
+        "pytorch_test/data/numpy",
         "*.npy",
         torch.Size([2, 10, 5])
     )
     
     # Test with images
     test_dataset_with_transforms(
-        "data/images",
+        "pytorch_test/data/images",
         "*.png",
         torch.Size([2, 3, 224, 224])
     )
     
     # Test with CSV files
     test_dataset_with_transforms(
-        "data/csv",
+        "pytorch_test/data/csv",
         "*.csv",
         torch.Size([2, 11, 5])
     )

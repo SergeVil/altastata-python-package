@@ -76,7 +76,7 @@ transform = transforms.Compose([
 
 # Create dataset using the global instance
 dataset = altastata.create_dataset(
-    root_dir="data/images",
+    root_dir="pytorch_test/data/images",
     file_pattern="*.jpg",  # or *.npy, *.csv
     transform=transform
 )

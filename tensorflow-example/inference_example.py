@@ -79,15 +79,22 @@ def main():
     # Create dataset for inference
     dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
     
-    # Load the trained model from AltaStata
-    model_path = 'data_tensorflow/models/best_model.keras'
-    print(f"Loading model from AltaStata: {model_path}")
-    model = dataset.load_model(model_path)
+    # Create a separate dataset instance for model loading with proper file pattern
+    model_dataset = AltaStataTensorFlowDataset(
+        "bob123_rsa",
+        root_dir="tensorflow_test/model",
+        file_pattern="*.keras",  # Only .keras files, excludes .provenance.txt
+        require_files=False
+    )
+    
+    # Load the trained model from the resolved file path
+    print(f"Loading model from AltaStata...")
+    model = model_dataset.load_model(model_dataset.file_paths[0])
     print("Model loaded successfully")
     
     # Print dataset summary

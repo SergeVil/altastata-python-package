@@ -120,7 +120,7 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         # Save using the dataset
-        train_dataset.save_model(best_model_state, 'models/best_model.pth')
+        train_dataset.save_model(best_model_state, 'pytorch_test/model/best_model.pth')
     
     print("\nTraining completed!")
 
@@ -143,14 +143,14 @@ def main():
     # Create datasets using AltaStataPyTorch
     train_dataset = AltaStataPyTorchDataset(
         "bob123_rsa",
-        root_dir="data/images",  # Fixed path to use correct location
+        root_dir="pytorch_test/data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=train_transform
     )
     
     val_dataset = AltaStataPyTorchDataset(
         "bob123_rsa",
-        root_dir="data/images",  # Fixed path to use correct location
+        root_dir="pytorch_test/data/images",  # Fixed path to use correct location
         file_pattern="*.png",  # Updated pattern to match files directly
         transform=val_transform
     )

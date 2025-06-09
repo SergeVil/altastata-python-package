@@ -52,7 +52,7 @@ def test_dataset_basic():
     # Create dataset
     dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account for testing
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
@@ -82,7 +82,7 @@ def test_dataset_preprocessing():
     # Create dataset with preprocessing
     dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account for testing
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
@@ -100,7 +100,7 @@ def test_dataset_batching():
     
     dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account for testing
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
