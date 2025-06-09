@@ -3,17 +3,20 @@ from altastata.altastata_tensorflow_dataset import register_altastata_functions_
 
 # Configuration parameters
 user_properties = """#My Properties
-#Sun Jan 05 12:10:23 EST 2025
-AWSSecretKey=vcJXbtg/YGApAUpY9sjsj1xvmpz9MUPTYMxY+hDn5zZ3Fmc1BuVS34zoTRDQJ7XAvu2Z0+piCEN3TA5OArj77FlL4doYDZx7YWXUopwUhMVyBvP+gT4buHc3hkf1FvHYElbUe3yX/57fnaYP1Nwg1zN9fupzEOGtCMjy39e9Xj4vvVgXo/+YW6ogG8uXi5JA9Fm2aG7hEWQstjwu5shcMT+Q6BR2SOtkAB8B9gYlCIt7ciJ4ikkAKqtfQ8TWkOsN
+#Sun Jun 01 19:41:40 EDT 2025
+AWSSecretKey=YKPTKMO3GnSr/aJqJpW9QPDtWVrazsnVMvsUNpyHG9usjuaLf4rVt4fmzDtb/8cEPslDxh2AJGYFQntEkr4mDeFXORUxw1XHxxNa/RctYyzxqLTsh7Gaxamm6Bxmy6zG1p+OM78Ykjr736jdx4F0yJJmy1HK19ZuZSmqnkLgsBgqU5l1nEFYsFm5vemQLjC431TfSCbGcVNU1uW/zkwL9U+9KM2rN6HWlmsxqA7t71jslI8Ahf5JWVp1dqvGqf8xgbr5Gw\=\=
 media-player=vlcj
 myuser=bob123
 accounttype=amazon-s3-secure
-AWSAccessKeyId=ZWnrkxX43me3l1YBCGX42RhdzXmhP4q4rEOcquLZJIFWCEA9+sVA+hnRYTFcJoJ5nn0luDmQJJkYaayvtAP1IG6/0h4d4sWb+1NQ/hVozOdQMezUSp+z2Wruv4WX6TQpmz12N7zqQALMDD6qi5hTiv2QLJY084ufcoMZzmK1E0uw3jTG6Pci03Zy8TFbhhbuag88Stc9thyoN44ou/d5/8Id0AruvE0EK2Q7Jg0AZZI\\=
+AWSAccessKeyId=oZP9Iam4mhj0N9uzwzoNT/7xzaj+cWWgIg1MIn5Sgr9zBBahnI04FfcDq2uiYIpVW28H5GKPUZPhnvxnfcvcYZvwAN3oeUnB96o5bg0ABAfizy5r4FbHwxQpFzX0sJTjub0Jv+tvgFR7H/+fO9F8XTfbn/e7WE3n5EKp5nTkyvzcfxU/pef3GN90ut1fMVRLVE47vVINpipto+b2dD0/DwO/SovRz14rvTHYbuIpUPI\=
 region=us-east-1
 kms-region=us-east-2
 metadata-encryption=RSA
-password-timeout-interval=9000000000
-acccontainer-prefix=altastata-myorgrsa444-"""
+acccontainer-prefix=altastata-myorgrsa444-
+logging.level.root=WARN
+logging.level.com.altastata=WARN
+logging.level.org.apache.http=ERROR
+logging.level.software.amazon=ERROR"""
 
 private_key = """-----BEGIN RSA PRIVATE KEY-----
 Proc-Type: 4,ENCRYPTED
@@ -33,6 +36,7 @@ rQgQBHP4l1NsSqDrEyplKG83ejloLaVG+hUY1MGv5tF7B1Ta7j8bwoMTmyVCtCrC
 P+a7ShdrBUsD2TDhilZhwZcWl0a+FfzR47+faJs/9pSTkyFFp3D4xgKAdME1lvcI
 wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 -----END RSA PRIVATE KEY-----"""
+
 
 # Create an instance of AltaStataFunctions
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)

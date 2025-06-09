@@ -374,7 +374,18 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         
         # Save to AltaStata
         buffer.seek(0)
-        self._write_file(filename, buffer.read())
+        model_data = buffer.read()
+        print(f"Saving model data length: {len(model_data)} bytes")
+        self._write_file(filename, model_data)
+        
+        # Create provenance file with list of all file paths
+        provenance_filename = filename + ".provenance.txt"
+        provenance_text = "\n".join(str(file_path) for file_path in self.file_paths)
+        provenance_data = provenance_text.encode('utf-8')
+        print(f"Saving provenance file: {provenance_filename} with {len(self.file_paths)} file paths")
+        
+        # Write provenance file using our own file I/O
+        self._write_file(provenance_filename, provenance_data)
 
     def load_model(self, filename: str) -> tf.keras.Model:
         """Load a TensorFlow model from AltaStata storage.

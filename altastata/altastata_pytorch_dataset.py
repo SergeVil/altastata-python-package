@@ -272,6 +272,15 @@ class AltaStataPyTorchDataset(Dataset):
 
         # Write using our own file I/O
         self._write_file(filename, data)
+        
+        # Create provenance file with list of all file paths
+        provenance_filename = filename + ".provenance.txt"
+        provenance_text = "\n".join(str(file_path) for file_path in self.file_paths)
+        provenance_data = provenance_text.encode('utf-8')
+        print(f"Saving provenance file: {provenance_filename} with {len(self.file_paths)} file paths")
+        
+        # Write provenance file using our own file I/O
+        self._write_file(provenance_filename, provenance_data)
 
     def load_model(self, filename: str) -> Dict[str, torch.Tensor]:
         """Load a model's state dictionary from a file."""
