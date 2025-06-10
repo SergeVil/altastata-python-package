@@ -66,16 +66,18 @@ The examples demonstrate how to use the dataset with various file types:
 from altastata import AltaStataTensorFlowDataset
 import tensorflow as tf
 
+
 # Create dataset with preprocessing
 def preprocess_image(image, label):
     image = tf.image.convert_image_dtype(image, tf.float32)
     image = tf.image.resize(image, [96, 96])
     return image, label
 
+
 # Create dataset using account ID
 dataset = AltaStataTensorFlowDataset(
     "bob123_rsa",  # Account ID for AltaStata
-    root_dir="data_tensorflow/images",
+    root_dir="tensorflow_test/data/images",
     file_pattern="*.png",
     preprocess_fn=preprocess_image
 )
