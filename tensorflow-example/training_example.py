@@ -4,152 +4,44 @@ import numpy as np
 from pathlib import Path
 from altastata import AltaStataTensorFlowDataset
 import altastata_config
-import keras
+
+# Enable mixed precision for faster training
+tf.keras.mixed_precision.set_global_policy('mixed_float16')
 
 # Set random seeds for reproducibility
 tf.random.set_seed(42)
 np.random.seed(42)
 
-@keras.saving.register_keras_serializable(package="CustomLayers")
-class EdgeDetectionLayer(tf.keras.layers.Layer):
-    """Custom layer for edge detection using Sobel filters."""
-    def __init__(self, **kwargs):
-        super(EdgeDetectionLayer, self).__init__(**kwargs)
-        # Initialize Sobel filters
-        self.sobel_x = tf.constant([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], dtype=tf.float32)
-        self.sobel_y = tf.constant([[-1, -2, -1], [0, 0, 0], [1, 2, 1]], dtype=tf.float32)
-        # Reshape for conv2d
-        self.sobel_x = tf.reshape(self.sobel_x, [3, 3, 1, 1])
-        self.sobel_y = tf.reshape(self.sobel_y, [3, 3, 1, 1])
-
-    def call(self, inputs):
-        # Split input into channels
-        channels = tf.split(inputs, 3, axis=-1)
-        edges = []
-        
-        for channel in channels:
-            # Apply Sobel filters
-            edge_x = tf.nn.conv2d(channel, self.sobel_x, strides=[1,1,1,1], padding='SAME')
-            edge_y = tf.nn.conv2d(channel, self.sobel_y, strides=[1,1,1,1], padding='SAME')
-            edge_mag = tf.sqrt(tf.square(edge_x) + tf.square(edge_y))
-            edges.append(edge_mag)
-        
-        edge_features = tf.concat(edges, axis=-1)
-        return tf.concat([inputs, edge_features], axis=-1)
-
-    def get_config(self):
-        config = super(EdgeDetectionLayer, self).get_config()
-        return config
-
 def create_model():
-    """Create a CNN model optimized for shape detection."""
+    """Create a simplified, ultra-fast CNN model for shape detection."""
     inputs = tf.keras.Input(shape=(96, 96, 3))
     
-    # Add edge detection features
-    x = EdgeDetectionLayer()(inputs)
-    
-    # First conv block
-    x = tf.keras.layers.Conv2D(32, (5, 5), 
-                              activation='relu', 
-                              padding='same',
-                              kernel_regularizer=tf.keras.regularizers.l2(0.01))(x)
-    x = tf.keras.layers.BatchNormalization()(x)
+    # Ultra-simplified architecture: just 2 conv layers
+    x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu', padding='same')(inputs)
     x = tf.keras.layers.MaxPooling2D((2, 2))(x)
     
-    # Second conv block
-    x = tf.keras.layers.Conv2D(64, (3, 3), 
-                              activation='relu',
-                              padding='same',
-                              kernel_regularizer=tf.keras.regularizers.l2(0.01))(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu', padding='same')(x)
+    x = tf.keras.layers.GlobalAveragePooling2D()(x)  # Replace dense layers with GAP
     
-    # Third conv block
-    x = tf.keras.layers.Conv2D(128, (3, 3), 
-                              activation='relu',
-                              padding='same',
-                              kernel_regularizer=tf.keras.regularizers.l2(0.01))(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    
-    # Dense layers
-    x = tf.keras.layers.Dense(128, 
-                             activation='relu',
-                             kernel_regularizer=tf.keras.regularizers.l2(0.01))(x)
-    x = tf.keras.layers.BatchNormalization()(x)
-    x = tf.keras.layers.Dropout(0.3)(x)
-    
-    # Final classification layer with temperature scaling
-    logits = tf.keras.layers.Dense(2)(x)
-    outputs = tf.keras.layers.Activation('softmax')(logits / 0.5)  # Temperature scaling
+    # Single output layer
+    outputs = tf.keras.layers.Dense(2, activation='softmax', dtype='float32')(x)  # Force float32 for output
     
     model = tf.keras.Model(inputs=inputs, outputs=outputs)
     return model
 
 def preprocess_image(image, label):
-    """Preprocess images for training."""
-    def _preprocess(img, lbl):
-        # Convert to float32 and normalize
-        img = tf.image.convert_image_dtype(img, tf.float32)
-        # Resize to 96x96
-        img = tf.image.resize(img, [96, 96])
-        # Convert label to int32
-        lbl = tf.cast(lbl, tf.int32)
-        return img, lbl
-    
-    # Wrap the preprocessing function
-    image, label = tf.py_function(
-        _preprocess,
-        [image, label],
-        [tf.float32, tf.int32]
-    )
-    
-    # Set shapes explicitly after preprocessing
-    image.set_shape([96, 96, 3])
-    label.set_shape([])
-    
+    """Ultra-simple preprocessing for speed."""
+    # Convert to float32 and normalize
+    image = tf.image.convert_image_dtype(image, tf.float32)
+    # Resize to 96x96
+    image = tf.image.resize(image, [96, 96])
+    # Convert label to int32
+    label = tf.cast(label, tf.int32)
     return image, label
 
 def augment_image(image, label):
-    """Apply enhanced data augmentation to images."""
-    def _augment(img, lbl):
-        # Random rotation
-        img = tf.image.rot90(img, k=tf.random.uniform(shape=[], minval=0, maxval=4, dtype=tf.int32))
-        
-        # Random flip
-        img = tf.image.random_flip_left_right(img)
-        img = tf.image.random_flip_up_down(img)
-        
-        # Random brightness, contrast and saturation
-        img = tf.image.random_brightness(img, max_delta=0.2)
-        img = tf.image.random_contrast(img, lower=0.8, upper=1.2)
-        img = tf.image.random_saturation(img, lower=0.8, upper=1.2)
-        
-        # Random zoom
-        scale = tf.random.uniform([], 0.8, 1.2)
-        shape = tf.cast(tf.shape(img)[:-1], tf.float32)
-        new_shape = tf.cast(shape * scale, tf.int32)
-        img = tf.image.resize(img, new_shape)
-        img = tf.image.resize_with_crop_or_pad(img, 96, 96)
-        
-        # Ensure values are in [0, 1]
-        img = tf.clip_by_value(img, 0.0, 1.0)
-        
-        # Ensure label stays as int32
-        lbl = tf.cast(lbl, tf.int32)
-        return img, lbl
-    
-    # Wrap the augmentation function
-    image, label = tf.py_function(
-        _augment,
-        [image, label],
-        [tf.float32, tf.int32]
-    )
-    
-    # Set shapes explicitly after augmentation
-    image.set_shape([96, 96, 3])
-    label.set_shape([])
-    
+    """Minimal augmentation for speed - just horizontal flip."""
+    image = tf.image.random_flip_left_right(image)
     return image, label
 
 class AltaStataModelCheckpoint(tf.keras.callbacks.Callback):
@@ -215,96 +107,76 @@ def main():
     split = int(np.floor(0.3 * dataset_size))
     train_indices, val_indices = indices[split:], indices[:split]
     
-    # Create training dataset with augmentation
+    # Create ultra-fast training pipeline
     train_ds = train_dataset.take(len(train_indices))
-    
-    # Debug: Print shapes before augmentation
-    for image, label in train_ds.take(1):
-        print("Shape before augmentation:", image.shape, label.shape)
-    
     train_ds = train_ds.map(augment_image, num_parallel_calls=tf.data.AUTOTUNE)
+    train_ds = train_ds.cache()  # Cache in memory for speed
+    train_ds = train_ds.batch(16).prefetch(tf.data.AUTOTUNE)  # Larger batch size
     
-    # Debug: Print shapes after augmentation
-    for image, label in train_ds.take(1):
-        print("Shape after augmentation:", image.shape, label.shape)
-    
-    train_ds = train_ds.batch(8).prefetch(tf.data.AUTOTUNE)
-    
-    # Debug: Print shapes after batching
-    for image, label in train_ds.take(1):
-        print("Shape after batching:", image.shape, label.shape)
-    
-    # Create validation dataset with explicit shape setting
+    # Create validation dataset
     val_ds = val_dataset.take(len(val_indices))
-    val_ds = val_ds.map(
-        lambda x, y: (
-            tf.ensure_shape(x, [96, 96, 3]),
-            tf.ensure_shape(y, [])
-        ),
-        num_parallel_calls=tf.data.AUTOTUNE
-    )
-    val_ds = val_ds.batch(8).prefetch(tf.data.AUTOTUNE)
+    val_ds = val_ds.cache()  # Cache validation data too
+    val_ds = val_ds.batch(16).prefetch(tf.data.AUTOTUNE)
     
-    # Debug: Print validation shapes
-    for image, label in val_ds.take(1):
-        print("Validation shape after batching:", image.shape, label.shape)
-    
-    # Create and compile model with focal loss
+    # Create ultra-simple model optimized for speed
     model = create_model()
     model.compile(
-        optimizer=tf.keras.optimizers.Adam(learning_rate=0.001),
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=False),
+        optimizer=tf.keras.optimizers.Adam(learning_rate=0.003),  # Higher learning rate for faster convergence
+        loss=tf.keras.losses.SparseCategoricalCrossentropy(),
         metrics=['accuracy']
     )
     
-    # Create callbacks
+    print(f"\nModel summary:")
+    model.summary()
+    
+    # Ultra-aggressive callbacks for fast training
     callbacks = [
         tf.keras.callbacks.EarlyStopping(
-            monitor='val_loss',
-            patience=10,
+            monitor='val_accuracy',
+            patience=3,  # Very aggressive early stopping
             restore_best_weights=True,
-            min_delta=0.001
+            min_delta=0.01,
+            mode='max'
         ),
         AltaStataModelCheckpoint(
             dataset=train_dataset,
             filepath='tensorflow_test/model/best_model.keras',
             monitor='val_loss',
             save_best_only=True
-        ),
-        tf.keras.callbacks.ReduceLROnPlateau(
-            monitor='val_loss',
-            factor=0.3,
-            patience=5,
-            min_lr=1e-6
         )
     ]
     
-    # Train the model with class weights
-    class_weights = {
-        0: 1.0,  # for rectangles
-        1: len(train_dataset.file_paths) / (2 * circle_count)  # adjust weight for circles
-    }
+    print("\n🚀 Starting ultra-fast training...")
+    start_time = tf.timestamp()
     
+    # Train with minimal epochs for speed
     history = model.fit(
         train_ds,
         validation_data=val_ds,
-        epochs=25,
+        epochs=15,  # Reduced epochs for speed
         callbacks=callbacks,
-        class_weight=class_weights
+        verbose=1
     )
     
-    print("\nTraining completed!")
+    end_time = tf.timestamp()
+    training_time = end_time - start_time
+    print(f"\n⚡ Ultra-fast training completed in {training_time:.1f} seconds!")
     
     # Print final metrics
     print("\nFinal Training Metrics:")
     for metric, value in history.history.items():
         print(f"{metric}: {value[-1]:.4f}")
     
-    # Save the final best model in the main models directory
+    # Save the final best model
     model_save_path = 'tensorflow_test/model/best_model.keras'
-    print(f"\nSaving final model to AltaStata: {model_save_path}")
+    print(f"\nSaving ultra-fast model to AltaStata: {model_save_path}")
     train_dataset.save_model(model, model_save_path)
-    print("Model saved successfully")
+    
+    # Model size info
+    print(f"\nModel info:")
+    print(f"Total parameters: {model.count_params():,}")
+    print("Model saved successfully - ready for ultra-fast inference! 🚀")
+    print(f"Provenance file saved: {model_save_path}.provenance.txt with {len(train_dataset.file_paths)} file paths")
 
 if __name__ == '__main__':
     main() 
