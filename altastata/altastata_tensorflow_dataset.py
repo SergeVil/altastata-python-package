@@ -408,13 +408,55 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         config = json.loads(data['config'].tobytes().decode('utf-8'))
         weights = [data[f'weight_{i}'] for i in range(len(data.files) - 1)]  # -1 for config
         
+        # Fix BatchNormalization axis compatibility issue
+        def fix_batch_norm_config(layer_config):
+            """Fix BatchNormalization axis parameter from list to int."""
+            if layer_config.get('class_name') == 'BatchNormalization':
+                axis = layer_config.get('config', {}).get('axis')
+                if isinstance(axis, list) and len(axis) == 1:
+                    layer_config['config']['axis'] = axis[0]
+            return layer_config
+        
+        # Recursively fix config
+        def fix_config_recursive(obj):
+            if isinstance(obj, dict):
+                # Fix this layer if it's BatchNormalization
+                obj = fix_batch_norm_config(obj)
+                # Recursively fix nested objects
+                for key, value in obj.items():
+                    obj[key] = fix_config_recursive(value)
+            elif isinstance(obj, list):
+                # Fix items in list
+                obj = [fix_config_recursive(item) for item in obj]
+            return obj
+        
+        # Apply fixes to the config
+        config = fix_config_recursive(config)
+        
         # Reconstruct model - handle Sequential models correctly
-        if config.get('name') == 'sequential':
-            # For Sequential models, use Sequential.from_config
-            model = tf.keras.Sequential.from_config(config)
-        else:
-            # For other models, use Model.from_config
-            model = tf.keras.Model.from_config(config)
+        try:
+            if config.get('name') == 'sequential':
+                # For Sequential models, use Sequential.from_config
+                model = tf.keras.Sequential.from_config(config)
+            else:
+                # For other models, use Model.from_config
+                model = tf.keras.Model.from_config(config)
+        except Exception as e:
+            print(f"Error loading with from_config: {e}")
+            # Fallback: Try to save to temporary file and load with tf.keras.models.load_model
+            import tempfile
+            with tempfile.NamedTemporaryFile(suffix='.keras', delete=False) as tmp_file:
+                tmp_file.write(model_data)
+                tmp_file_path = tmp_file.name
+            
+            try:
+                # Try loading as a standard Keras file
+                model = tf.keras.models.load_model(tmp_file_path)
+                os.unlink(tmp_file_path)  # Clean up
+                return model
+            except Exception as e2:
+                os.unlink(tmp_file_path)  # Clean up
+                raise Exception(f"Could not load model. Original error: {e}, Fallback error: {e2}")
         
         model.set_weights(weights)
         
