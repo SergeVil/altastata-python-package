@@ -8,6 +8,8 @@ from altastata import AltaStataPyTorchDataset
 import altastata_config
 import numpy as np
 from pathlib import Path
+import time
+from tqdm import tqdm
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
@@ -59,6 +61,9 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
     best_model_state = None
     patience_counter = 0
     
+    print("\n🚀 Starting PyTorch training...")
+    start_time = time.time()
+    
     for epoch in range(num_epochs):
         # Training phase
         model.train()
@@ -66,7 +71,11 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
         train_correct = 0
         train_total = 0
         
-        for images, labels in train_loader:
+        # Create progress bar for training
+        train_pbar = tqdm(train_loader, desc=f'Epoch {epoch+1}/{num_epochs} - Training', 
+                         leave=False, ascii=True)
+        
+        for images, labels in train_pbar:
             optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
@@ -77,6 +86,11 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
             _, predicted = torch.max(outputs.data, 1)
             train_total += labels.size(0)
             train_correct += (predicted == labels).sum().item()
+            
+            # Update progress bar with current metrics
+            current_loss = train_loss / (train_pbar.n + 1)
+            current_acc = 100 * train_correct / train_total if train_total > 0 else 0
+            train_pbar.set_postfix({'loss': f'{current_loss:.4f}', 'acc': f'{current_acc:.1f}%'})
         
         train_loss = train_loss / len(train_loader)
         train_accuracy = 100 * train_correct / train_total
@@ -88,7 +102,11 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
         val_total = 0
         
         with torch.no_grad():
-            for images, labels in val_loader:
+            # Create progress bar for validation
+            val_pbar = tqdm(val_loader, desc=f'Epoch {epoch+1}/{num_epochs} - Validation', 
+                           leave=False, ascii=True)
+            
+            for images, labels in val_pbar:
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 
@@ -96,31 +114,47 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
                 _, predicted = torch.max(outputs.data, 1)
                 val_total += labels.size(0)
                 val_correct += (predicted == labels).sum().item()
+                
+                # Update progress bar with current metrics
+                current_loss = val_loss / (val_pbar.n + 1)
+                current_acc = 100 * val_correct / val_total if val_total > 0 else 0
+                val_pbar.set_postfix({'loss': f'{current_loss:.4f}', 'acc': f'{current_acc:.1f}%'})
         
         val_loss = val_loss / len(val_loader)
         val_accuracy = 100 * val_correct / val_total
-        
-        print(f"\nEpoch {epoch + 1}:")
-        print(f"  Train - Loss: {train_loss:.4f}, Accuracy: {train_accuracy:.2f}%")
-        print(f"  Val   - Loss: {val_loss:.4f}, Accuracy: {val_accuracy:.2f}%")
         
         # Early stopping check
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             best_model_state = model.state_dict()
             patience_counter = 0
-            print("  Model saved!")
+            # Only print significant improvements (>10% better) or milestones
+            if best_val_loss == val_loss and (epoch + 1) % 25 == 0:  # Every 25 epochs
+                print(f"\nEpoch {epoch + 1}: Val Loss: {val_loss:.4f}, Val Acc: {val_accuracy:.1f}% ✓")
         else:
             patience_counter += 1
             if patience_counter >= patience:
-                print("\nEarly stopping triggered!")
+                print(f"\nEarly stopping at epoch {epoch + 1}. Best Val Loss: {best_val_loss:.4f}")
                 break
+    
+    end_time = time.time()
+    training_time = end_time - start_time
+    print(f"\n⚡ PyTorch training completed in {training_time:.1f} seconds!")
     
     # Load and save the best model
     if best_model_state is not None:
         model.load_state_dict(best_model_state)
         # Save using the dataset
-        train_dataset.save_model(best_model_state, 'pytorch_test/model/best_model.pth')
+        model_save_path = 'pytorch_test/model/best_model.pth'
+        print(f"\nSaving PyTorch model to AltaStata: {model_save_path}")
+        train_dataset.save_model(best_model_state, model_save_path)
+        
+        # Model size info
+        total_params = sum(p.numel() for p in model.parameters())
+        print(f"\nModel info:")
+        print(f"Total parameters: {total_params:,}")
+        print("Model saved successfully - ready for PyTorch inference! 🚀")
+        print(f"Provenance file saved: {model_save_path}.provenance.txt with {len(train_dataset.file_paths)} file paths")
     
     print("\nTraining completed!")
 
@@ -155,15 +189,13 @@ def main():
         transform=val_transform
     )
     
-    # Print all available files
-    print("\nAll file paths in dataset:")
-    for path in train_dataset.file_paths:
-        if isinstance(path, Path):
-            print(f"  {path.name}")
-        else:
-            # For cloud storage, print the full path
-            print(f"  {path}")
-    print()
+    # Print dataset summary
+    print("\nDataset Summary:")
+    print(f"Total files: {len(train_dataset)}")
+    circle_count = sum(1 for path in train_dataset.file_paths if 'circle' in str(path))
+    rectangle_count = sum(1 for path in train_dataset.file_paths if 'rectangle' in str(path))
+    print(f"Circle images: {circle_count}")
+    print(f"Rectangle images: {rectangle_count}\n")
     
     # Create data indices for training and validation splits
     dataset_size = len(train_dataset)
@@ -194,6 +226,12 @@ def main():
     model = SimpleCNN()
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.0001, weight_decay=1e-4)
+    
+    # Print model summary
+    total_params = sum(p.numel() for p in model.parameters())
+    print(f"Model summary:")
+    print(f"Total parameters: {total_params:,}")
+    print(f"Model architecture: SimpleCNN with 3 conv blocks + classifier")
     
     train_model(model, train_loader, val_loader, train_dataset, criterion, optimizer, num_epochs=100, patience=10)
 

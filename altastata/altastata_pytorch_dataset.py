@@ -167,7 +167,7 @@ class AltaStataPyTorchDataset(Dataset):
         
         # Check if file is in cache
         if path in self.file_content_cache:
-            print(f"Worker {os.getpid()} - Reading from cache: {path}")
+            #print(f"Worker {os.getpid()} - Reading from cache: {path}")
             return self.file_content_cache[path]
         
         altastata_functions = _get_altastata_functions(self.account_id)
@@ -175,7 +175,7 @@ class AltaStataPyTorchDataset(Dataset):
         
         if altastata_functions is not None:
             # Use AltaStataFunctions to read file from the cloud
-            print(f"Worker {worker_pid} - Reading from cloud file: {path}")
+            #print(f"Worker {worker_pid} - Reading from cloud file: {path}")
 
             # Check if path has version suffix pattern
             if '✹' in path:
@@ -214,7 +214,7 @@ class AltaStataPyTorchDataset(Dataset):
             try:
                 if file_size <= self.max_file_size_for_cache:
                     # For small files, use get_buffer directly
-                    print(f"Worker {worker_pid} - Reading small file {path} directly")
+                    #print(f"Worker {worker_pid} - Reading small file {path} directly")
                     data = altastata_functions.get_buffer(
                         path,
                         version_timestamp,  # Use appropriate version time
@@ -230,15 +230,16 @@ class AltaStataPyTorchDataset(Dataset):
                     if self.current_cache_size + file_size <= self.cache_size_limit:
                         self.file_content_cache[path] = data
                         self.current_cache_size += file_size
-                        print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
+                        #print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
                     else:
-                        print(f"Worker {worker_pid} - Not enough space in cache for {path}")
+                        #print(f"Worker {worker_pid} - Not enough space in cache for {path}")
+                        pass
                 else:
                     # For larger files, use memory mapping
                     # Create a temporary file for memory mapping
                     temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
 
-                    print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
+                    #print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
 
                     data = altastata_functions.get_buffer_via_mapped_file(
                         temp_file,
@@ -249,7 +250,7 @@ class AltaStataPyTorchDataset(Dataset):
                         file_size
                     )
 
-                print(f"Worker {worker_pid} - Successfully read {len(data)} bytes from cloud")
+                #print(f"Worker {worker_pid} - Successfully read {len(data)} bytes from cloud")
                 return data
             finally:
                 # Clean up the temporary file if it exists
@@ -258,7 +259,7 @@ class AltaStataPyTorchDataset(Dataset):
         else:
             # Fall back to local file operations
             local_path = str(self.root_dir / path)
-            print(f"Worker {worker_pid} - Reading from local file: {local_path}")
+            #print(f"Worker {worker_pid} - Reading from local file: {local_path}")
             with open(local_path, 'rb') as f:
                 return f.read()
 
