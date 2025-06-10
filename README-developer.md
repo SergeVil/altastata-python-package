@@ -44,11 +44,11 @@ pip install -e .
 
 # Install from pypi.org
 pip install altastata
+pip install altastata==0.1.3
 
 # Run tests
 python test_script.py
 ```
-
 ## Docker Deployment
 
 ### Building the Image
@@ -132,3 +132,4 @@ For large files (like JARs), you may need to request a file size limit increase:
 
 ### Project Links
 - PyPI Project: https://pypi.org/project/altastata/
+

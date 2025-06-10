@@ -66,7 +66,7 @@ def create_sample_numpy(output_dir, num_samples=100):
 
 def main():
     # Create output directories
-    base_dir = 'data'
+    base_dir = 'tensorflow_test/data'
     image_dir = os.path.join(base_dir, 'images')
     csv_dir = os.path.join(base_dir, 'csv')
     numpy_dir = os.path.join(base_dir, 'numpy')

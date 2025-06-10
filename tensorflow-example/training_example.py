@@ -187,7 +187,7 @@ def main():
     # Create training dataset
     train_dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
@@ -195,7 +195,7 @@ def main():
     # Create validation dataset
     val_dataset = AltaStataTensorFlowDataset(
         "bob123_rsa",  # Using AltaStata account
-        root_dir="data_tensorflow/images",
+        root_dir="tensorflow_test/data/images",
         file_pattern="*.png",
         preprocess_fn=preprocess_image
     )
@@ -267,7 +267,7 @@ def main():
         ),
         AltaStataModelCheckpoint(
             dataset=train_dataset,
-            filepath='data_tensorflow/models/best_model.keras',
+            filepath='tensorflow_test/model/best_model.keras',
             monitor='val_loss',
             save_best_only=True
         ),
@@ -301,7 +301,7 @@ def main():
         print(f"{metric}: {value[-1]:.4f}")
     
     # Save the final best model in the main models directory
-    model_save_path = 'data_tensorflow/models/best_model.keras'
+    model_save_path = 'tensorflow_test/model/best_model.keras'
     print(f"\nSaving final model to AltaStata: {model_save_path}")
     train_dataset.save_model(model, model_save_path)
     print("Model saved successfully")

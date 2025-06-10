@@ -65,15 +65,16 @@ class SimpleCNN(nn.Module):
 def load_model(model_path):
     """Load the trained model."""
     model = SimpleCNN()
-    # Load the model using the dataset
-    test_dataset = AltaStataPyTorchDataset(
+    # Create dataset with file pattern to filter only .pth files (excludes provenance files)
+    model_dataset = AltaStataPyTorchDataset(
         "bob123_rsa",
-        root_dir="data/images",  # Use root data directory
-        file_pattern="*.png",  # Updated pattern to match subdirectory
-        transform=None,  # No transform needed for model loading
-        require_files=False  # Don't require image files for model loading
+        root_dir="pytorch_test/model",
+        file_pattern="*.pth",  # Pattern matches all .pth files, excludes .provenance.txt
+        require_files=False
     )
-    model.load_state_dict(test_dataset.load_model('models/best_model.pth'))
+    
+    # Load using the resolved file path (pattern already filtered to .pth files)
+    model.load_state_dict(model_dataset.load_model(model_dataset.file_paths[0]))
     model.eval()
     return model
 
@@ -99,14 +100,14 @@ def main():
     ])
     
     # Load the trained model
-    model = load_model("data/models/best_model.pth")
+    model = load_model("pytorch_test/model/best_model.pth")
     print("Model loaded successfully!")
     print("=" * 50)
     
     # Create dataset for inference
     test_dataset = AltaStataPyTorchDataset(
         "bob123_rsa",
-        root_dir="data/images",  # Changed to use root data directory
+        root_dir="pytorch_test/data/images",  # Changed to use root data directory
         file_pattern="*.png",  # Updated pattern to match subdirectory
         transform=transform
     )
