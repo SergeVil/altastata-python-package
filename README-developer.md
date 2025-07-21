@@ -66,7 +66,7 @@ docker buildx build \
 ### Pushing to Registry
 ```bash
 # Push to GitHub Container Registry
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2024a_latest
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
 ```
 
 ### Running the Container
@@ -77,7 +77,7 @@ docker run \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2024a_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
 ```
 
 ## PyPI Package Management
