@@ -65,7 +65,8 @@ jar tf altastata/lib/py4j0.10.9.5.jar | grep GatewayServer
 wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar -O altastata/lib/py4j0.10.9.5.jar
 
 # Build AltaStata Hadoop JAR (external dependency)
-gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true -PnoGCP=true copyDeps
+# Note: -PnoGCP=true is no longer needed as the increased the size for altastata package
+gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true copyDeps
 ```
 
 ## Configuration Patterns
