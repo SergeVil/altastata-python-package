@@ -13,7 +13,8 @@
    ```bash
    # Go to altastata-hadoop directory
    # gradle clean build shadowJar -PexcludeBouncyCastle=true copyDeps
-   gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true -PnoGCP=true copyDeps
+   # Note: -PnoGCP=true is no longer needed as the increased the size for altastata package
+   gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true copyDeps
    
    # Copy the built JARs
    cp ../mycloud/altastata-hadoop/build/libs/altastata-hadoop-all.jar altastata/lib/
