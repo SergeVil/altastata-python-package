@@ -1,0 +1,85 @@
+# Build stage - AMD64 for OpenShift compatibility
+FROM --platform=linux/amd64 quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
+
+LABEL maintainer="Altastata Team"
+LABEL version="1.0.0"
+LABEL description="Altastata Jupyter DataScience (AMD64)"
+LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-python-package"
+
+USER root
+
+# Install Java 17
+RUN dnf install -y java-17-openjdk-devel && \
+    dnf clean all
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+
+# Create Jupyter configuration directory and set permissions
+RUN mkdir -p /home/jovyan/.jupyter && \
+    chown -R 1001:0 /home/jovyan/.jupyter && \
+    chmod -R g+rwX /home/jovyan/.jupyter && \
+    chown -R 1001:0 /opt/app-root/src && \
+    chmod -R g+rwX /opt/app-root/src
+
+# Copy requirements files
+COPY --chown=1001:0 openshift/requirements.txt ./
+COPY --chown=1001:0 openshift/pytorch-cpu.txt ./
+
+# Install regular dependencies first
+RUN echo "Installing regular packages" && \
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r requirements.txt
+
+# Install PyTorch CPU-only versions
+RUN echo "Installing PyTorch CPU packages" && \
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu
+
+# Create package directory and copy files
+RUN mkdir -p /opt/app-root/lib64/python3.11/site-packages/altastata-package
+COPY --chown=1001:0 setup.py README.md /opt/app-root/lib64/python3.11/site-packages/altastata-package/
+COPY --chown=1001:0 altastata /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata/
+COPY --chown=1001:0 pytorch-example /opt/app-root/lib64/python3.11/site-packages/altastata-package/pytorch-example/
+
+# Set proper permissions
+RUN chown -R 1001:0 /opt/app-root/lib64/python3.11/site-packages/altastata-package && \
+    chmod -R g+rwX /opt/app-root/lib64/python3.11/site-packages/altastata-package
+
+# Switch to non-root user for remaining operations
+USER 1001
+
+WORKDIR /opt/app-root/lib64/python3.11/site-packages/altastata-package
+
+# Install the package in development mode and verify installation
+RUN pip install -e . && \
+    echo "Directory structure:" && \
+    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package && \
+    echo "\nPackage directory:" && \
+    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata && \
+    echo "\nPython path:" && \
+    python -c "import sys; print('\n'.join(sys.path))" && \
+    echo "\nTrying to import:" && \
+    python -c "import altastata; print('Module location:', altastata.__file__)" && \
+    python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')"
+
+# Configure Jupyter and create symbolic links
+WORKDIR /home/jovyan
+USER root
+RUN echo '{"ServerApp": {"token": "", "allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
+    ln -s /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata /home/jovyan/altastata && \
+    chown -R 1001:0 /home/jovyan/altastata && \
+    ln -s /opt/app-root/lib64/python3.11/site-packages/altastata-package/pytorch-example /opt/app-root/src/pytorch-example
+USER 1001
+
+# Expose Jupyter port
+EXPOSE 8888
+
+# Set environment variables for Jupyter
+ENV JUPYTER_ENABLE_LAB=yes
+ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
+
+# Set the image label
+LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
+LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
+LABEL org.opencontainers.image.version="latest"
+
+CMD ["start-notebook.sh"]
