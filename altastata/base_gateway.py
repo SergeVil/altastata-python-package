@@ -48,6 +48,14 @@ class BaseGateway:
         java_command = [
             'java',
             '--add-opens', 'java.base/java.util=ALL-UNNAMED',
+            '-Xms1g',                    # Initial heap size
+            '-Xmx4g',                    # Max heap size
+            '-XX:+UseZGC',               # Use ZGC for very low pause times
+            '-XX:+UnlockExperimentalVMOptions',
+            '-XX:+UseStringDeduplication', # Reduce memory usage for strings
+            '-Xlog:gc*:file=gc.log:time,uptime:filecount=5,filesize=10M', # GC logging
+            '-XX:ThreadStackSize=256k',  # Reduce thread stack size
+            '-XX:+DisableExplicitGC',    # Prevent explicit GC calls
             '-cp', classpath,
             'py4j.GatewayServer'
         ]
