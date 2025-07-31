@@ -28,12 +28,16 @@ echo "Pushing jupyter-datascience-arm64 images..."
 docker push ghcr.io/sergevil/altastata/jupyter-datascience-arm64:latest
 docker push ghcr.io/sergevil/altastata/jupyter-datascience-arm64:2025a_latest
 
-# Create legacy tag by tagging the AMD64 image
+# Create legacy tags by tagging the AMD64 image
+echo "Creating legacy tag jupyter-datascience:latest linked to AMD64 image..."
+docker tag ghcr.io/sergevil/altastata/jupyter-datascience-amd64:latest ghcr.io/sergevil/altastata/jupyter-datascience:latest
+
 echo "Creating legacy tag jupyter-datascience:2025a_latest linked to AMD64 image..."
 docker tag ghcr.io/sergevil/altastata/jupyter-datascience-amd64:2025a_latest ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
 
-# Push the legacy tag
-echo "Pushing legacy tag to GHCR..."
+# Push the legacy tags
+echo "Pushing legacy tags to GHCR..."
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:latest
 docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
 
 echo ""
