@@ -1,4 +1,4 @@
-# AltaStata Python Package Developer Guide
+# AltaStata Python Package Developer Guide v0.1.10
 
 ## Prerequisites
 
@@ -48,6 +48,21 @@ pip install altastata
 
 # Run tests
 python test_script.py
+
+## Build and Upload
+
+Use the comprehensive build script for easy deployment:
+
+```bash
+# Complete build and upload process
+./build-and-upload.sh
+
+# Or run individual steps:
+python -m build                    # Build Python package
+twine upload dist/*               # Upload to PyPI
+./build-all-images.sh             # Build Docker images
+./push-to-ghcr.sh                # Push to GHCR
+```
 ```## Docker Deployment
 
 ### Building the Image
