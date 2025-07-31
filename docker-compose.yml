@@ -2,10 +2,10 @@ version: '3.8'
 
 services:
   altastata-jupyter:
-    image: altastata/jupyter-datascience-arm64:latest
+    image: altastata/jupyter-datascience:latest
     build:
       context: .
-      dockerfile: openshift/Dockerfile.arm64
+      dockerfile: openshift/Dockerfile.amd64
     container_name: altastata-jupyter
     ports:
       - "8888:8888"

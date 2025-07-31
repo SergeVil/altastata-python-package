@@ -68,21 +68,21 @@ twine upload dist/*               # Upload to PyPI
 ### Building the Image
 ```bash
 
-# build test
-docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile .
+# Build AMD64 image
+docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile.amd64 .
 
-# Build multi-architecture image
+# Build image (AMD64)
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --platform linux/amd64 \
   --push \
-  -t ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest \
-  -f openshift/Dockerfile .
+  -t ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest \
+  -f openshift/Dockerfile.amd64 .
 ```
 
 ### Pushing to Registry
 ```bash
 # Push to GitHub Container Registry
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 ```
 
 ### Running the Container
@@ -93,7 +93,7 @@ docker run \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2025a_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 ```
 
 ## PyPI Package Management
