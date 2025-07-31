@@ -1,6 +1,4 @@
-from altastata.altastata_tensorflow_dataset import register_altastata_functions_for_tensorflowfrom altastata.altastata_pytorch_dataset import register_altastata_functions_for_pytorch
-
-# Altastata Python Package
+# Altastata Python Package v0.1.10
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -14,13 +12,16 @@ pip install altastata
 
 - Seamless integration with PyTorch and TensorFlow
 - Advanced data processing capabilities
-- Java integration through Py4J
+- Java integration through Py4J with optimized memory management
 - Support for large-scale data operations
+- Improved garbage collection and memory optimization
 
 ## Quick Start
 
 ```python
 from altastata import AltaStataFunctions, AltaStataPyTorchDataset, AltaStataTensorFlowDataset
+from altastata.altastata_tensorflow_dataset import register_altastata_functions_for_tensorflow
+from altastata.altastata_pytorch_dataset import register_altastata_functions_for_pytorch
 
 # Configuration parameters
 user_properties = """#My Properties
@@ -45,11 +46,11 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 altastata_functions.set_password("my_password")
 
-# register the altastata functions for PyTorch or TensorFlow as a custom dataset
+# Register the altastata functions for PyTorch or TensorFlow as a custom dataset
 register_altastata_functions_for_pytorch(altastata_functions, "bob123_rsa")
 register_altastata_functions_for_tensorflow(altastata_functions, "bob123_rsa")
 
-# for PyTorch application use
+# For PyTorch application use
 torch_dataset = AltaStataPyTorchDataset(
     "bob123_rsa",
     root_dir=root_dir,
@@ -57,7 +58,7 @@ torch_dataset = AltaStataPyTorchDataset(
     transform=transform
 )
 
-# for tensorflow application use
+# For TensorFlow application use
 tensorflow_dataset = AltaStataTensorFlowDataset(
     "bob123_rsa",  # Using AltaStata account for testing
     root_dir=root_dir,
