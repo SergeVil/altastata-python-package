@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   altastata-jupyter:
-    image: ghcr.io/sergevil/altastata/jupyter-datascience:latest
+    image: ghcr.io/sergevil/altastata/jupyter-datascience-arm64:latest
     container_name: altastata-jupyter
     ports:
       - "8888:8888"
