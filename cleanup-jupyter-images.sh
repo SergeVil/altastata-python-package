@@ -32,4 +32,4 @@ docker images | grep jupyter-datascience || echo "No jupyter-datascience images 
 
 echo ""
 echo "🚀 You can now build fresh images with:"
-echo "./build-multiarch-local.sh"
+echo "./build-all-images.sh"
