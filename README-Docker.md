@@ -239,6 +239,19 @@ docker-compose -f docker-compose-ghcr.yml pull
 docker-compose -f docker-compose-ghcr.yml up -d
 ```
 
+### Making Packages Public
+
+After pushing images to GHCR, you may need to make them public for external access:
+
+1. **Go to the package page**: https://github.com/users/SergeVil/packages/container/package/altastata%2Fjupyter-datascience
+2. **Click "Package settings"** (gear icon)
+3. **Scroll to "Danger Zone"**
+4. **Click "Change visibility"**
+5. **Select "Public"**
+6. **Confirm the change**
+
+**Note**: Private packages require authentication to pull, while public packages can be pulled by anyone.
+
 ## Volume Management
 
 ### Volume Mounts
