@@ -191,8 +191,9 @@ class AltaStataPyTorchDataset(Dataset):
 
             #print(f"Worker {worker_pid} - Getting file size for path: {path}, version: {version_timestamp}")
 
-            # Get specific size attribute
-            file_size = altastata_functions.get_file_attribute(path, version_timestamp, "size")
+            # Get specific size attribute and convert to integer
+            file_size_str = altastata_functions.get_file_attribute(path, version_timestamp, "size")
+            file_size = int(file_size_str) if file_size_str else 0
             #print(f"Worker {worker_pid} - File size: {file_size}")
 
             # Read the file using memory mapping with the latest version

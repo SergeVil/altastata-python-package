@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.10
+# Altastata Python Package v0.1.14
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -15,6 +15,10 @@ pip install altastata
 - Java integration through Py4J with optimized memory management
 - Support for large-scale data operations
 - Improved garbage collection and memory optimization
+- Enhanced error handling for cloud operations
+- Optimized file reading with direct attribute access
+- Comprehensive AWS IAM permission management
+- Robust file operation status tracking
 
 ## Quick Start
 
@@ -66,5 +70,34 @@ tensorflow_dataset = AltaStataTensorFlowDataset(
     preprocess_fn=preprocess_fn
 )
 ```
+
+## Version Information
+
+**Current Version**: 0.1.14
+
+This version includes:
+- Enhanced error handling in `delete_files` operations
+- Simplified `_read_file` method for better performance
+- Updated AWS account configurations
+- Improved memory management and garbage collection
+- Comprehensive status tracking for cloud operations
+
+## Docker Support
+
+The package is also available as a Docker image:
+```bash
+# Pull from GitHub Container Registry
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025c_latest
+
+# Or use docker-compose
+docker-compose -f docker-compose-ghcr.yml up -d
+```
+
+## Recent Improvements
+
+- **Error Handling**: Enhanced `delete_files` method with detailed error reporting
+- **Performance**: Optimized file reading operations
+- **Compatibility**: Updated AWS IAM configurations for better permission management
+- **Documentation**: Consistent version numbering across all components
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
