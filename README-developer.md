@@ -1,4 +1,4 @@
-# AltaStata Python Package Developer Guide v0.1.10
+# AltaStata Python Package Developer Guide v0.1.14
 
 ## Prerequisites
 
