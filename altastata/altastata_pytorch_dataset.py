@@ -192,22 +192,8 @@ class AltaStataPyTorchDataset(Dataset):
             #print(f"Worker {worker_pid} - Getting file size for path: {path}, version: {version_timestamp}")
 
             # Get specific size attribute
-            file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-            #print(f"Worker {worker_pid} - File size JSON: {file_size_json}")
-
-            # Access the file size
-            result = json.loads(file_size_json)
-            file_size = int(result['DataSizeAttribute']['fileSize'])
-            file_path = result['filePath']
-
-            #print(f"Worker {worker_pid} - File size from attribute: {file_size} bytes for file_path: {file_path}")
-
-            if version_timestamp is None:
-                # Split on '✹' first to get the version part
-                _, version_part = file_path.split('✹', 1)
-
-                # Then split on '_' and take the last part
-                version_timestamp = int(version_part.split('_')[-1])
+            file_size = altastata_functions.get_file_attribute(path, version_timestamp, "size")
+            #print(f"Worker {worker_pid} - File size: {file_size}")
 
             # Read the file using memory mapping with the latest version
             temp_file = None  # Initialize temp_file

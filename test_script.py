@@ -1,7 +1,7 @@
 from altastata import AltaStataFunctions
 import time
 
-altastata_functions = AltaStataFunctions.from_account_dir('/Users/sergevilvovsky/.altastata/accounts/amazon.pqc.alice786')
+altastata_functions = AltaStataFunctions.from_account_dir('/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.alice222')
 altastata_functions.set_password("123");
 
 # Test create_file and append_buffer_to_file
@@ -36,7 +36,7 @@ print('store: ' + str(result[0].getOperationStateValue()) + " " + result[0].getC
 
 file_create_time_id = int(result[0].getCloudFileCreateTime())
 
-users = ["bob456", "catrina987"]
+users = ["bob123", "catrina777"]
 result = altastata_functions.share_files('StoreTest/meeting_saved_chat', True, None, None, users)
 print('share_files:' + str(result[0].getOperationStateValue()))
 
