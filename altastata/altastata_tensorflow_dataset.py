@@ -124,11 +124,10 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         Returns:
             bytes: File content
         """
-        # Get file size
-        file_size_json = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-        result = json.loads(file_size_json)
-        file_size = int(result['DataSizeAttribute']['fileSize'])
-        file_path = result['filePath']
+        # Get file size directly
+        file_size_str = altastata_functions.get_file_attribute(path, version_timestamp, "size")
+        file_size = int(file_size_str) if file_size_str else 0
+        file_path = path
 
         if version_timestamp is None:
             _, version_part = file_path.split('✹', 1)
