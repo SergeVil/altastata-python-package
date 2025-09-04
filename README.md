@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.14
+# Altastata Python Package v0.1.15
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -73,7 +73,7 @@ tensorflow_dataset = AltaStataTensorFlowDataset(
 
 ## Version Information
 
-**Current Version**: 0.1.14
+**Current Version**: 0.1.15
 
 This version includes:
 - Enhanced error handling in `delete_files` operations

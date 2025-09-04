@@ -193,7 +193,15 @@ class AltaStataFunctions(BaseGateway):
         return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
 
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
-        return self.altastata_file_system.getFileAttribute(cloud_file_path, snapshot_time, name)
+        """
+        Get file attribute from Altastata file system.
+        """
+        try:
+            result = self.altastata_file_system.getFileAttribute(cloud_file_path, snapshot_time, name)
+            return str(result) if result is not None else None
+        except Exception as e:
+            print(f"Warning: Failed to get file attribute '{name}' for '{cloud_file_path}': {e}")
+            return None
 
 
 
