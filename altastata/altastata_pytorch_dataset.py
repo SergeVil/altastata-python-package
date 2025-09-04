@@ -193,12 +193,17 @@ class AltaStataPyTorchDataset(Dataset):
 
             # Get specific size attribute and convert to integer
             file_size_str = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-            file_size = int(file_size_str) if file_size_str else 0
-            #print(f"Worker {worker_pid} - File size: {file_size}")
-
+            
+            # Convert file size to integer with basic error handling
+            try:
+                file_size = int(file_size_str) if file_size_str else 0
+            except (ValueError, TypeError):
+                file_size = 0
+            #print(f"Worker {worker_pid} - File size: {file_size}"o 
             # Read the file using memory mapping with the latest version
             temp_file = None  # Initialize temp_file
             try:
+                
                 if file_size <= self.max_file_size_for_cache:
                     # For small files, use get_buffer directly
                     #print(f"Worker {worker_pid} - Reading small file {path} directly")
