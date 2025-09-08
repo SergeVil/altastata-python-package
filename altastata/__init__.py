@@ -3,7 +3,7 @@ AltaStata Python Package
 A powerful Python package for data processing and machine learning integration with Altastata.
 """
 
-__version__ = "0.1.14"
+__version__ = "0.1.15"
 
 from .altastata_functions import AltaStataFunctions
 from .altastata_pytorch_dataset import AltaStataPyTorchDataset
