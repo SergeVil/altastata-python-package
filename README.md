@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.15
+# Altastata Python Package v0.1.16
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -73,9 +73,10 @@ tensorflow_dataset = AltaStataTensorFlowDataset(
 
 ## Version Information
 
-**Current Version**: 0.1.15
+**Current Version**: 0.1.16
 
 This version includes:
+- Rebuilt `altastata-hadoop-all.jar` with latest improvements
 - Enhanced error handling in `delete_files` operations
 - Simplified `_read_file` method for better performance
 - Updated AWS account configurations
