@@ -35,12 +35,24 @@ This setup provides:
                     └─────────────────┘
 ```
 
+## Quick Reference
+
+| Action | Command |
+|--------|---------|
+| **Access Jupyter** | `http://34.66.100.250:8888/lab` |
+| **Stop Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=0` |
+| **Start Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=1` |
+| **Check Status** | `kubectl get pods -l app=altastata-jupyter` |
+| **View Logs** | `kubectl logs -f deployment/altastata-jupyter-confidential` |
+| **Stop Cluster** | `gcloud container clusters stop altastata-confidential-cluster --zone=us-central1-a` |
+| **Start Cluster** | `gcloud container clusters start altastata-confidential-cluster --zone=us-central1-a` |
+
 ## Files
 
 - `jupyter-deployment.yaml` - Simple Kubernetes deployment configuration
 - `setup-cluster.sh` - Automated cluster setup script
 - `cleanup.sh` - Cleanup script for removing resources
-- `notebook-examples/storage-setup.ipynb` - Example notebook for testing connectivity
+- `notebook-examples/altastata-azure.ipynb` - Example notebook for testing connectivity
 
 ## Prerequisites
 
@@ -157,14 +169,36 @@ kubectl exec -it deployment/altastata-jupyter-confidential -- /bin/bash
 kubectl exec -it deployment/altastata-jupyter-confidential -- ps aux
 ```
 
-### Scale Resources
+### Container Management
 
+#### Stop/Start Container (Pod Level)
+```bash
+# Stop the container (scale to 0 replicas)
+kubectl scale deployment altastata-jupyter-confidential --replicas=0
+
+# Start the container (scale to 1 replica)
+kubectl scale deployment altastata-jupyter-confidential --replicas=1
+
+# Check container status
+kubectl get pods -l app=altastata-jupyter
+```
+
+#### Scale Resources
 ```bash
 # Scale up/down
 kubectl scale deployment altastata-jupyter-confidential --replicas=2
 
 # Update resource limits
 kubectl edit deployment altastata-jupyter-confidential
+```
+
+#### Restart Container
+```bash
+# Restart the deployment
+kubectl rollout restart deployment/altastata-jupyter-confidential
+
+# Check rollout status
+kubectl rollout status deployment/altastata-jupyter-confidential
 ```
 
 ## Altastata Storage Management
