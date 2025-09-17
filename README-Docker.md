@@ -10,6 +10,7 @@ This comprehensive guide covers building, running, and deploying the Altastata P
 - [Building Images](#building-images)
 - [Local Development](#local-development)
 - [GitHub Container Registry (GHCR)](#github-container-registry-ghcr)
+- [Confidential Computing Deployment](#confidential-computing-deployment)
 - [Volume Management](#volume-management)
 - [Container Management](#container-management)
 - [Troubleshooting](#troubleshooting)
@@ -251,6 +252,69 @@ After pushing images to GHCR, you may need to make them public for external acce
 6. **Confirm the change**
 
 **Note**: Private packages require authentication to pull, while public packages can be pulled by anyone.
+
+## Confidential Computing Deployment
+
+Deploy Altastata in a secure, confidential computing environment on Google Cloud Platform with hardware-level memory encryption:
+
+### Quick Start
+
+```bash
+# Navigate to confidential GKE setup
+cd confidential-gke
+
+# Deploy confidential cluster with AMD SEV security
+./setup-cluster.sh
+
+# Access Jupyter Lab at the provided URL
+# Stop cluster when not in use (saves costs)
+gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a
+```
+
+### Features
+
+- **Hardware-level security** with AMD SEV encryption
+- **Memory encryption** during data processing
+- **Multi-cloud storage** support (GCP, AWS, Azure)
+- **Cost optimization** with easy stop/start commands
+- **AMD64 architecture** support for optimal performance
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Confidential GKE Node                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Jupyter Container                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────────────┐  │   │
+│  │  │   Jupyter Lab   │  │   Altastata Package     │  │   │
+│  │  │   (Port 8888)   │  │   - Storage Management  │  │   │
+│  │  │                 │  │   - Data Processing     │  │   │
+│  │  └─────────────────┘  │   - Security            │  │   │
+│  │                       └─────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │ Cloud Storage   │
+                    │ - GCP Storage   │
+                    │ - AWS S3        │
+                    │ - Azure Blob    │
+                    └─────────────────┘
+```
+
+### Management Commands
+
+| Action | Command |
+|--------|---------|
+| **Deploy Cluster** | `./setup-cluster.sh` |
+| **Stop Cluster** | `gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a` |
+| **Stop Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=0` |
+| **Start Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=1` |
+| **Check Status** | `kubectl get pods -l app=altastata-jupyter` |
+
+See `confidential-gke/README.md` for detailed setup instructions.
 
 ## Volume Management
 

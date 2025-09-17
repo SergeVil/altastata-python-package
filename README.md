@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.16
+# Altastata Python Package v0.1.16t 
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -18,6 +18,7 @@ pip install altastata
 - Enhanced error handling for cloud operations
 - Optimized file reading with direct attribute access
 - Comprehensive AWS IAM permission management
+- **Confidential Computing Support**: Deploy on Google Cloud Platform with AMD SEV security
 - Robust file operation status tracking
 
 ## Quick Start
@@ -88,11 +89,35 @@ This version includes:
 The package is also available as a Docker image:
 ```bash
 # Pull from GitHub Container Registry
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025c_latest
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
 
 # Or use docker-compose
 docker-compose -f docker-compose-ghcr.yml up -d
 ```
+
+## Confidential Computing Deployment
+
+Deploy Altastata in a secure, confidential computing environment on Google Cloud Platform:
+
+```bash
+# Navigate to confidential GKE setup
+cd confidential-gke
+
+# Deploy confidential cluster with AMD SEV security
+./setup-cluster.sh
+
+# Access Jupyter Lab at the provided URL
+# Stop cluster when not in use (saves costs)
+gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a
+```
+
+**Features:**
+- **Hardware-level security** with AMD SEV encryption
+- **Memory encryption** during data processing
+- **Multi-cloud storage** support (GCP, AWS, Azure)
+- **Cost optimization** with easy stop/start commands
+
+See `confidential-gke/README.md` for detailed setup instructions.
 
 ## Recent Improvements
 
