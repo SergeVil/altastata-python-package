@@ -65,6 +65,7 @@ twine upload dist/*               # Upload to PyPI
 ```
 ```## Docker Deployment
 
+<<<<<<< HEAD
 ### Multi-Architecture Support
 
 The project now builds **multi-architecture images** that work on both AMD64 and ARM64 platforms:
@@ -91,17 +92,41 @@ docker buildx build \
   --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
   --push \
   .
+=======
+### Building the Image
+```bash
+
+# Build AMD64 image
+docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile.amd64 .
+
+# Build image (AMD64)
+docker buildx build \
+  --platform linux/amd64 \
+  --push \
+  -t ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest \
+  -f openshift/Dockerfile.amd64 .
+```
+
+### Pushing to Registry
+```bash
+# Push to GitHub Container Registry
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+>>>>>>> origin/main
 ```
 
 ### Running the Container
 ```bash
+<<<<<<< HEAD
 # Works on both AMD64 and ARM64 platforms
+=======
+>>>>>>> origin/main
 docker run \
   --name altastata-jupyter \
   -d \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
+<<<<<<< HEAD
   ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
 ```
 
@@ -111,6 +136,11 @@ docker run \
 - **GCP Confidential GKE**: Native AMD64 performance
 - **Other platforms**: Automatic architecture selection
 
+=======
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+```
+
+>>>>>>> origin/main
 ## PyPI Package Management
 
 ### Prerequisites

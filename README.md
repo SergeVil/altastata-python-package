@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.16t 
+# Altastata Python Package v0.1.16
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
