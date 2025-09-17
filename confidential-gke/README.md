@@ -121,7 +121,11 @@ After deployment, get the external IP:
 kubectl get service altastata-jupyter-service
 ```
 
-Open your browser to: `http://EXTERNAL_IP:8888`
+**Current deployment URL**: `http://34.66.100.250:8888/lab`
+
+Open your browser to: `http://EXTERNAL_IP:8888/lab`
+
+> **Note**: The `/lab` path is important for accessing Jupyter Lab interface
 
 ### 6. Test Connectivity
 
@@ -411,11 +415,12 @@ This will delete:
 ## Next Steps
 
 1. ✅ **Cluster created** - `altastata-confidential-cluster`
-2. ✅ **Jupyter Lab** - Available and ready
+2. ✅ **Jupyter Lab** - Available at `http://34.66.100.250:8888/lab`
 3. ✅ **Cloud storage connectivity** - GCP, AWS, Azure support
-4. 🔄 **Configure Altastata** - Set up your specific storage settings
-5. 🔄 **Test Altastata operations** - File system and data processing
-6. 🔄 **Performance testing** - Run Altastata benchmarks in confidential environment
+4. ✅ **AMD64 Architecture** - Running on AMD SEV confidential computing
+5. 🔄 **Configure Altastata** - Set up your specific storage settings
+6. 🔄 **Test Altastata operations** - File system and data processing
+7. 🔄 **Performance testing** - Run Altastata benchmarks in confidential environment
 
 ## Integration with Altastata
 
