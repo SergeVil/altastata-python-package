@@ -6,7 +6,7 @@
 set -e
 
 # Configuration
-PROJECT_ID=${GCP_PROJECT_ID:-"your-gcp-project-id"}
+PROJECT_ID=${GCP_PROJECT_ID:-"altastata-coco"}
 CLUSTER_NAME=${CLUSTER_NAME:-"altastata-confidential-cluster"}
 ZONE=${ZONE:-"us-central1-a"}
 SERVICE_ACCOUNT_NAME=${SERVICE_ACCOUNT_NAME:-"jupyter-storage"}
@@ -24,9 +24,7 @@ gcloud container clusters delete $CLUSTER_NAME --zone=$ZONE --quiet || echo "Clu
 echo "👤 Deleting service account..."
 gcloud iam service-accounts delete $SERVICE_ACCOUNT_NAME@$PROJECT_ID.iam.gserviceaccount.com --quiet || echo "Service account may not exist"
 
-# Delete service account key file
-echo "🔑 Removing service account key file..."
-rm -f jupyter-storage-key.json
+# Note: No service account key file to remove (Altastata handles storage internally)
 
 # Clean up local files
 echo "📁 Cleaning up local files..."
