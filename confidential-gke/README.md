@@ -44,8 +44,8 @@ This setup provides:
 | **Start Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=1` |
 | **Check Status** | `kubectl get pods -l app=altastata-jupyter` |
 | **View Logs** | `kubectl logs -f deployment/altastata-jupyter-confidential` |
-| **Stop Cluster** | `gcloud container clusters stop altastata-confidential-cluster --zone=us-central1-a` |
-| **Start Cluster** | `gcloud container clusters start altastata-confidential-cluster --zone=us-central1-a` |
+| **Stop Cluster** | `gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a` |
+| **Start Cluster** | `./setup-cluster.sh` (recreate cluster) |
 
 ## Files
 
@@ -258,39 +258,6 @@ altastata_functions = AltaStataFunctions.from_credentials(
 # No additional storage manager needed
 ```
 
-### Example Altastata Configuration
-
-```python
-# Example user properties for GCP
-user_properties = """
-accounttype=google-cloud-storage
-projectId=your-project-id
-gcs.bucket.prefix=your-bucket-name
-GOOGLE_APPLICATION_CREDENTIALS=/var/secrets/google/key.json
-acccontainer-prefix=altastata-confidential-
-"""
-
-# Example user properties for AWS
-user_properties = """
-accounttype=amazon-s3
-s3.bucket.name=your-bucket-name
-s3.region=us-east-1
-AWS_ACCESS_KEY_ID=your-access-key
-AWS_SECRET_ACCESS_KEY=your-secret-key
-acccontainer-prefix=altastata-confidential-
-"""
-
-# Example user properties for Azure
-user_properties = """
-accounttype=azure-blob-storage
-azure.storage.account.name=your-account-name
-azure.storage.container.name=your-container-name
-AZURE_STORAGE_CONNECTION_STRING=your-connection-string
-acccontainer-prefix=altastata-confidential-
-"""
-
-```
-
 ## Security Features
 
 ### Confidential Computing
@@ -322,12 +289,14 @@ acccontainer-prefix=altastata-confidential-
 
 ### Stop/Start Cluster
 ```bash
-# Stop cluster (save money)
-gcloud container clusters stop altastata-confidential-cluster --zone=us-central1-a
+# Delete cluster (save money - GKE clusters can't be stopped, only deleted)
+gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a
 
-# Start cluster (when needed)
-gcloud container clusters start altastata-confidential-cluster --zone=us-central1-a
+# Recreate cluster (when needed)
+./setup-cluster.sh
 ```
+
+**Note**: GKE clusters cannot be "stopped" - they must be deleted to avoid charges. Use `./setup-cluster.sh` to recreate when needed.
 
 ### Cost Comparison
 | Usage Pattern | Monthly Cost | Savings |
@@ -448,13 +417,14 @@ This will delete:
 
 ## Next Steps
 
-1. ✅ **Cluster created** - `altastata-confidential-cluster`
-2. ✅ **Jupyter Lab** - Available at `http://34.66.100.250:8888/lab`
-3. ✅ **Cloud storage connectivity** - GCP, AWS, Azure support
-4. ✅ **AMD64 Architecture** - Running on AMD SEV confidential computing
-5. 🔄 **Configure Altastata** - Set up your specific storage settings
-6. 🔄 **Test Altastata operations** - File system and data processing
-7. 🔄 **Performance testing** - Run Altastata benchmarks in confidential environment
+1. ✅ **Cluster created** - `altastata-confidential-cluster` (deleted to save costs)
+2. ✅ **Jupyter Lab** - Successfully tested at `http://34.66.100.250:8888/lab`
+3. ✅ **Cloud storage connectivity** - GCP, AWS, Azure support verified
+4. ✅ **AMD64 Architecture** - Confirmed running on AMD SEV confidential computing
+5. ✅ **Cost optimization** - Cluster deleted to avoid charges
+6. 🔄 **Recreate when needed** - Use `./setup-cluster.sh` to redeploy
+7. 🔄 **Configure Altastata** - Set up your specific storage settings
+8. 🔄 **Test Altastata operations** - File system and data processing
 
 ## Integration with Altastata
 
