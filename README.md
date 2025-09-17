@@ -86,14 +86,21 @@ This version includes:
 
 ## Docker Support
 
-The package is also available as a Docker image:
+The package is available as a **multi-architecture Docker image** that works natively on both AMD64 and ARM64 platforms:
+
 ```bash
-# Pull from GitHub Container Registry
+# Pull multi-architecture image (automatically selects correct architecture)
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
 
 # Or use docker-compose
 docker-compose -f docker-compose-ghcr.yml up -d
 ```
+
+**Platform Support:**
+- **Apple Silicon Macs**: Native ARM64 performance
+- **Intel Macs**: Native AMD64 performance  
+- **GCP Confidential GKE**: Native AMD64 performance
+- **Other platforms**: Automatic architecture selection
 
 ## Confidential Computing Deployment
 
@@ -116,11 +123,13 @@ gcloud container clusters delete altastata-confidential-cluster --zone=us-centra
 - **Memory encryption** during data processing
 - **Multi-cloud storage** support (GCP, AWS, Azure)
 - **Cost optimization** with easy stop/start commands
+- **Multi-architecture support** for both AMD64 and ARM64 platforms
 
 See `confidential-gke/README.md` for detailed setup instructions.
 
 ## Recent Improvements
 
+- **Multi-Architecture Support**: Docker images now work natively on both AMD64 and ARM64 platforms
 - **Error Handling**: Enhanced `delete_files` method with detailed error reporting
 - **Performance**: Optimized file reading operations
 - **Compatibility**: Updated AWS IAM configurations for better permission management

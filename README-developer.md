@@ -65,36 +65,51 @@ twine upload dist/*               # Upload to PyPI
 ```
 ```## Docker Deployment
 
-### Building the Image
+### Multi-Architecture Support
+
+The project now builds **multi-architecture images** that work on both AMD64 and ARM64 platforms:
+
+- **AMD64 (x86_64)**: Native performance on Intel/AMD processors and GCP nodes
+- **ARM64**: Native performance on Apple Silicon Macs, with emulation support on other platforms
+
+### Building Multi-Architecture Images
 ```bash
+# Build multi-architecture image (AMD64 + ARM64)
+./build-all-images.sh
 
-# Build AMD64 image
-docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile.amd64 .
-
-# Build image (AMD64)
-docker buildx build \
-  --platform linux/amd64 \
-  --push \
-  -t ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest \
-  -f openshift/Dockerfile.amd64 .
+# This creates:
+# - ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch)
+# - ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest (multi-arch)
 ```
 
-### Pushing to Registry
+### Manual Multi-Architecture Build
 ```bash
-# Push to GitHub Container Registry
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+# Build and push multi-architecture image
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --push \
+  .
 ```
 
 ### Running the Container
 ```bash
+# Works on both AMD64 and ARM64 platforms
 docker run \
   --name altastata-jupyter \
   -d \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
 ```
+
+### Platform Compatibility
+- **Apple Silicon Macs**: Native ARM64 performance
+- **Intel Macs**: Native AMD64 performance  
+- **GCP Confidential GKE**: Native AMD64 performance
+- **Other platforms**: Automatic architecture selection
 
 ## PyPI Package Management
 

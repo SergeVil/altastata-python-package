@@ -52,7 +52,7 @@ This setup provides:
 - `jupyter-deployment.yaml` - Simple Kubernetes deployment configuration
 - `setup-cluster.sh` - Automated cluster setup script
 - `cleanup.sh` - Cleanup script for removing resources
-- `notebook-examples/altastata-azure.ipynb` - Example notebook for testing connectivity
+- `notebook-examples/altastata-azure.ipynb` - Example notebook for Azure Blob Storage connectivity
 
 ## Prerequisites
 
@@ -119,11 +119,10 @@ chmod +x setup-cluster.sh cleanup.sh
 ```
 
 This will:
-- Create a Confidential GKE cluster
-- Set up service accounts and permissions
-- Create a GCS bucket for storage (optional)
-- Deploy your Jupyter container
-- Configure storage access
+- Create a Confidential GKE cluster with AMD SEV security
+- Deploy your multi-architecture Jupyter container
+- Configure basic storage connectivity
+- Set up load balancer for external access
 
 ### 5. Access Jupyter Lab
 
@@ -141,7 +140,7 @@ Open your browser to: `http://EXTERNAL_IP:8888/lab`
 
 ### 6. Test Connectivity
 
-Open the example notebook `notebook-examples/storage-setup.ipynb` to:
+Open the example notebook `notebook-examples/altastata-azure.ipynb` to:
 - Check cloud storage credentials
 - Test Altastata package import
 - Verify confidential computing features
@@ -205,23 +204,22 @@ kubectl rollout status deployment/altastata-jupyter-confidential
 
 ### Environment Variables
 
-The container is configured with environment variables that Altastata uses for cloud storage access:
+The container can be configured with environment variables that Altastata uses for cloud storage access:
 
 - **GCP**: `GOOGLE_APPLICATION_CREDENTIALS` (service account key file)
 - **AWS**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_DEFAULT_REGION`
 - **Azure**: `AZURE_STORAGE_CONNECTION_STRING`
 
+**Note**: Altastata handles storage configuration internally, so these environment variables are optional and only needed if you want to use specific cloud storage providers.
+
 ### Setting Up Credentials
 
 #### GCP Credentials
 ```bash
-# Create service account key
-gcloud iam service-accounts keys create jupyter-storage-key.json \
-    --iam-account=jupyter-storage@your-project-id.iam.gserviceaccount.com
-
-# Create Kubernetes secret
-kubectl create secret generic jupyter-storage-key \
-    --from-file=key.json=jupyter-storage-key.json
+# Note: GCP credentials are optional since Altastata handles storage internally
+# If you need GCP access, you can set environment variables:
+kubectl set env deployment/altastata-jupyter-confidential \
+    GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
 ```
 
 #### AWS Credentials
@@ -318,11 +316,11 @@ gcloud container clusters delete altastata-confidential-cluster --zone=us-centra
 
 2. **Storage access issues**
    ```bash
-   # Check service account
-   kubectl describe secret jupyter-storage-key
+   # Check environment variables
+   kubectl exec -it deployment/altastata-jupyter-confidential -- env | grep -E "(GOOGLE|AWS|AZURE)"
    
-   # Verify permissions
-   kubectl exec -it deployment/altastata-jupyter-confidential -- gcloud auth list
+   # Verify Altastata package
+   kubectl exec -it deployment/altastata-jupyter-confidential -- python -c "import altastata; print('Altastata package loaded successfully')"
    ```
 
 3. **Storage connectivity issues**
@@ -419,7 +417,7 @@ This will delete:
 
 1. ✅ **Cluster created** - `altastata-confidential-cluster` (deleted to save costs)
 2. ✅ **Jupyter Lab** - Successfully tested at `http://34.66.100.250:8888/lab`
-3. ✅ **Cloud storage connectivity** - GCP, AWS, Azure support verified
+3. ✅ **Multi-architecture support** - Works on both AMD64 (GCP) and ARM64 (Mac)
 4. ✅ **AMD64 Architecture** - Confirmed running on AMD SEV confidential computing
 5. ✅ **Cost optimization** - Cluster deleted to avoid charges
 6. 🔄 **Recreate when needed** - Use `./setup-cluster.sh` to redeploy

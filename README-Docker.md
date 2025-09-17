@@ -31,33 +31,45 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 |-------------|-----------------|----------|-----------|
 | **Jupyter DataScience** | Jupyter Lab with PyTorch, TensorFlow, and Altastata integration | 8888 | `altastata/jupyter-datascience` |
 
-## Single-Architecture Support
+## Multi-Architecture Support
 
-The project now uses a single AMD64 Docker image that works on all platforms:
+The project now builds **multi-architecture Docker images** that work natively on both AMD64 and ARM64 platforms:
 
 ### Available Images
 
 | **Architecture** | **Image Tag** | **Size** | **Use Case** |
 |------------------|---------------|----------|--------------|
-| **AMD64 (x86_64)** | `jupyter-datascience:latest` | ~22.2GB | All platforms (works on ARM64 via emulation) |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest` | ~7GB per arch | All platforms with native performance |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:2025d_latest` | ~7GB per arch | All platforms with native performance |
 
 ### Dockerfile
 
-- `openshift/Dockerfile.amd64` - Optimized for AMD64 architecture (works on all platforms)
+- `openshift/Dockerfile.amd64` - Base Dockerfile used for both architectures
 
 ### Build Scripts
 
-- `build-all-images.sh` - Build AMD64 image locally with proper Dockerfile
+- `build-all-images.sh` - Build multi-architecture images and push to GHCR
 - `push-to-ghcr.sh` - Push already-built local image to GHCR
 - `cleanup-jupyter-images.sh` - Clean up Docker images
 
 ### Usage (All Platforms)
 
 ```bash
-# Use AMD64 image (works on all platforms including ARM64 Macs)
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
-docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+# Pull multi-architecture image (automatically selects correct architecture)
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+
+# Or use latest tag
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:latest
 ```
+
+### Platform Compatibility
+
+- **Apple Silicon Macs**: Native ARM64 performance
+- **Intel Macs**: Native AMD64 performance  
+- **GCP Confidential GKE**: Native AMD64 performance
+- **Other platforms**: Automatic architecture selection
 
 
 
@@ -88,32 +100,37 @@ docker-compose -f docker-compose-ghcr.yml up -d
 ### Build and Push to GHCR
 
 ```bash
-# Build and push AMD64 image to GHCR
-./push-to-ghcr.sh
+# Build and push multi-architecture image to GHCR
+./build-all-images.sh
 ```
 
 This script will:
-1. Build AMD64 image using `openshift/Dockerfile.amd64`
-2. Push image to GHCR with architecture-specific tags
+1. Build multi-architecture image (AMD64 + ARM64) using `openshift/Dockerfile.amd64`
+2. Push both architectures to GHCR with unified tags
+3. Create a single manifest that works on all platforms
 
 ### Local Build
 
 ```bash
-# Build AMD64 image locally (without pushing)
-./build-all-images.sh
+# Build multi-architecture image locally (without pushing)
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag altastata/jupyter-datascience:latest \
+  .
 ```
 
 ### Automated Build
 
 ```bash
-# Build image with local and GHCR tags
+# Build and push multi-architecture image with GHCR tags
 ./build-all-images.sh
 ```
 
 This script will:
-1. Build local image with `altastata/jupyter-datascience:latest` naming
-2. Tag it for GHCR with architecture-specific tags
-3. Create the required Docker network
+1. Build multi-architecture image (AMD64 + ARM64)
+2. Push both architectures to GHCR with unified tags
+3. Create a single manifest that works on all platforms
 
 ### Manual Build
 
@@ -121,11 +138,20 @@ This script will:
 # Create network first
 docker network create altastata-network
 
-# Build image
-docker build -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience:latest .
+# Build multi-architecture image
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag altastata/jupyter-datascience:latest \
+  .
 
-# Tag for GHCR (optional)
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+# Build and push to GHCR
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --push \
+  .
 ```
 
 ## Local Development
@@ -196,12 +222,12 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 #### Automated Push
 
 ```bash
-# Push AMD64 image to GHCR
-./push-to-ghcr.sh
+# Build and push multi-architecture image to GHCR
+./build-all-images.sh
 ```
 
 This script will:
-1. Build and push `jupyter-datascience:latest` and `jupyter-datascience:2025b_latest`
+1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:2025d_latest`
 
 #### Manual Push
 
@@ -210,8 +236,13 @@ This script will:
 export YOUR_PAT=your_github_token_here
 echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
 
-# Push AMD64 image
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+# Build and push multi-architecture image
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --push \
+  .
 
 
 
@@ -221,8 +252,11 @@ docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 ### Pulling Images
 
 ```bash
-# Pull image (works on all platforms)
+# Pull multi-architecture image (automatically selects correct architecture)
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
+
+# Or pull specific version
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
 
 
 
