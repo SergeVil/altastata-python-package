@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: altastata-jupyter-confidential
+  labels:
+    app: altastata-jupyter
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: altastata-jupyter
+  template:
+    metadata:
+      labels:
+        app: altastata-jupyter
+    spec:
+      containers:
+      - name: jupyter-datascience
+        image: ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+        ports:
+        - containerPort: 8888
+        env:
+        - name: JUPYTER_ENABLE_LAB
+          value: "yes"
+        - name: JUPYTER_TOKEN
+          value: ""
+        - name: JUPYTER_ALLOW_INSECURE_WRITES
+          value: "1"
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1"
+          limits:
+            memory: "4Gi"
+            cpu: "2"
+        volumeMounts:
+        - name: jupyter-work
+          mountPath: /home/jovyan/work
+        livenessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /lab
+            port: 8888
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: jupyter-work
+        emptyDir: {}
+      nodeSelector:
+        cloud.google.com/gke-nodepool: default-pool
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: altastata-jupyter-service
+  labels:
+    app: altastata-jupyter
+spec:
+  selector:
+    app: altastata-jupyter
+  ports:
+  - port: 8888
+    targetPort: 8888
+    protocol: TCP
+  type: LoadBalancer

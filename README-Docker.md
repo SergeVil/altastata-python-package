@@ -10,6 +10,10 @@ This comprehensive guide covers building, running, and deploying the Altastata P
 - [Building Images](#building-images)
 - [Local Development](#local-development)
 - [GitHub Container Registry (GHCR)](#github-container-registry-ghcr)
+<<<<<<< HEAD
+- [Confidential Computing Deployment](#confidential-computing-deployment)
+=======
+>>>>>>> origin/main
 - [Volume Management](#volume-management)
 - [Container Management](#container-management)
 - [Troubleshooting](#troubleshooting)
@@ -30,14 +34,32 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 |-------------|-----------------|----------|-----------|
 | **Jupyter DataScience** | Jupyter Lab with PyTorch, TensorFlow, and Altastata integration | 8888 | `altastata/jupyter-datascience` |
 
+<<<<<<< HEAD
+## Multi-Architecture Support
+
+The project now builds **multi-architecture Docker images** that work natively on both AMD64 and ARM64 platforms:
+=======
 ## Single-Architecture Support
 
 The project now uses a single AMD64 Docker image that works on all platforms:
+>>>>>>> origin/main
 
 ### Available Images
 
 | **Architecture** | **Image Tag** | **Size** | **Use Case** |
 |------------------|---------------|----------|--------------|
+<<<<<<< HEAD
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest` | ~7GB per arch | All platforms with native performance |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:2025d_latest` | ~7GB per arch | All platforms with native performance |
+
+### Dockerfile
+
+- `openshift/Dockerfile.amd64` - Base Dockerfile used for both architectures
+
+### Build Scripts
+
+- `build-all-images.sh` - Build multi-architecture images and push to GHCR
+=======
 | **AMD64 (x86_64)** | `jupyter-datascience:latest` | ~22.2GB | All platforms (works on ARM64 via emulation) |
 
 ### Dockerfile
@@ -47,17 +69,37 @@ The project now uses a single AMD64 Docker image that works on all platforms:
 ### Build Scripts
 
 - `build-all-images.sh` - Build AMD64 image locally with proper Dockerfile
+>>>>>>> origin/main
 - `push-to-ghcr.sh` - Push already-built local image to GHCR
 - `cleanup-jupyter-images.sh` - Clean up Docker images
 
 ### Usage (All Platforms)
 
 ```bash
+<<<<<<< HEAD
+# Pull multi-architecture image (automatically selects correct architecture)
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+
+# Or use latest tag
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:latest
+```
+
+### Platform Compatibility
+
+- **Apple Silicon Macs**: Native ARM64 performance
+- **Intel Macs**: Native AMD64 performance  
+- **GCP Confidential GKE**: Native AMD64 performance
+- **Other platforms**: Automatic architecture selection
+
+=======
 # Use AMD64 image (works on all platforms including ARM64 Macs)
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 ```
 
+>>>>>>> origin/main
 
 
 ## Quick Start
@@ -87,6 +129,16 @@ docker-compose -f docker-compose-ghcr.yml up -d
 ### Build and Push to GHCR
 
 ```bash
+<<<<<<< HEAD
+# Build and push multi-architecture image to GHCR
+./build-all-images.sh
+```
+
+This script will:
+1. Build multi-architecture image (AMD64 + ARM64) using `openshift/Dockerfile.amd64`
+2. Push both architectures to GHCR with unified tags
+3. Create a single manifest that works on all platforms
+=======
 # Build and push AMD64 image to GHCR
 ./push-to-ghcr.sh
 ```
@@ -94,25 +146,45 @@ docker-compose -f docker-compose-ghcr.yml up -d
 This script will:
 1. Build AMD64 image using `openshift/Dockerfile.amd64`
 2. Push image to GHCR with architecture-specific tags
+>>>>>>> origin/main
 
 ### Local Build
 
 ```bash
+<<<<<<< HEAD
+# Build multi-architecture image locally (without pushing)
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag altastata/jupyter-datascience:latest \
+  .
+=======
 # Build AMD64 image locally (without pushing)
 ./build-all-images.sh
+>>>>>>> origin/main
 ```
 
 ### Automated Build
 
 ```bash
+<<<<<<< HEAD
+# Build and push multi-architecture image with GHCR tags
+=======
 # Build image with local and GHCR tags
+>>>>>>> origin/main
 ./build-all-images.sh
 ```
 
 This script will:
+<<<<<<< HEAD
+1. Build multi-architecture image (AMD64 + ARM64)
+2. Push both architectures to GHCR with unified tags
+3. Create a single manifest that works on all platforms
+=======
 1. Build local image with `altastata/jupyter-datascience:latest` naming
 2. Tag it for GHCR with architecture-specific tags
 3. Create the required Docker network
+>>>>>>> origin/main
 
 ### Manual Build
 
@@ -120,11 +192,28 @@ This script will:
 # Create network first
 docker network create altastata-network
 
+<<<<<<< HEAD
+# Build multi-architecture image
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag altastata/jupyter-datascience:latest \
+  .
+
+# Build and push to GHCR
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --push \
+  .
+=======
 # Build image
 docker build -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience:latest .
 
 # Tag for GHCR (optional)
 docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+>>>>>>> origin/main
 ```
 
 ## Local Development
@@ -195,12 +284,21 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 #### Automated Push
 
 ```bash
+<<<<<<< HEAD
+# Build and push multi-architecture image to GHCR
+./build-all-images.sh
+```
+
+This script will:
+1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:2025d_latest`
+=======
 # Push AMD64 image to GHCR
 ./push-to-ghcr.sh
 ```
 
 This script will:
 1. Build and push `jupyter-datascience:latest` and `jupyter-datascience:2025b_latest`
+>>>>>>> origin/main
 
 #### Manual Push
 
@@ -209,8 +307,18 @@ This script will:
 export YOUR_PAT=your_github_token_here
 echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
 
+<<<<<<< HEAD
+# Build and push multi-architecture image
+docker buildx build \
+  --platform linux/amd64,linux/arm64 \
+  --file openshift/Dockerfile.amd64 \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --push \
+  .
+=======
 # Push AMD64 image
 docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
+>>>>>>> origin/main
 
 
 
@@ -220,9 +328,18 @@ docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025b_latest
 ### Pulling Images
 
 ```bash
+<<<<<<< HEAD
+# Pull multi-architecture image (automatically selects correct architecture)
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
+
+# Or pull specific version
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+
+=======
 # Pull image (works on all platforms)
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
 
+>>>>>>> origin/main
 
 
 
@@ -252,6 +369,72 @@ After pushing images to GHCR, you may need to make them public for external acce
 
 **Note**: Private packages require authentication to pull, while public packages can be pulled by anyone.
 
+<<<<<<< HEAD
+## Confidential Computing Deployment
+
+Deploy Altastata in a secure, confidential computing environment on Google Cloud Platform with hardware-level memory encryption:
+
+### Quick Start
+
+```bash
+# Navigate to confidential GKE setup
+cd confidential-gke
+
+# Deploy confidential cluster with AMD SEV security
+./setup-cluster.sh
+
+# Access Jupyter Lab at the provided URL
+# Stop cluster when not in use (saves costs)
+gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a
+```
+
+### Features
+
+- **Hardware-level security** with AMD SEV encryption
+- **Memory encryption** during data processing
+- **Multi-cloud storage** support (GCP, AWS, Azure)
+- **Cost optimization** with easy stop/start commands
+- **AMD64 architecture** support for optimal performance
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Confidential GKE Node                    │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              Jupyter Container                      │   │
+│  │  ┌─────────────────┐  ┌─────────────────────────┐  │   │
+│  │  │   Jupyter Lab   │  │   Altastata Package     │  │   │
+│  │  │   (Port 8888)   │  │   - Storage Management  │  │   │
+│  │  │                 │  │   - Data Processing     │  │   │
+│  │  └─────────────────┘  │   - Security            │  │   │
+│  │                       └─────────────────────────┘  │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                    ┌─────────────────┐
+                    │ Cloud Storage   │
+                    │ - GCP Storage   │
+                    │ - AWS S3        │
+                    │ - Azure Blob    │
+                    └─────────────────┘
+```
+
+### Management Commands
+
+| Action | Command |
+|--------|---------|
+| **Deploy Cluster** | `./setup-cluster.sh` |
+| **Stop Cluster** | `gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a` |
+| **Stop Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=0` |
+| **Start Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=1` |
+| **Check Status** | `kubectl get pods -l app=altastata-jupyter` |
+
+See `confidential-gke/README.md` for detailed setup instructions.
+
+=======
+>>>>>>> origin/main
 ## Volume Management
 
 ### Volume Mounts

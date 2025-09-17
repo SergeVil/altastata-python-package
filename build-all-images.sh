@@ -13,6 +13,35 @@ docker network create altastata-network 2>/dev/null || echo "Network altastata-n
 echo "🔧 Setting up Docker buildx for builds..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
+<<<<<<< HEAD
+# Build multi-architecture image
+echo "🏗️  Building multi-architecture image (AMD64 + ARM64)..."
+
+# Build for both amd64 and arm64 using the AMD64-specific Dockerfile
+echo "📦 Building jupyter-datascience image..."
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --file openshift/Dockerfile.amd64 \
+    --tag altastata/jupyter-datascience:latest \
+    --push \
+    .
+
+# Tag for GHCR (already pushed above)
+echo "🏷️  Tagging additional versions for GHCR..."
+docker buildx build \
+    --platform linux/amd64,linux/arm64 \
+    --file openshift/Dockerfile.amd64 \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+    --push \
+    .
+
+echo ""
+echo "✅ Multi-architecture image built and pushed successfully!"
+echo ""
+echo "🏷️  GHCR images (pushed):"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest (AMD64 + ARM64)"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest (AMD64 + ARM64)"
+=======
 # Build AMD64 image locally
 echo "🏗️  Building AMD64 image locally..."
 
@@ -39,6 +68,7 @@ echo ""
 echo "🏷️  GHCR images (tagged but not pushed):"
 echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
 echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest"
+>>>>>>> origin/main
 echo ""
 echo "🚀 To push to GHCR, run: ./push-to-ghcr.sh"
 echo "🔧 To run locally, use: docker-compose up -d (local image)"
