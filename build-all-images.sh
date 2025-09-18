@@ -13,7 +13,7 @@ docker network create altastata-network 2>/dev/null || echo "Network altastata-n
 echo "🔧 Setting up Docker buildx for builds..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
-# Build multi-architecture image
+# Build multi-architecture image once
 echo "🏗️  Building multi-architecture image (AMD64 + ARM64)..."
 
 # Build for both amd64 and arm64 using the AMD64-specific Dockerfile
@@ -22,14 +22,7 @@ docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --file openshift/Dockerfile.amd64 \
     --tag altastata/jupyter-datascience:latest \
-    --push \
-    .
-
-# Tag for GHCR (already pushed above)
-echo "🏷️  Tagging additional versions for GHCR..."
-docker buildx build \
-    --platform linux/amd64,linux/arm64 \
-    --file openshift/Dockerfile.amd64 \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
     --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
     --push \
     .
