@@ -21,7 +21,6 @@ echo "📦 Building jupyter-datascience image..."
 docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --file openshift/Dockerfile.amd64 \
-    --tag altastata/jupyter-datascience:latest \
     --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
     --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
     --push \
