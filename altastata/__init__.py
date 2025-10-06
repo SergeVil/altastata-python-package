@@ -25,8 +25,33 @@ class _LazyTensorFlowDataset:
 
 AltaStataTensorFlowDataset = _LazyTensorFlowDataset()
 
+# fsspec support
+def _import_fsspec_filesystem():
+    from .fsspec_filesystem import AltaStataFileSystem, register_altastata_filesystem
+    return AltaStataFileSystem, register_altastata_filesystem
+
+# Create lazy loader for fsspec filesystem
+class _LazyFSSpecFilesystem:
+    def __init__(self):
+        self._filesystem_class = None
+        self._register_func = None
+    
+    def __call__(self, *args, **kwargs):
+        if self._filesystem_class is None:
+            self._filesystem_class, self._register_func = _import_fsspec_filesystem()
+        return self._filesystem_class(*args, **kwargs)
+    
+    def register(self):
+        """Register the filesystem with fsspec."""
+        if self._register_func is None:
+            _, self._register_func = _import_fsspec_filesystem()
+        return self._register_func()
+
+AltaStataFileSystem = _LazyFSSpecFilesystem()
+
 __all__ = [
     'AltaStataFunctions',
     'AltaStataPyTorchDataset',
-    'AltaStataTensorFlowDataset'
+    'AltaStataTensorFlowDataset',
+    'AltaStataFileSystem'
 ]

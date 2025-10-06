@@ -25,6 +25,7 @@ setup(
     python_requires='>=3.8',
     install_requires=[
         'py4j==0.10.9.5',
+        'fsspec>=2023.1.0',
     ],
 )
 
