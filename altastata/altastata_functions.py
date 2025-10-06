@@ -1,6 +1,6 @@
 from .base_gateway import BaseGateway
 
-from typing import List
+from typing import List, Any, Dict, Optional, Union
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters, CallbackServerParameters, java_import
 from py4j.java_collections import JavaList
 
@@ -191,6 +191,26 @@ class AltaStataFunctions(BaseGateway):
     def get_buffer_from_input_stream(self, java_input_stream, buffer_size):
 
         return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
+    
+    def get_input_stream_size(self, java_input_stream):
+        """Get the size of the InputStream."""
+        # Get size attribute from the InputStream object via py4j
+        return java_input_stream.size
+    
+    def mark_input_stream_position(self, java_input_stream, read_limit=1024):
+        """Mark current position in InputStream using mark() method."""
+        # Use standard Java InputStream mark() method via py4j
+        return java_input_stream.mark(read_limit)
+    
+    def reset_input_stream_position(self, java_input_stream):
+        """Reset InputStream to marked position using reset() method."""
+        # Use standard Java InputStream reset() method via py4j
+        return java_input_stream.reset()
+    
+    def skip_input_stream_bytes(self, java_input_stream, n_bytes):
+        """Skip n bytes in InputStream using skip() method."""
+        # Use standard Java InputStream skip() method via py4j
+        return java_input_stream.skip(n_bytes)
 
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
         """
@@ -202,6 +222,6 @@ class AltaStataFunctions(BaseGateway):
         except Exception as e:
             print(f"Warning: Failed to get file attribute '{name}' for '{cloud_file_path}': {e}")
             return None
-
-
+    
+    
 
