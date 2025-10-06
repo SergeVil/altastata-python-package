@@ -146,7 +146,7 @@ class AltaStataFile(io.IOBase):
         """Seek to position."""
         # Mark position for reset capability
         try:
-            self.filesystem.altastata_functions.mark_input_stream_position(self._java_stream, 1024)
+            self.filesystem.altastata_functions.mark_input_stream_position(self._java_stream, offset)
         except Exception:
             pass
         
