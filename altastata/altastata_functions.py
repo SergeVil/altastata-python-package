@@ -192,26 +192,21 @@ class AltaStataFunctions(BaseGateway):
 
         return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
     
-    def get_input_stream_size(self, java_input_stream):
-        """Get the size of the InputStream."""
-        # Get size attribute from the InputStream object via py4j
-        return java_input_stream.size
+    def read_input_stream_position(self, java_input_stream, buffer_size):
+        """Read data from Java InputStream using the standard read() method."""
+        # Use standard Java InputStream read() method via py4j for better efficiency
+        if buffer_size == -1:
+            # Read all available data
+            return java_input_stream.read()
+        else:
+            # Read specified number of bytes
+            return java_input_stream.read(buffer_size)
     
     def mark_input_stream_position(self, java_input_stream, read_limit=1024):
         """Mark current position in InputStream using mark() method."""
         # Use standard Java InputStream mark() method via py4j
         return java_input_stream.mark(read_limit)
     
-    def reset_input_stream_position(self, java_input_stream):
-        """Reset InputStream to marked position using reset() method."""
-        # Use standard Java InputStream reset() method via py4j
-        return java_input_stream.reset()
-    
-    def skip_input_stream_bytes(self, java_input_stream, n_bytes):
-        """Skip n bytes in InputStream using skip() method."""
-        # Use standard Java InputStream skip() method via py4j
-        return java_input_stream.skip(n_bytes)
-
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
         """
         Get file attribute from Altastata file system.
@@ -222,6 +217,6 @@ class AltaStataFunctions(BaseGateway):
         except Exception as e:
             print(f"Warning: Failed to get file attribute '{name}' for '{cloud_file_path}': {e}")
             return None
-    
-    
+
+
 

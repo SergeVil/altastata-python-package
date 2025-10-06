@@ -125,16 +125,13 @@ class AltaStataFile(io.IOBase):
         self.filesystem = filesystem
         self.path = path
         self.mode = mode
-        self._java_stream = None
+        self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, None, 0, 4)
         self._position = 0  # Track position based on last operation
     
     def read(self, size: int = -1) -> Union[bytes, str]:
         """Read data from file."""
-        if self._java_stream is None:
-            self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, None, 0, 4)
-        
-        # Read from InputStream
-        data = self.filesystem.altastata_functions.get_buffer_from_input_stream(self._java_stream, size)
+        # Read from InputStream using efficient position-aware method
+        data = self.filesystem.altastata_functions.read_input_stream_position(self._java_stream, size)
         
         # Update position based on bytes read
         if data:
@@ -148,9 +145,6 @@ class AltaStataFile(io.IOBase):
     def seek(self, offset: int, whence: int = 0) -> int:
         """Seek to position."""
         # Mark position for reset capability
-        if self._java_stream is None:
-            self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, None, 0, 4)
-        
         try:
             self.filesystem.altastata_functions.mark_input_stream_position(self._java_stream, 1024)
         except Exception:
