@@ -218,5 +218,18 @@ class AltaStataFunctions(BaseGateway):
             print(f"Warning: Failed to get file attribute '{name}' for '{cloud_file_path}': {e}")
             return None
 
+    def copy_file(self, from_cloud_file_path: str, to_cloud_file_path: str):
+        """
+        Copy a file from one cloud path to another.
+        
+        Args:
+            from_cloud_file_path (str): The source file path on the cloud
+            to_cloud_file_path (str): The destination file path on the cloud
+            
+        Returns:
+            CloudFileOperationStatus: Status of the copy operation
+        """
+        return self.altastata_file_system.copyFile(from_cloud_file_path, to_cloud_file_path)
+
 
 
