@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.16
+# Altastata Python Package v0.1.17
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -11,6 +11,7 @@ pip install altastata
 ## Features
 
 - Seamless integration with PyTorch and TensorFlow
+- **fsspec filesystem interface** for standard Python file operations
 - Advanced data processing capabilities
 - Java integration through Py4J with optimized memory management
 - Support for large-scale data operations
@@ -72,9 +73,28 @@ tensorflow_dataset = AltaStataTensorFlowDataset(
 )
 ```
 
+## fsspec Integration
+
+```python
+from altastata import AltaStataFunctions
+from altastata.fsspec import create_filesystem
+
+# Create AltaStata connection
+altastata_functions = AltaStataFunctions.from_account_dir('/path/to/account')
+altastata_functions.set_password("your_password")
+
+# Create fsspec filesystem
+fs = create_filesystem(altastata_functions, "my_account")
+
+# Use standard file operations
+files = fs.ls("Public/")
+with fs.open("Public/Documents/file.txt", "r") as f:
+    content = f.read()
+```
+
 ## Version Information
 
-**Current Version**: 0.1.16
+**Current Version**: 0.1.17
 
 This version includes:
 - Rebuilt `altastata-hadoop-all.jar` with latest improvements

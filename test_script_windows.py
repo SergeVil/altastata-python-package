@@ -50,8 +50,8 @@ while True:
 # Always explicitly call the close() method on the wrapper when you're done with it to prevent resource leaks
 input_stream.close()
 
-result = altastata_functions.get_file_attribute('StoreTest/desktop.ini', file_create_time_id, "access")
-print(f"access: {result}")
+result = altastata_functions.get_file_attribute('StoreTest/desktop.ini', file_create_time_id, "readers")
+print(f"readers: {result}")
 
 result = altastata_functions.get_file_attribute('StoreTest/desktop.ini', file_create_time_id, "size")
 print(f"size: {result}")

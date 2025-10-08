@@ -3,7 +3,7 @@ AltaStata Python Package
 A powerful Python package for data processing and machine learning integration with Altastata.
 """
 
-__version__ = "0.1.16"
+__version__ = "0.1.17"
 
 from .altastata_functions import AltaStataFunctions
 from .altastata_pytorch_dataset import AltaStataPyTorchDataset
@@ -25,8 +25,18 @@ class _LazyTensorFlowDataset:
 
 AltaStataTensorFlowDataset = _LazyTensorFlowDataset()
 
+# fsspec support
+try:
+    from .fsspec import create_filesystem, register_filesystem
+    FSSPEC_AVAILABLE = True
+except ImportError:
+    FSSPEC_AVAILABLE = False
+
 __all__ = [
     'AltaStataFunctions',
     'AltaStataPyTorchDataset',
     'AltaStataTensorFlowDataset'
 ]
+
+if FSSPEC_AVAILABLE:
+    __all__.extend(['create_filesystem', 'register_filesystem'])

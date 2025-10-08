@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='altastata',
-    version='0.1.16',
+    version='0.1.17',
     author='Serge Vilvovsky',
     author_email='serge.vilvovsky@altastata.com',
     description='A Python package for Altastata data processing and machine learning integration',
@@ -25,6 +25,7 @@ setup(
     python_requires='>=3.8',
     install_requires=[
         'py4j==0.10.9.5',
+        'fsspec>=2023.1.0',
     ],
 )
 

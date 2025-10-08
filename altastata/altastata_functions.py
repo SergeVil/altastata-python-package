@@ -1,6 +1,6 @@
 from .base_gateway import BaseGateway
 
-from typing import List
+from typing import List, Any, Dict, Optional, Union
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters, CallbackServerParameters, java_import
 from py4j.java_collections import JavaList
 
@@ -191,7 +191,22 @@ class AltaStataFunctions(BaseGateway):
     def get_buffer_from_input_stream(self, java_input_stream, buffer_size):
 
         return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
-
+    
+    def read_input_stream_position(self, java_input_stream, buffer_size):
+        """Read data from Java InputStream using the standard read() method."""
+        # Use standard Java InputStream read() method via py4j for better efficiency
+        if buffer_size == -1:
+            # Read all available data
+            return java_input_stream.read()
+        else:
+            # Read specified number of bytes
+            return java_input_stream.read(buffer_size)
+    
+    def mark_input_stream_position(self, java_input_stream, read_limit=1024):
+        """Mark current position in InputStream using mark() method."""
+        # Use standard Java InputStream mark() method via py4j
+        return java_input_stream.mark(read_limit)
+    
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
         """
         Get file attribute from Altastata file system.
@@ -202,6 +217,19 @@ class AltaStataFunctions(BaseGateway):
         except Exception as e:
             print(f"Warning: Failed to get file attribute '{name}' for '{cloud_file_path}': {e}")
             return None
+
+    def copy_file(self, from_cloud_file_path: str, to_cloud_file_path: str):
+        """
+        Copy a file from one cloud path to another.
+        
+        Args:
+            from_cloud_file_path (str): The source file path on the cloud
+            to_cloud_file_path (str): The destination file path on the cloud
+            
+        Returns:
+            CloudFileOperationStatus: Status of the copy operation
+        """
+        return self.altastata_file_system.copyFile(from_cloud_file_path, to_cloud_file_path)
 
 
 

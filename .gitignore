@@ -47,4 +47,25 @@ ehthumbs.db
 Thumbs.db
 
 # Docker
-.docker/ 
+.docker/
+
+# OpenShift / Azure Credentials - DO NOT COMMIT
+**/pull-secret.txt
+**/.azure-credentials
+**/install-config.yaml
+**/auth/
+**/.openshift_install*
+**/terraform.tfstate*
+**/.terraform/
+
+# OpenShift Binary Tools (downloaded by script, 865MB+)
+**/openshift-install
+**/oc
+**/kubectl
+
+# OpenShift Installation Artifacts (generated during setup)
+**/sno-install/
+**/pointer.ign
+**/bootstrap-in-place-for-live-iso.ign
+**/worker.ign
+**/metadata.json 
