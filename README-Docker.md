@@ -40,7 +40,7 @@ The project now builds **multi-architecture Docker images** that work natively o
 | **Architecture** | **Image Tag** | **Size** | **Use Case** |
 |------------------|---------------|----------|--------------|
 | **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest` | ~7GB per arch | All platforms with native performance |
-| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:2025d_latest` | ~7GB per arch | All platforms with native performance |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:2025f_latest` | ~7GB per arch | All platforms with native performance |
 
 ### Dockerfile
 
@@ -56,8 +56,8 @@ The project now builds **multi-architecture Docker images** that work natively o
 
 ```bash
 # Pull multi-architecture image (automatically selects correct architecture)
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
-docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest
 
 # Or use latest tag
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
@@ -149,7 +149,7 @@ docker buildx build \
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest \
   --push \
   .
 ```
@@ -227,7 +227,7 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 ```
 
 This script will:
-1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:2025d_latest`
+1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:2025f_latest`
 
 #### Manual Push
 
@@ -240,7 +240,7 @@ echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest \
   --push \
   .
 
@@ -256,7 +256,7 @@ docker buildx build \
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
 
 # Or pull specific version
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest
 
 
 

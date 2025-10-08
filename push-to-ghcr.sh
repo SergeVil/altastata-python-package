@@ -21,7 +21,7 @@ echo "Pushing Altastata Python Package Docker Image to GitHub Container Registry
 # Push AMD64 images
 echo "Pushing jupyter-datascience images..."
 docker push ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest
 
 
 
@@ -32,7 +32,7 @@ echo "✅ AMD64 image pushed successfully to GHCR!"
 echo ""
 echo "Images available at:"
 echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025d_latest"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest"
 echo ""
 
 echo ""
