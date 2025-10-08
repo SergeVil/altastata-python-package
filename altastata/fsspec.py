@@ -125,13 +125,22 @@ class AltaStataFile(io.IOBase):
         self.filesystem = filesystem
         self.path = path
         self.mode = mode
-        self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, None, 0, 4)
+        
+        # Use current system time
+        import time
+        current_time = int(time.time() * 1000)
+        self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, current_time, 0, 4)
         self._position = 0  # Track position based on last operation
     
     def read(self, size: int = -1) -> Union[bytes, str]:
         """Read data from file."""
-        # Read from InputStream using efficient position-aware method
-        data = self.filesystem.altastata_functions.read_input_stream_position(self._java_stream, size)
+        # Use the buffer method instead of direct read
+        if size == -1:
+            # Read all available data
+            data = self.filesystem.altastata_functions.get_buffer_from_input_stream(self._java_stream, 1024)
+        else:
+            # Read specified amount
+            data = self.filesystem.altastata_functions.get_buffer_from_input_stream(self._java_stream, size)
         
         # Update position based on bytes read
         if data:
