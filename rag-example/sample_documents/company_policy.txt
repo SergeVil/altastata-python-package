@@ -1,0 +1,24 @@
+Company Data Retention Policy
+
+Effective Date: January 1, 2024
+
+Overview:
+This policy establishes guidelines for the retention and disposal of company data to ensure compliance with legal requirements and operational needs.
+
+Data Retention Periods:
+- Employee Records: 7 years after employment termination
+- Financial Records: 10 years from the end of the fiscal year
+- Customer Data: 5 years after last transaction
+- Email Communications: 3 years from date of creation
+- Project Documentation: Permanent retention for active projects, 5 years after project completion
+
+Security Requirements:
+All retained data must be encrypted at rest and in transit. Access to sensitive data is restricted to authorized personnel only. Data destruction must follow secure deletion procedures.
+
+Compliance:
+This policy complies with GDPR, HIPAA, and SOC 2 requirements. Regular audits are conducted quarterly to ensure adherence.
+
+Contact:
+For questions regarding data retention, contact the Data Governance team at datagovernance@company.com
+
+

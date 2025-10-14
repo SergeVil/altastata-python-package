@@ -1,0 +1,47 @@
+Artificial Intelligence Usage Policy
+
+Version 1.0 - April 2024
+
+Scope:
+This policy governs the use of AI tools and systems including Large Language Models (LLMs), machine learning platforms, and automated decision-making systems.
+
+Approved AI Tools:
+- GitHub Copilot (for engineering teams)
+- ChatGPT Enterprise (company account only)
+- Internal AI assistants approved by IT
+- Department-specific tools with documented risk assessments
+
+Prohibited Activities:
+- Sharing confidential company data with public AI services
+- Using personal AI accounts for work-related tasks
+- Training AI models on customer data without consent
+- Automated decision-making affecting employment or compensation without human oversight
+- Bypassing security controls using AI-generated code
+
+Data Protection:
+- Never input customer PII into external AI systems
+- Use anonymized data for AI training and testing
+- Maintain data lineage for AI-processed information
+- Implement AI model governance and version control
+- Regular audits of AI system outputs for bias and accuracy
+
+Intellectual Property:
+- Review AI-generated code for licensing compliance
+- Document AI assistance in creative works
+- Verify originality of AI-generated content
+- Retain human authorship and review of all deliverables
+
+Responsible AI Principles:
+- Transparency: Disclose AI usage to stakeholders
+- Fairness: Monitor for bias in AI outputs
+- Accountability: Humans remain responsible for AI-assisted decisions
+- Privacy: Protect individual privacy in AI systems
+- Security: Implement AI-specific security controls
+
+Training:
+All employees using approved AI tools must complete AI Ethics and Security training before access is granted.
+
+Violations:
+Misuse of AI tools may result in immediate revocation of access and disciplinary action up to and including termination.
+
+

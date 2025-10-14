@@ -1,0 +1,41 @@
+Remote Work Policy
+
+Effective Date: February 2024
+
+Eligibility:
+Employees in good standing with at least 6 months tenure are eligible for remote work arrangements. Manager approval is required.
+
+Work Schedule:
+- Core hours: 10 AM - 3 PM local time (mandatory availability)
+- Flexible hours for remaining work time
+- Minimum 40 hours per week
+- Maximum 2 remote days per week for hybrid employees
+- Full-time remote available for approved positions
+
+Equipment and Technology:
+- Company-issued laptop with full disk encryption
+- VPN required for all remote connections
+- Secure home network with WPA3 encryption recommended
+- Dedicated workspace free from distractions
+- Video conferencing capability required
+
+Security Requirements:
+- Lock screen when away from workstation
+- No use of public WiFi without VPN
+- Secure storage of company documents
+- Report lost or stolen equipment immediately
+- Regular security updates must be installed
+
+Communication:
+- Respond to messages within 2 hours during core hours
+- Maintain presence on company messaging platform
+- Attend all required meetings via video
+- Weekly check-ins with direct manager
+
+Performance Expectations:
+Remote work is a privilege based on trust and performance. Employees must maintain productivity levels equivalent to in-office work. Violations of this policy may result in revocation of remote work privileges.
+
+Equipment Return:
+All company equipment must be returned within 5 business days of employment termination or remote work arrangement ending.
+
+

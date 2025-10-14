@@ -23,6 +23,15 @@ python test_simple.py
 python test_large_file_fsspec.py
 ```
 
+## RAG Pipeline
+
+For secure RAG (Retrieval-Augmented Generation) implementations with AltaStata, see the **[rag-example/](../rag-example/)** directory:
+
+- Complete working RAG pipeline with LangChain
+- Security architecture documentation
+- Sample policy documents
+- Real test output examples
+
 ## Installation
 
 ```bash
