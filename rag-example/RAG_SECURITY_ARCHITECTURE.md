@@ -32,7 +32,7 @@ AltaStata implements defense-in-depth security specifically designed for RAG sys
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │  Layer 1: Encryption per File                           │    │
 │  │  - Documents encrypted end-to-end with AES keys         │    │
-│  │  - Zero-knowledge: Storage admins can't decrypt         │    │
+│  │  - Zero-Trust: Storage admins can't decrypt             │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
@@ -86,7 +86,7 @@ AltaStata implements defense-in-depth security specifically designed for RAG sys
 
 ## Key Security Features
 
-**End-to-End Encryption**: AES-256 encryption per file, zero-knowledge architecture prevents admin access
+**End-to-End Encryption**: AES-256 encryption per file, Zero-Trust architecture prevents admin access
 
 **Immutable Versioning**: Every change creates new version with AES-GCM verification to prevent tampering
 
@@ -142,30 +142,3 @@ See **[test_rag.py](test_rag.py)** for a complete, production-ready RAG implemen
 | **Audit Trail** | Manual logging | Automatic version history |
 | **Compliance** | Custom implementation | Built-in GDPR/HIPAA/SOC 2 |
 | **Integration** | Custom per backend | Standard fsspec interface |
-
-
-
-
-## Getting Started
-
-1. **Install dependencies**:
-   ```bash
-   pip install altastata fsspec langchain langchain-community sentence-transformers faiss-cpu
-   ```
-
-2. **Run the test**:
-   ```bash
-   cd rag-example
-   python test_rag.py
-   ```
-
-3. **Read the guides**:
-   - [SECURING_RAG_WITH_ALTASTATA.md](SECURING_RAG_WITH_ALTASTATA.md) - Implementation guide
-   - [test_rag.py](test_rag.py) - Complete working example
-
-## See Also
-
-- **[SECURING_RAG_WITH_ALTASTATA.md](SECURING_RAG_WITH_ALTASTATA.md)** - Practical implementation guide
-- **[test_rag.py](test_rag.py)** - Working code with real test results  
-- **[README.md](README.md)** - RAG examples and documentation
-- **[../fsspec-example/README.md](../fsspec-example/README.md)** - fsspec integration examples
