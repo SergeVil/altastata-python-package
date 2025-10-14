@@ -2,6 +2,36 @@
 
 Simple fsspec filesystem interface for AltaStata that automatically uses the latest version of files.
 
+## Examples
+
+This directory contains working examples and tests:
+
+- **`example.py`** - Basic fsspec usage example
+- **`test_simple.py`** - Simple fsspec functionality test (small file)
+- **`test_large_file_fsspec.py`** - Performance test with 100MB files and data verification
+
+## Running Tests
+
+```bash
+# Basic example
+python example.py
+
+# Simple functionality test (small file)
+python test_simple.py
+
+# Large file performance test (100MB with data verification)
+python test_large_file_fsspec.py
+```
+
+## RAG Pipeline
+
+For secure RAG (Retrieval-Augmented Generation) implementations with AltaStata, see the **[rag-example/](../rag-example/)** directory:
+
+- Complete working RAG pipeline with LangChain
+- Security architecture documentation
+- Sample policy documents
+- Real test output examples
+
 ## Installation
 
 ```bash

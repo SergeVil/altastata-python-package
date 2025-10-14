@@ -1,0 +1,39 @@
+Enterprise Security Guidelines
+
+Version 2.0 - Updated March 2024
+
+Purpose:
+These guidelines establish security best practices for all employees to protect company data and systems.
+
+Password Requirements:
+- Minimum 12 characters
+- Mix of uppercase, lowercase, numbers, and special characters
+- Change passwords every 90 days
+- No password reuse for last 10 passwords
+- Enable multi-factor authentication (MFA) for all accounts
+
+Data Classification:
+- Public: Information freely shareable
+- Internal: For company use only
+- Confidential: Restricted to specific teams
+- Highly Confidential: Requires executive approval for access
+
+Encryption Standards:
+- AES-256 for data at rest
+- TLS 1.3 for data in transit
+- End-to-end encryption for sensitive communications
+- Hardware security modules (HSM) for key management
+
+Access Control:
+- Principle of least privilege applies to all systems
+- Role-based access control (RBAC) enforced
+- Regular access reviews conducted quarterly
+- Immediate revocation upon employment termination
+
+Incident Response:
+Report security incidents immediately to security@company.com or call the security hotline at 1-800-SEC-HELP.
+
+Training:
+All employees must complete annual security awareness training. New employees must complete training within 30 days of hire.
+
+
