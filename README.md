@@ -12,6 +12,7 @@ pip install altastata
 
 - Seamless integration with PyTorch and TensorFlow
 - **fsspec filesystem interface** for standard Python file operations
+- **Real-time Event Notifications**: Listen for file share, delete, and create events
 - Advanced data processing capabilities
 - Java integration through Py4J with optimized memory management
 - Support for large-scale data operations
@@ -92,6 +93,45 @@ with fs.open("Public/Documents/file.txt", "r") as f:
     content = f.read()
 ```
 
+## Event Listener
+
+Get real-time notifications when file operations occur:
+
+```python
+from altastata import AltaStataFunctions
+
+# Event handler
+def event_handler(event_name, data):
+    print(f"📢 Event: {event_name}, Data: {data}")
+    if event_name == "SHARE":
+        print("File was shared!")
+    elif event_name == "DELETE":
+        print("File was deleted!")
+
+# Initialize with callback server
+altastata = AltaStataFunctions.from_account_dir(
+    '/path/to/account',
+    enable_callback_server=True,
+    callback_server_port=25334
+)
+altastata.set_password("your_password")
+
+# Register listener
+listener = altastata.add_event_listener(event_handler)
+
+# Events will now be delivered in real-time!
+# See event-listener-example/ for complete demos
+```
+
+**Perfect for:**
+- Audit logging and compliance
+- Real-time sync and backup
+- Security monitoring
+- RAG vector store updates
+- Workflow automation
+
+See [`event-listener-example/`](event-listener-example/) for complete documentation and working examples.
+
 ## Version Information
 
 **Current Version**: 0.1.17
@@ -149,6 +189,7 @@ See `confidential-gke/README.md` for detailed setup instructions.
 
 ## Recent Improvements
 
+- **Event Listener System**: Real-time notifications for file share, delete, and create events via Py4J callbacks
 - **Multi-Architecture Support**: Docker images now work natively on both AMD64 and ARM64 platforms
 - **Error Handling**: Enhanced `delete_files` method with detailed error reporting
 - **Performance**: Optimized file reading operations

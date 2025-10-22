@@ -1,6 +1,6 @@
 from .base_gateway import BaseGateway
 
-from typing import List, Any, Dict, Optional, Union
+from typing import List, Any, Dict, Optional, Union, Callable
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters, CallbackServerParameters, java_import
 from py4j.java_collections import JavaList
 
@@ -8,32 +8,79 @@ import io
 import os
 import mmap
 
+
+class AltaStataEventListener:
+    """
+    Python implementation of the Java AltaStataEventListener interface.
+    This class receives events from the Java side and forwards them to a Python callback.
+    """
+    
+    def __init__(self, callback: Callable[[str, Any], None]):
+        """
+        Initialize the event listener with a Python callback function.
+        
+        Args:
+            callback: A function that takes (event_name: str, data: Any) as parameters
+        """
+        self.callback = callback
+    
+    def notify(self, altastata_event):
+        """
+        Called by Java when an event occurs.
+        
+        Args:
+            altastata_event: Java AltaStataEvent object
+        """
+        try:
+            event_name = altastata_event.getEventName()
+            data = altastata_event.getData()
+            
+            # Convert data to Python-friendly format if possible
+            if data is not None:
+                data = str(data)
+            
+            # Call the Python callback
+            self.callback(event_name, data)
+        except Exception as e:
+            print(f"Error in event listener callback: {e}")
+    
+    class Java:
+        implements = ["com.altastata.api.AltaStataEventListener"]
+
 class AltaStataFunctions(BaseGateway):
-    def __init__(self, port=25333):
+    def __init__(self, port=25333, enable_callback_server=True, callback_server_port=None):
         """
         Base initialization. This should not be called directly.
         Use from_account_dir or from_credentials instead.
+        
+        Args:
+            port (int): Port number for the gateway
+            enable_callback_server (bool): Enable callback server for event listeners
+            callback_server_port (int, optional): Custom port for callback server. None = auto-select
         """
-        super().__init__(port)
+        super().__init__(port, enable_callback_server, callback_server_port)
+        self._event_listeners = []  # Track registered listeners
 
     @classmethod
-    def from_account_dir(cls, account_dir_path, port=25333):
+    def from_account_dir(cls, account_dir_path, port=25333, enable_callback_server=True, callback_server_port=None):
         """
         Create an instance using account directory path.
         
         Args:
             account_dir_path (str): Path to the account directory
             port (int, optional): Port number for the gateway. Defaults to 25333.
+            enable_callback_server (bool, optional): Enable callback server for event listeners. Defaults to True.
+            callback_server_port (int, optional): Custom port for callback server. None = auto-select. Defaults to None.
             
         Returns:
             AltaStataFunctions: New instance initialized with account directory
         """
-        instance = cls(port)
+        instance = cls(port, enable_callback_server, callback_server_port)
         instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
         return instance
 
     @classmethod
-    def from_credentials(cls, user_properties, private_key_encrypted, port=25333):
+    def from_credentials(cls, user_properties, private_key_encrypted, port=25333, enable_callback_server=True, callback_server_port=None):
         """
         Create an instance using user properties and private key.
         
@@ -41,11 +88,13 @@ class AltaStataFunctions(BaseGateway):
             user_properties (str): User properties string
             private_key_encrypted (str): Encrypted private key
             port (int, optional): Port number for the gateway. Defaults to 25333.
+            enable_callback_server (bool, optional): Enable callback server for event listeners. Defaults to True.
+            callback_server_port (int, optional): Custom port for callback server. None = auto-select. Defaults to None.
             
         Returns:
             AltaStataFunctions: New instance initialized with credentials
         """
-        instance = cls(port)
+        instance = cls(port, enable_callback_server, callback_server_port)
         instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
         return instance
 
@@ -138,6 +187,7 @@ class AltaStataFunctions(BaseGateway):
 
     def share_files(self, cloud_path_prefix: str, including_subdirectories: bool, time_interval_start: str, time_interval_end: str, users: list) -> list:
         # Call the Java method
+        # Note: time_interval_start/end can be None (null in Java) or string
         java_list = self.altastata_file_system.share(cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end, self.python_list_to_java_array(users))
 
         # Convert the Java List to Python List
@@ -230,6 +280,57 @@ class AltaStataFunctions(BaseGateway):
             CloudFileOperationStatus: Status of the copy operation
         """
         return self.altastata_file_system.copyFile(from_cloud_file_path, to_cloud_file_path)
+
+    def add_event_listener(self, callback: Callable[[str, Any], None]) -> AltaStataEventListener:
+        """
+        Add an event listener to receive file share/delete/etc events.
+        
+        Args:
+            callback: A function that takes (event_name: str, data: Any) as parameters.
+                      Will be called when events occur (e.g., SHARE, DELETE)
+        
+        Returns:
+            AltaStataEventListener: The listener object (keep reference to remove later)
+        
+        Example:
+            def my_event_handler(event_name, data):
+                print(f"Event: {event_name}, Data: {data}")
+                if event_name == "SHARE":
+                    # Handle file sharing event
+                    pass
+                elif event_name == "DELETE":
+                    # Handle file deletion event
+                    pass
+            
+            listener = altastata.add_event_listener(my_event_handler)
+            # ... do work ...
+            altastata.remove_event_listener(listener)
+        """
+        listener = AltaStataEventListener(callback)
+        self.altastata_file_system.addAltaStataEventListener(listener)
+        self._event_listeners.append(listener)
+        return listener
+    
+    def remove_event_listener(self, listener: AltaStataEventListener):
+        """
+        Remove a previously registered event listener.
+        
+        Args:
+            listener: The listener object returned by add_event_listener()
+        """
+        try:
+            self.altastata_file_system.removeAltaStataEventListener(listener)
+            if listener in self._event_listeners:
+                self._event_listeners.remove(listener)
+        except Exception as e:
+            print(f"Warning: Failed to remove event listener: {e}")
+    
+    def remove_all_event_listeners(self):
+        """
+        Remove all registered event listeners.
+        """
+        for listener in self._event_listeners[:]:  # Copy list to avoid modification during iteration
+            self.remove_event_listener(listener)
 
 
 

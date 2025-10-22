@@ -3,13 +3,15 @@ import subprocess
 import time
 import socket
 import pkg_resources
-from py4j.java_gateway import JavaGateway, GatewayParameters
+from py4j.java_gateway import JavaGateway, GatewayParameters, CallbackServerParameters
 from threading import Thread
 import platform
 
 class BaseGateway:
-    def __init__(self, port=25333):
+    def __init__(self, port=25333, enable_callback_server=True, callback_server_port=None):
         self.port = port
+        self.enable_callback_server = enable_callback_server
+        self.callback_server_port = callback_server_port
         self.started_server = False  # Track if the server was started by this instance
         if not self._is_gateway_running():
             self._start_gateway_server()
@@ -18,7 +20,42 @@ class BaseGateway:
         # Attempt to connect to the JVM with retries
         for _ in range(10):  # Try 10 times
             try:
-                self.gateway = JavaGateway(gateway_parameters=GatewayParameters(port=self.port, auto_convert=True))
+                if self.enable_callback_server:
+                    # With callback server for event listeners
+                    if self.callback_server_port:
+                        # Use custom callback server port
+                        self.gateway = JavaGateway(
+                            gateway_parameters=GatewayParameters(port=self.port, auto_convert=True),
+                            callback_server_parameters=CallbackServerParameters(
+                                address="127.0.0.1",  # Java will connect to this address
+                                port=self.callback_server_port,
+                                daemonize=True,
+                                daemonize_connections=True
+                            )
+                        )
+                        # Explicitly start the callback server
+                        self.gateway.start_callback_server()
+                        print(f"✅ Callback server started on 127.0.0.1:{self.callback_server_port}")
+                    else:
+                        # Use default callback server port (0 = auto-select)
+                        self.gateway = JavaGateway(
+                            gateway_parameters=GatewayParameters(port=self.port, auto_convert=True),
+                            callback_server_parameters=CallbackServerParameters(
+                                address="127.0.0.1",
+                                port=0,
+                                daemonize=True,
+                                daemonize_connections=True
+                            )
+                        )
+                        # Explicitly start the callback server
+                        self.gateway.start_callback_server()
+                        actual_port = self.gateway.get_callback_server().get_listening_port()
+                        print(f"✅ Callback server started on 127.0.0.1:{actual_port}")
+                else:
+                    # Without callback server (for clients that don't listen to events)
+                    self.gateway = JavaGateway(
+                        gateway_parameters=GatewayParameters(port=self.port, auto_convert=True)
+                    )
                 break
             except Exception as e:
                 print(f"Connection failed: {e}, retrying...")
@@ -57,9 +94,11 @@ class BaseGateway:
             '-XX:ThreadStackSize=256k',  # Reduce thread stack size
             '-XX:+DisableExplicitGC',    # Prevent explicit GC calls
             '-cp', classpath,
-            'py4j.GatewayServer'
+            'py4j.GatewayServer',
+            str(self.port)              # Tell Java which port to listen on
         ]
-        print(f"Running command: {' '.join(java_command)}")  # Add this line
+        
+        print(f"Running command: {' '.join(java_command)}")
 
         # Start the Java gateway server
         self.process = subprocess.Popen(java_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

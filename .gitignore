@@ -69,3 +69,5 @@ Thumbs.db
 **/bootstrap-in-place-for-live-iso.ign
 **/worker.ign
 **/metadata.json 
+# Java garbage collection logs
+gc.log*
