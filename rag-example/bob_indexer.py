@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Bob listens for SHARE events and indexes documents to Vertex AI Vector Search
-Based on bob_listener.py + test_rag_vertex.py patterns
+Clean, self-contained version focused on readability
 """
 
 import sys
@@ -21,271 +21,288 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_core.documents import Document
 import vertexai
+from google.cloud import aiplatform
 
 
-# Global state
-embeddings = None
-fs = None
-processed_files = set()  # Track processed files to avoid duplicates
-vertex_index = None
-vertex_config = {}
-document_metadata = {}  # Store metadata for each datapoint ID
-
-# Event processing queue
-event_queue = queue.Queue()
-processing_thread = None
-stop_processing = False
-bob_altastata = None  # Global reference for cleanup
-
-
-def cleanup_on_exit():
-    """Cleanup function called on exit"""
-    global stop_processing, bob_altastata
-    if bob_altastata:
-        print("\n🛑 Cleaning up on exit...")
-        stop_processing = True
-        try:
-            bob_altastata.shutdown()
-        except:
-            pass
-        print("✅ Cleanup complete")
-
-
-def signal_handler(signum, frame):
-    """Handle SIGTERM and SIGINT"""
-    print(f"\n🛑 Received signal {signum}, cleaning up...")
-    cleanup_on_exit()
-    sys.exit(0)
-
-
-# Register cleanup handlers
-atexit.register(cleanup_on_exit)
-signal.signal(signal.SIGTERM, signal_handler)
-signal.signal(signal.SIGINT, signal_handler)
-
-
-def bob_event_handler(event_name, data):
-    """Bob's event handler - queues events for sequential processing"""
-    import threading
-    thread_name = threading.current_thread().name
-    print(f"\n🔔 EVENT QUEUED: {event_name} (Thread: {thread_name})")
+class BobIndexer:
+    """Bob's event-driven indexer - clean and self-contained"""
     
-    # Queue the event for sequential processing
-    event_queue.put((event_name, data))
-
-
-def process_event_queue():
-    """Process events from the queue sequentially"""
-    global embeddings, fs, processed_files, vertex_index, document_metadata, stop_processing
+    def __init__(self):
+        # Configuration
+        self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'altastata-coco')
+        self.location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+        
+        # State
+        self.embeddings = None
+        self.fs = None
+        self.vertex_index = None
+        self.vertex_config = {}
+        self.document_metadata = {}
+        self.processed_files = set()
+        
+        # Event processing
+        self.event_queue = queue.Queue()
+        self.processing_thread = None
+        self.stop_processing = False
+        self.bob_altastata = None
+        
+        # Setup cleanup
+        self._setup_cleanup()
     
-    while not stop_processing:
+    def _setup_cleanup(self):
+        """Setup signal and exit handlers"""
+        atexit.register(self._cleanup)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
+    
+    def _cleanup(self):
+        """Cleanup function"""
+        print("\n🛑 Cleaning up Bob...")
+        self.stop_processing = True
+        if self.bob_altastata:
+            try:
+                self.bob_altastata.shutdown()
+            except:
+                pass
+        print("✅ Bob cleanup complete")
+    
+    def _signal_handler(self, signum, frame):
+        """Handle signals"""
+        print(f"\n🛑 Received signal {signum}, cleaning up...")
+        self._cleanup()
+        sys.exit(0)
+    
+    def _load_vertex_config(self):
+        """Load Vertex AI configuration"""
+        config_path = os.path.join(os.path.dirname(__file__), ".vertex_config")
+        
+        if not os.path.exists(config_path):
+            raise FileNotFoundError(f"Vertex AI config not found: {config_path}")
+        
+        with open(config_path, 'r') as f:
+            for line in f:
+                if '=' in line:
+                    key, value = line.strip().split('=', 1)
+                    self.vertex_config[key] = value
+    
+    def _load_metadata(self):
+        """Load existing metadata"""
+        metadata_path = "/tmp/bob_rag_metadata.json"
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    self.document_metadata = json.load(f)
+                print(f"✅ Loaded existing metadata ({len(self.document_metadata)} chunks)")
+            except:
+                print("⚠️  Could not load existing metadata")
+    
+    def _save_metadata(self):
+        """Save metadata to disk"""
+        metadata_path = "/tmp/bob_rag_metadata.json"
+        with open(metadata_path, 'w') as f:
+            json.dump(self.document_metadata, f)
+        print(f"💾 Metadata saved to {metadata_path}")
+    
+    def _event_handler(self, event_name, data):
+        """Bob's event handler - queues events for sequential processing"""
+        thread_name = threading.current_thread().name
+        print(f"\n🔔 EVENT QUEUED: {event_name} (Thread: {thread_name})")
+        self.event_queue.put((event_name, data))
+    
+    def _process_event_queue(self):
+        """Process events from the queue sequentially"""
+        while not self.stop_processing:
+            try:
+                event_name, data = self.event_queue.get(timeout=1.0)
+                
+                print("\n" + "=" * 80)
+                print(f"🔔 PROCESSING: {event_name}")
+                print("=" * 80)
+                
+                if event_name == "SHARE":
+                    self._process_share_event(data)
+                elif event_name == "DELETE":
+                    print(f"🗑️  File deleted: {data}")
+                
+                print("=" * 80)
+                
+            except queue.Empty:
+                continue
+            except Exception as e:
+                print(f"❌ Error processing event: {e}")
+                import traceback
+                traceback.print_exc()
+    
+    def _process_share_event(self, data):
+        """Process a SHARE event"""
+        file_path = str(data)
+        base_path = file_path.split('✹')[0] if '✹' in file_path else file_path
+        
+        print(f"📄 File: {file_path}")
+        
+        # Check if already processed
+        if base_path in self.processed_files:
+            print(f"   ⏭️  Skipping (already indexed)")
+            return
+        
+        self.processed_files.add(base_path)
+        
         try:
-            # Get event from queue (blocking with timeout)
-            event_name, data = event_queue.get(timeout=1.0)
+            # Read from encrypted storage
+            print("   1️⃣  Reading file...")
+            with self.fs.open(file_path, "r") as f:
+                content = f.read()
+            print(f"   ✅ Loaded: {len(content)} chars")
             
-            print("\n" + "=" * 80)
-            print(f"🔔 PROCESSING: {event_name}")
-            print("=" * 80)
+            # Create document and chunk
+            doc = Document(
+                page_content=content,
+                metadata={"source": file_path, "filename": os.path.basename(file_path)}
+            )
             
-            if event_name == "SHARE":
-                # data is already a string (file path), not a Java object
-                file_path = str(data)
-                
-                # Extract base filename (without version suffix like ✹alice222_1761243866388)
-                base_path = file_path.split('✹')[0] if '✹' in file_path else file_path
-                
-                print(f"📄 File: {file_path}")
-                
-                # Check if already processed
-                if base_path in processed_files:
-                    print(f"   ⏭️  Skipping (already indexed)")
-                    print("=" * 80)
-                    continue
-                
-                processed_files.add(base_path)
-                
-                try:
-                    # Read from encrypted storage
-                    print("   1️⃣  Reading file...")
-                    with fs.open(file_path, "r") as f:
-                        content = f.read()
-                    print(f"   ✅ Loaded: {len(content)} chars")
-                    
-                    # Create document
-                    doc = Document(
-                        page_content=content,
-                        metadata={"source": file_path, "filename": os.path.basename(file_path)}
-                    )
-                    
-                    # Chunk
-                    print("   2️⃣  Chunking...")
-                    text_splitter = RecursiveCharacterTextSplitter(
-                        chunk_size=4000,
-                        chunk_overlap=800,
-                        separators=["\n\n", "\n", ". ", " ", ""]
-                    )
-                    chunks = text_splitter.split_documents([doc])
-                    print(f"   ✅ Created {len(chunks)} chunks")
-                    
-                    # Generate embeddings and upsert to Vertex AI Vector Search
-                    print("   3️⃣  Generating embeddings...")
-                    texts = [chunk.page_content for chunk in chunks]
-                    chunk_embeddings = embeddings.embed_documents(texts)
-                    
-                    print("   4️⃣  Upserting to Vertex AI Vector Search...")
-                    datapoints = []
-                    for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
-                        datapoint_id = f"{base_path.replace('/', '_')}_{i}"
-                        
-                        # Store metadata separately (Vertex AI Vector Search doesn't store text)
-                        document_metadata[datapoint_id] = {
-                            "text": chunk.page_content,
-                            "source": file_path,
-                            "filename": os.path.basename(file_path),
-                            "base_path": base_path
-                        }
-                        
-                        datapoints.append({
-                            "datapoint_id": datapoint_id,
-                            "feature_vector": embedding
-                        })
-                    
-                    # Upsert to Vertex AI
-                    vertex_index.upsert_datapoints(datapoints=datapoints)
-                    print(f"   ✅ Indexed {len(datapoints)} chunks to Vertex AI Vector Search!")
-                    
-                    # Save metadata to disk
-                    metadata_path = "/tmp/bob_rag_metadata.json"
-                    with open(metadata_path, 'w') as f:
-                        json.dump(document_metadata, f)
-                    print(f"   💾 Metadata saved to {metadata_path}")
-                    
-                except Exception as e:
-                    print(f"   ❌ Error: {e}")
-                    import traceback
-                    traceback.print_exc()
+            print("   2️⃣  Chunking...")
+            text_splitter = RecursiveCharacterTextSplitter(
+                chunk_size=4000,
+                chunk_overlap=800,
+                separators=["\n\n", "\n", ". ", " ", ""]
+            )
+            chunks = text_splitter.split_documents([doc])
+            print(f"   ✅ Created {len(chunks)} chunks")
             
-            elif event_name == "DELETE":
-                print(f"🗑️  File deleted: {data}")
+            # Generate embeddings
+            print("   3️⃣  Generating embeddings...")
+            texts = [chunk.page_content for chunk in chunks]
+            chunk_embeddings = self.embeddings.embed_documents(texts)
             
-            print("=" * 80)
+            # Prepare datapoints for Vertex AI
+            print("   4️⃣  Upserting to Vertex AI Vector Search...")
+            datapoints = []
+            for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
+                datapoint_id = f"{base_path.replace('/', '_')}_{i}"
+                
+                # Store metadata
+                self.document_metadata[datapoint_id] = {
+                    "text": chunk.page_content,
+                    "source": file_path,
+                    "filename": os.path.basename(file_path),
+                    "base_path": base_path
+                }
+                
+                datapoints.append({
+                    "datapoint_id": datapoint_id,
+                    "feature_vector": embedding
+                })
             
-        except queue.Empty:
-            # Timeout - continue loop
-            continue
+            # Upsert to Vertex AI
+            self.vertex_index.upsert_datapoints(datapoints=datapoints)
+            print(f"   ✅ Indexed {len(datapoints)} chunks to Vertex AI Vector Search!")
+            
+            # Save metadata
+            self._save_metadata()
+            
         except Exception as e:
-            print(f"❌ Error processing event: {e}")
+            print(f"   ❌ Error: {e}")
             import traceback
             traceback.print_exc()
+    
+    def initialize(self):
+        """Initialize all components"""
+        print("=" * 80)
+        print("🤖 BOB INDEXER - Vertex AI Vector Search (Event-Driven)")
+        print("=" * 80)
+        print(f"\n📍 Project: {self.project_id}, Location: {self.location}")
+        
+        # Load Vertex AI config
+        print("\n1️⃣  Loading Vertex AI Vector Search configuration...")
+        try:
+            self._load_vertex_config()
+            print(f"✅ Loaded config - Index: {self.vertex_config.get('INDEX_ID', 'N/A')}")
+        except FileNotFoundError as e:
+            print(f"❌ {e}")
+            print(f"\n📝 Run this first: python setup_vertex_search.py")
+            return False
+        
+        # Initialize Vertex AI
+        print("\n2️⃣  Initializing Vertex AI...")
+        vertexai.init(project=self.project_id, location=self.location)
+        
+        self.embeddings = VertexAIEmbeddings(
+            model_name="text-embedding-004",
+            project=self.project_id,
+            location=self.location
+        )
+        print("✅ Embeddings ready (text-embedding-004, 768-dim)")
+        
+        # Connect to Vertex AI index
+        try:
+            index_name = self.vertex_config['INDEX_ID']
+            self.vertex_index = aiplatform.MatchingEngineIndex(index_name=index_name)
+            print("✅ Connected to Vertex AI Vector Search")
+        except Exception as e:
+            print(f"❌ Failed to connect to Vertex AI Vector Search: {e}")
+            return False
+        
+        # Load existing metadata
+        self._load_metadata()
+        
+        # Connect to AltaStata
+        print("\n3️⃣  Connecting Bob...")
+        self.bob_altastata = AltaStataFunctions.from_account_dir(
+            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123',
+            callback_server_port=25334
+        )
+        self.bob_altastata.set_password("123")
+        self.fs = create_filesystem(self.bob_altastata, "bob123")
+        print("✅ Bob connected")
+        
+        # Start event processing
+        print("\n4️⃣  Starting event processing thread...")
+        self.processing_thread = threading.Thread(target=self._process_event_queue, daemon=True)
+        self.processing_thread.start()
+        print("✅ Event processor started")
+        
+        # Register event listener
+        print("\n5️⃣  Registering event listener...")
+        listener = self.bob_altastata.add_event_listener(self._event_handler)
+        print("✅ Listening for SHARE events")
+        
+        return True
+    
+    def run(self):
+        """Run the indexer"""
+        if not self.initialize():
+            return
+        
+        print("\n" + "=" * 80)
+        print("🎧 BOB IS LISTENING...")
+        print("=" * 80)
+        print("\n💡 Run: python alice_upload_docs.py")
+        print("⏳ Waiting for events... (Ctrl+C to stop)\n")
+        
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            print("\n\n🛑 Stopping...")
+            self.stop_processing = True
+            if self.bob_altastata:
+                self.bob_altastata.remove_event_listener(listener)
+            if self.processing_thread:
+                self.processing_thread.join(timeout=5)
+            self.bob_altastata.shutdown()
+            print("✅ Stopped")
 
 
 def main():
-    global embeddings, fs, vertex_index, vertex_config, document_metadata, processing_thread, stop_processing, bob_altastata
-    
-    print("=" * 80)
-    print("🤖 BOB INDEXER - Vertex AI Vector Search (Event-Driven)")
-    print("=" * 80)
-    
-    # Setup Vertex AI
-    project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'altastata-coco')
-    location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
-    print(f"\n📍 Project: {project_id}, Location: {location}")
-    
-    # Load Vertex AI Vector Search config
-    print("\n1️⃣  Loading Vertex AI Vector Search configuration...")
-    config_path = os.path.join(os.path.dirname(__file__), ".vertex_config")
-    
-    if not os.path.exists(config_path):
-        print(f"❌ Vertex AI config not found: {config_path}")
-        print(f"\n📝 Run this first:")
-        print(f"   python setup_vertex_search.py")
-        return
-    
-    with open(config_path, 'r') as f:
-        for line in f:
-            if '=' in line:
-                key, value = line.strip().split('=', 1)
-                vertex_config[key] = value
-    
-    print(f"✅ Loaded config")
-    print(f"   Index: {vertex_config.get('INDEX_ID', 'N/A')}")
-    
-    # Initialize Vertex AI
-    print("\n2️⃣  Initializing Vertex AI...")
-    vertexai.init(project=project_id, location=location)
-    
-    embeddings = VertexAIEmbeddings(
-        model_name="text-embedding-004",
-        project=project_id,
-        location=location
-    )
-    print("✅ Embeddings ready (text-embedding-004, 768-dim)")
-    
-    # Load Vertex AI index
+    """Main function"""
     try:
-        from google.cloud import aiplatform
-        index_name = vertex_config['INDEX_ID']
-        vertex_index = aiplatform.MatchingEngineIndex(index_name=index_name)
-        print("✅ Connected to Vertex AI Vector Search")
-    except Exception as e:
-        print(f"❌ Failed to connect to Vertex AI Vector Search: {e}")
-        return
-    
-    # Load existing metadata if available
-    metadata_path = "/tmp/bob_rag_metadata.json"
-    if os.path.exists(metadata_path):
-        try:
-            with open(metadata_path, 'r') as f:
-                document_metadata = json.load(f)
-            print(f"✅ Loaded existing metadata ({len(document_metadata)} chunks)")
-        except:
-            print("⚠️  Could not load existing metadata")
-    
-    # Connect Bob
-    print("\n3️⃣  Connecting Bob...")
-    bob_altastata = AltaStataFunctions.from_account_dir(
-        '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123',
-        callback_server_port=25334
-    )
-    bob_altastata.set_password("123")
-    fs = create_filesystem(bob_altastata, "bob123")
-    print("✅ Bob connected")
-    
-    # Start event processing thread
-    print("\n4️⃣  Starting event processing thread...")
-    processing_thread = threading.Thread(target=process_event_queue, daemon=True)
-    processing_thread.start()
-    print("✅ Event processor started")
-    
-    # Register event listener
-    print("\n5️⃣  Registering event listener...")
-    listener = bob_altastata.add_event_listener(bob_event_handler)
-    print("✅ Listening for SHARE events")
-    
-    print("\n" + "=" * 80)
-    print("🎧 BOB IS LISTENING...")
-    print("=" * 80)
-    print("\n💡 Run: python alice_upload_docs.py")
-    print("⏳ Waiting for events... (Ctrl+C to stop)\n")
-    
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        print("\n\n🛑 Stopping...")
-        stop_processing = True
-        bob_altastata.remove_event_listener(listener)
-        if processing_thread:
-            processing_thread.join(timeout=5)
-        # Properly shutdown the gateway to kill Java process
-        bob_altastata.shutdown()
-        print("✅ Stopped")
-
-
-if __name__ == "__main__":
-    try:
-        main()
+        indexer = BobIndexer()
+        indexer.run()
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
         traceback.print_exc()
+
+
+if __name__ == "__main__":
+    main()

@@ -214,7 +214,7 @@ gcloud container clusters create secure-rag \
 - 1M characters ≈ $0.25
 
 **Gemini:**
-- gemini-1.5-flash: $0.000125 per 1K characters (input), $0.000375 per 1K chars (output)
+- gemini-2.5-flash: $0.000125 per 1K characters (input), $0.000375 per 1K chars (output)
 - gemini-1.5-pro: $0.00125 per 1K characters (input), $0.005 per 1K chars (output)
 
 **Example:**

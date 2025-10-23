@@ -123,7 +123,7 @@ from google.cloud import aiplatform
 from langchain_google_vertexai import VertexAI
 from langchain.chains import RetrievalQA
 
-llm = VertexAI(model_name="gemini-1.5-flash")
+llm = VertexAI(model_name="gemini-2.5-flash")
 qa_chain = RetrievalQA.from_chain_type(
     llm=llm,
     retriever=vector_search.as_retriever()  # Using Vertex AI Vector Search

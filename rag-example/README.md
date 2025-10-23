@@ -58,6 +58,12 @@ Real-time document indexing with file sharing events:
 - **`bob_query.py`** - Interactive query interface (Gemini 2.5 Flash + vector search)
 - **`cleanup.py`** - Two cleanup modes (quick: data only, full: delete infrastructure)
 
+**Recent Improvements:**
+- ✅ **Queue-based event processing** - Sequential event handling prevents race conditions
+- ✅ **Threading lock fixes** - Prevents concurrent callback issues
+- ✅ **Java process cleanup** - Automatic cleanup prevents "Address already in use" errors
+- ✅ **Event deduplication** - Prevents duplicate processing of the same file
+
 **See `QUICKSTART_RAG.md` for step-by-step guide!**
 
 ### 📚 Documentation
@@ -101,7 +107,7 @@ vectorstore = create_vector_store(chunks, embeddings)
 # 3. Query with Gemini
 from langchain_google_vertexai import VertexAI
 qa_chain = RetrievalQA.from_chain_type(
-    llm=VertexAI(model_name="gemini-1.5-flash"),
+    llm=VertexAI(model_name="gemini-2.5-flash"),
     retriever=vectorstore.as_retriever()
 )
 
