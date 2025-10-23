@@ -4,52 +4,63 @@ Complete examples and documentation for building secure RAG (Retrieval-Augmented
 
 ## Quick Start
 
-### Installation
+### Option 1: Basic RAG (HuggingFace - Local)
+
+Fast development with local embeddings:
 
 ```bash
 pip install altastata fsspec langchain langchain-community sentence-transformers faiss-cpu
-```
-
-### Run the Test
-
-```bash
-cd rag-example
 python test_rag.py
 ```
 
-This will:
-- ✅ Upload sample documents to encrypted storage
+### Option 2: Production RAG (Google Vertex AI) ⭐ RECOMMENDED
+
+Production-ready with Google Cloud:
+
+```bash
+# See google_vertexai/ folder for complete documentation
+pip install altastata fsspec langchain langchain-google-vertexai langchain-community faiss-cpu google-cloud-aiplatform
+
+export GOOGLE_CLOUD_PROJECT="your-project-id"
+gcloud auth application-default login
+
+python test_rag_vertex.py
+```
+
+Both demos:
+- ✅ Encrypted document storage with AltaStata
 - ✅ Load documents via fsspec
 - ✅ Create embeddings and vector store
-- ✅ Perform semantic search on 5 different queries
-- ✅ Show similarity scores
+- ✅ Perform semantic search with citations
 - ✅ Clean up test data
 
-## Files in This Directory
+## What's in This Repository
 
-### Working Examples
+### 🚀 Getting Started
 
-- **`test_rag.py`** ⭐ - Complete, production-ready RAG pipeline
-  - Uploads documents to encrypted AltaStata storage
-  - Loads documents using fsspec
-  - Creates vector embeddings with sentence-transformers
-  - Demonstrates semantic search with FAISS
-  - Includes 5 real query examples with output
-  - Automatic cleanup
+- **`test_rag.py`** - Basic RAG demo (local HuggingFace)
+- **`google_vertexai/`** ⭐ - Production RAG with Vertex AI
+  - Complete working demo
+  - Setup guides and documentation
+  - Real-world use case analysis
 
-### Documentation
+### 📚 Documentation
 
-- **`SECURING_RAG_WITH_ALTASTATA.md`** - Practical implementation guide
-  - Installation instructions
-  - Code examples
-  - Best practices
-  - Real test output
+**Core Guides:**
+- **`SECURING_RAG_WITH_ALTASTATA.md`** - Implementation guide with best practices
+- **`RAG_SECURITY_ARCHITECTURE.md`** - Security model and compliance (GDPR, HIPAA, SOC 2)
 
-- **`RAG_SECURITY_ARCHITECTURE.md`** - Security architecture deep dive
-  - Multi-layer security model
-  - Data flow diagrams
-  - Compliance information (GDPR, HIPAA, SOC 2)
-  - Deployment models
+**Technical Deep-Dives:**
+- **`CHUNKING_STRATEGIES.md`** - Universal document chunking guide (applies to all RAG systems)
+- **`PDF_PROCESSING.md`** - How to extract text from PDFs and preserve page numbers
+
+**Google Vertex AI:**
+- See **`google_vertexai/`** folder for:
+  - Complete Vertex AI demo and setup guide
+  - Production deployment documentation
+  - How embeddings and metadata work with Vertex AI
+  - Real-world insurance company use case
+  - Cost estimates and timelines
 
 ### Sample Data
 
@@ -59,93 +70,59 @@ This will:
   - `remote_work_policy.txt` - Remote work guidelines
   - `ai_usage_policy.txt` - AI tool usage policy
 
-## Test Output Example
+## Quick Example
 
-```
-🚀 Testing RAG Pipeline with AltaStata fsspec
-================================================================================
+```python
+# 1. Upload to AltaStata (encrypted storage)
+altastata.upload("policy.pdf")
 
-1️⃣  Initializing AltaStata connection...
-✅ AltaStata initialized
+# 2. Load and create embeddings
+from langchain_google_vertexai import VertexAIEmbeddings
+embeddings = VertexAIEmbeddings()
+# Store in Vertex AI Vector Search (or FAISS for development)
+vectorstore = create_vector_store(chunks, embeddings)
 
-2️⃣  Uploading sample documents to encrypted storage...
-   ✅ Uploaded: company_policy.txt - DONE
-   ✅ Uploaded: security_guidelines.txt - DONE
-   ✅ Uploaded: remote_work_policy.txt - DONE
-   ✅ Uploaded: ai_usage_policy.txt - DONE
+# 3. Query with Gemini
+from langchain_google_vertexai import VertexAI
+qa_chain = RetrievalQA.from_chain_type(
+    llm=VertexAI(model_name="gemini-1.5-flash"),
+    retriever=vectorstore.as_retriever()
+)
 
-3️⃣  Loading documents via fsspec...
-   ✅ Loaded: company_policy.txt (1024 chars)
-   ✅ Total documents loaded: 4
-
-4️⃣  Splitting documents into chunks...
-✅ Created 12 text chunks
-
-5️⃣  Creating embeddings and vector store...
-✅ Vector store created successfully
-
-6️⃣  Testing RAG queries...
-================================================================================
-
-📊 Query 1: What are the password requirements?
-Found 2 relevant chunks:
-[Chunk 1] (from: security_guidelines.txt)
-Enterprise Security Guidelines
-Password Requirements:
-- Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, and special characters
-- Change passwords every 90 days
-...
+answer = qa_chain.invoke({"query": "What are the password requirements?"})
 ```
 
 ## Key Features
 
-### Security
-- **End-to-End Encryption** - AES-256 per file, zero-knowledge architecture
-- **Automatic Versioning** - Immutable audit trail for compliance
-- **Access Control** - Account-based authentication
-- **Confidential Computing** - Optional hardware-level memory protection
+- **Zero-Trust Security** - End-to-end encryption, zero-knowledge architecture
+- **Vertex AI Integration** - Embeddings, Gemini, and other GCP AI services
+- **LangChain Orchestration** - Pre-built components for RAG pipelines
+- **Production-Ready** - Scales from POC to enterprise
+- **Compliance** - GDPR, HIPAA, SOC 2 compatible
 
-### Integration
-- **LangChain** - Seamless integration via fsspec
-- **Multiple Frameworks** - Works with LlamaIndex, Hugging Face, etc.
-- **Multi-Cloud** - AWS, GCP, Azure, IBM, MiniIO support
+## Production Deployment
 
-### Compliance
-- ✅ GDPR compliant
-- ✅ HIPAA compliant  
-- ✅ SOC 2 compliant
+1. **Choose Vector Store** (see `google_vertexai/` for details)
+   - **Vertex AI Vector Search**: Production (recommended)
+   - FAISS: Development/testing only
+   - Chroma: Alternative for self-hosted
 
-## Next Steps
+2. **Optimize Chunk Sizes** (see `CHUNKING_STRATEGIES.md`)
+   - With Gemini 1.5: 4000-8000 chars (leverages large context)
+   - Legal documents: 6000-8000 chars
+   - General docs: 4000-5000 chars
 
-After running the test, you can:
-
-1. **Integrate with LLM** - Add OpenAI, Anthropic, or local models
-   ```python
-   from langchain.chains import RetrievalQA
-   qa_chain = RetrievalQA.from_chain_type(
-       llm=your_llm,
-       retriever=retriever
-   )
-   ```
-
-2. **Add Conversation Memory** - Multi-turn dialogues
-   ```python
-   from langchain.memory import ConversationBufferMemory
-   memory = ConversationBufferMemory()
-   ```
-
-3. **Deploy with Confidential Computing**
+3. **Deploy to GKE** (optional Confidential Computing)
    ```bash
    cd ../confidential-gke
    ./setup-cluster.sh
    ```
 
-## Documentation
+## Links
 
-- **[SECURING_RAG_WITH_ALTASTATA.md](SECURING_RAG_WITH_ALTASTATA.md)** - Complete implementation guide
+- **[google_vertexai/](google_vertexai/)** - Production RAG with Vertex AI
+- **[SECURING_RAG_WITH_ALTASTATA.md](SECURING_RAG_WITH_ALTASTATA.md)** - Implementation guide
 - **[RAG_SECURITY_ARCHITECTURE.md](RAG_SECURITY_ARCHITECTURE.md)** - Security architecture
-- **[test_rag.py](test_rag.py)** - Working code with examples
 - **[../fsspec-example/](../fsspec-example/)** - fsspec integration examples
 - **[../README.md](../README.md)** - Main AltaStata documentation
 

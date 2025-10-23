@@ -8,6 +8,32 @@ Traditional RAG implementations expose enterprise data through:
 - **Processing**: Confidential data in unprotected memory
 - **Compliance**: No audit trails or version control for GDPR/HIPAA/SOC 2
 
+## Data Flow
+
+### Document Ingestion (Write Path)
+1. Enterprise uploads document → AltaStata encrypts with AES-256
+2. Document chunked and compressed for speed/cost optimization
+3. Encrypted bytes stored in multi-cloud backend (AWS/IBM/MiniIO/GCP/Azure)
+4. Version metadata created for audit compliance
+
+### RAG Retrieval (Read Path)
+1. LangChain loader requests `altastata://` URL
+2. fsspec routes to AltaStata filesystem
+3. Authenticates user credentials and permissions
+4. Downloads encrypted bytes from cloud storage
+5. Decrypts locally within application's memory space
+6. Returns plaintext to RAG application (text splitter → embeddings → vector store)
+
+## Key Security Features
+
+**End-to-End Encryption**: AES-256 encryption per file, Zero-Trust architecture prevents admin access
+
+**Immutable Versioning**: Every change creates new version with AES-GCM verification to prevent tampering
+
+**Access Control**: Account-based isolation with credential authentication and role separation
+
+**Confidential Computing**: Optional Confidential Container via Red Hat OpenShift
+
 ## The Solution: Multi-Layer Security Architecture
 
 AltaStata implements defense-in-depth security specifically designed for RAG systems:
@@ -39,18 +65,12 @@ AltaStata implements defense-in-depth security specifically designed for RAG sys
 │  │  Layer 2: Immutability and tampering preventing         │    │
 │  │  - AES-GCM verification prevents tampering              │    │
 │  │  - Every document change creates a new version          │    │
-│  │  - Time-travel queries for audit compliance             │    │
+│  │  - Logs for audit compliance                            │    │
+│  │  - Access Control: Principle of Least Privilege         │    │
 │  └─────────────────────────────────────────────────────────┘    │
 │                                                                 │
 │  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Layer 3: Access Control                                │    │
-│  │  - Account-based isolation                              │    │
-│  │  - Credential-based authentication                      │    │
-│  │  - Role separation between users                        │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Layer 4: Confidential Container (by Red Hat OpenShift) │    │
+│  │  Layer 3: Confidential Container (by Red Hat OpenShift) │    │
 │  │  - AMD SEV hardware memory encryption                   │    │
 │  │  - Attestation-based trust verification                 │    │
 │  │  - Protection from hypervisor attacks                   │    │
@@ -67,50 +87,6 @@ AltaStata implements defense-in-depth security specifically designed for RAG sys
 │   Admin Cannot: Access, read, or decrypt documents              │
 └─────────────────────────────────────────────────────────────────┘
 ```
-
-## Data Flow
-
-### Document Ingestion (Write Path)
-1. Enterprise uploads document → AltaStata encrypts with AES-256
-2. Document chunked and compressed for speed/cost optimization
-3. Encrypted bytes stored in multi-cloud backend (AWS/IBM/MiniIO/GCP/Azure)
-4. Version metadata created for audit compliance
-
-### RAG Retrieval (Read Path)
-1. LangChain loader requests `altastata://` URL
-2. fsspec routes to AltaStata filesystem
-3. Authenticates user credentials and permissions
-4. Downloads encrypted bytes from cloud storage
-5. Decrypts locally within application's memory space
-6. Returns plaintext to RAG application (text splitter → embeddings → vector store)
-
-## Key Security Features
-
-**End-to-End Encryption**: AES-256 encryption per file, Zero-Trust architecture prevents admin access
-
-**Immutable Versioning**: Every change creates new version with AES-GCM verification to prevent tampering
-
-**Access Control**: Account-based isolation with credential authentication and role separation
-
-**Confidential Computing**: Optional Confidential Container via Red Hat OpenShift
-
-## Integration
-
-AltaStata uses fsspec filesystem interface, making security transparent:
-
-```python
-# Traditional approach (unencrypted)
-with open("document.txt", "r") as f:
-    content = f.read()
-
-# AltaStata approach (encrypted)
-from altastata.fsspec import create_filesystem
-fs = create_filesystem(altastata_functions, "account_id")
-with fs.open("document.txt", "r") as f:
-    content = f.read()  # Automatically decrypted
-```
-
-**Supported Frameworks**: LangChain, LlamaIndex, PyTorch, TensorFlow, Pandas, Dask, Ray, Hugging Face Datasets
 
 ### Working Example
 
