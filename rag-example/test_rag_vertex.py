@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
 """
-RAG Pipeline with Vertex AI + AltaStata
+RAG Pipeline with Vertex AI Vector Search + AltaStata
 
 Demonstrates:
 - Encrypted document storage with AltaStata
-- Vertex AI Embeddings and Gemini
-- LangChain RAG pipeline with citations
+- Vertex AI Embeddings and Vector Search
+- Gemini for generation
+- Full production-ready RAG pipeline
 
 Requirements:
-    pip install altastata fsspec langchain langchain-google-vertexai faiss-cpu
+    pip install altastata fsspec langchain langchain-google-vertexai google-cloud-aiplatform
 
 Setup:
-    export GOOGLE_CLOUD_PROJECT="your-project-id"
-    gcloud auth application-default login
+    1. Run: python setup_vertex_search.py (one-time, 20-40 min)
+    2. export GOOGLE_CLOUD_PROJECT="altastata-coco"
+    3. gcloud auth application-default login
+    4. python test_rag_vertex.py
 """
 
 import sys
 import os
+import json
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -25,7 +29,6 @@ from altastata.altastata_functions import AltaStataFunctions
 from altastata.fsspec import create_filesystem
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_google_vertexai import VertexAIEmbeddings
-from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
@@ -58,18 +61,38 @@ def load_sample_documents():
 
 
 def test_rag_vertex_ai():
-    """Test complete RAG pipeline with AltaStata + Vertex AI"""
-    print("🚀 Testing RAG Pipeline with AltaStata + Vertex AI")
+    """Test complete RAG pipeline with AltaStata + Vertex AI Vector Search"""
+    print("🚀 Testing RAG Pipeline with AltaStata + Vertex AI Vector Search")
     print("=" * 80)
     
     # Check environment
     print("\n0️⃣  Checking Google Cloud configuration...")
-    # Use altastata-coco which has Gemini 2.5 Publisher Model access
     project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'altastata-coco')
     print(f"✅ Using GCP Project: {project_id}")
     
     location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
     print(f"✅ Using GCP Location: {location}")
+    
+    # Load Vertex AI Vector Search config
+    print("\n📋 Loading Vertex AI Vector Search configuration...")
+    config_path = os.path.join(os.path.dirname(__file__), ".vertex_config")
+    
+    if not os.path.exists(config_path):
+        print(f"❌ Vertex AI config not found: {config_path}")
+        print(f"\n📝 Run this first:")
+        print(f"   python setup_vertex_search.py")
+        print(f"\n   (This takes 20-40 minutes but only needs to be done once)")
+        return
+    
+    vertex_config = {}
+    with open(config_path, 'r') as f:
+        for line in f:
+            if '=' in line:
+                key, value = line.strip().split('=', 1)
+                vertex_config[key] = value
+    
+    print(f"✅ Config loaded")
+    print(f"   Index: {vertex_config.get('INDEX_ID', 'N/A')}")
     
     # Initialize AltaStata
     print("\n1️⃣  Initializing AltaStata connection...")
@@ -137,8 +160,8 @@ def test_rag_vertex_ai():
     print(f"   Average chunk size: {sum(len(c.page_content) for c in chunks) // len(chunks)} chars")
     print(f"   💡 Using larger chunks optimized for Gemini 1.5's large context window")
     
-    # Create embeddings with Vertex AI
-    print("\n5️⃣  Creating embeddings with Vertex AI...")
+    # Create embeddings and index into Vertex AI Vector Search
+    print("\n5️⃣  Creating embeddings and indexing...")
     print("   (Using text-embedding-004 model)")
     try:
         embeddings = VertexAIEmbeddings(
@@ -152,14 +175,67 @@ def test_rag_vertex_ai():
         test_embedding = embeddings.embed_query("test query")
         print(f"   ✅ Embedding dimension: {len(test_embedding)}")
         
-        # Create vector store
-        print("   Creating FAISS vector store...")
-        vectorstore = FAISS.from_documents(chunks, embeddings)
-        print("✅ Vector store created successfully with Vertex AI embeddings")
-        print("   💡 100% Vertex AI: Embeddings + Gemini 2.5 Flash")
+        # Connect to Vertex AI Vector Search index
+        print("   Connecting to Vertex AI Vector Search...")
+        from google.cloud import aiplatform
+        aiplatform.init(project=project_id, location=location)
+        
+        index = aiplatform.MatchingEngineIndex(index_name=vertex_config['INDEX_ID'])
+        endpoint = aiplatform.MatchingEngineIndexEndpoint(
+            index_endpoint_name=vertex_config['ENDPOINT_ID']
+        )
+        deployed_index_id = vertex_config['DEPLOYED_INDEX_ID']
+        
+        print("✅ Connected to Vertex AI Vector Search")
+        
+        # Load existing metadata (shared with bob_indexer/bob_query)
+        metadata_path = "/tmp/bob_rag_metadata.json"
+        document_metadata = {}
+        if os.path.exists(metadata_path):
+            try:
+                with open(metadata_path, 'r') as f:
+                    document_metadata = json.load(f)
+                print(f"   📂 Loaded existing metadata ({len(document_metadata)} chunks)")
+            except:
+                pass
+        
+        # Generate embeddings for all chunks
+        print("   Generating embeddings for all chunks...")
+        texts = [chunk.page_content for chunk in chunks]
+        chunk_embeddings = embeddings.embed_documents(texts)
+        
+        # Prepare datapoints
+        print("   Preparing datapoints...")
+        datapoints = []
+        
+        for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
+            datapoint_id = f"test_{int(os.times()[4]*1000)}_{i}"
+            
+            # Store metadata separately
+            document_metadata[datapoint_id] = {
+                "text": chunk.page_content,
+                "source": chunk.metadata.get("source", ""),
+                "filename": chunk.metadata.get("filename", "")
+            }
+            
+            datapoints.append({
+                "datapoint_id": datapoint_id,
+                "feature_vector": embedding
+            })
+        
+        # Upsert to Vertex AI Vector Search
+        print(f"   Upserting {len(datapoints)} vectors to Vertex AI...")
+        index.upsert_datapoints(datapoints=datapoints)
+        print("✅ Vectors indexed in Vertex AI Vector Search")
+        
+        # Save metadata to disk (shared with bob_query)
+        with open(metadata_path, 'w') as f:
+            json.dump(document_metadata, f)
+        print(f"   💾 Metadata saved to {metadata_path}")
+        print("   💡 100% Vertex AI: Embeddings + Vector Search + Gemini 2.5 Flash")
         
     except Exception as e:
-        print(f"❌ Error creating embeddings/vector store: {e}")
+        print(f"❌ Error creating embeddings/indexing: {e}")
         raise
     
     # Initialize Vertex AI (native SDK)
@@ -172,14 +248,9 @@ def test_rag_vertex_ai():
         print(f"❌ Error initializing Gemini: {e}")
         raise
     
-    # Create retriever
-    print("\n7️⃣  Setting up vector retriever...")
-    try:
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-        print("✅ Retriever ready (will retrieve top 3 relevant chunks)")
-    except Exception as e:
-        print(f"❌ Error creating retriever: {e}")
-        raise
+    # Retriever setup (using Vertex AI endpoint)
+    print("\n7️⃣  Setting up vector search retriever...")
+    print("✅ Retriever ready (will query Vertex AI Vector Search for top 3 chunks)")
     
     # Test RAG queries with Gemini
     print("\n8️⃣  Testing RAG queries with Gemini...")
@@ -200,12 +271,33 @@ def test_rag_vertex_ai():
         print()
         
         try:
-            # Retrieve relevant documents
-            relevant_docs = retriever.get_relevant_documents(query)
+            # Generate query embedding
+            query_embedding = embeddings.embed_query(query)
+            
+            # Query Vertex AI Vector Search
+            response = endpoint.find_neighbors(
+                deployed_index_id=deployed_index_id,
+                queries=[query_embedding],
+                num_neighbors=3
+            )
+            
+            # Get results
+            neighbors = response[0] if response else []
+            relevant_docs = []
+            
+            for neighbor in neighbors:
+                datapoint_id = neighbor.id
+                if datapoint_id in document_metadata:
+                    meta = document_metadata[datapoint_id]
+                    relevant_docs.append({
+                        "text": meta["text"],
+                        "filename": meta["filename"],
+                        "source": meta["source"]
+                    })
             
             # Build context from retrieved documents
             context = "\n\n".join([
-                f"Document {j+1} ({doc.metadata.get('filename', 'Unknown')}):\n{doc.page_content}"
+                f"Document {j+1} ({doc['filename']}):\n{doc['text']}"
                 for j, doc in enumerate(relevant_docs)
             ])
             
@@ -232,8 +324,8 @@ Answer:"""
             
             print(f"📚 SOURCES ({len(relevant_docs)} documents retrieved):")
             for j, doc in enumerate(relevant_docs, 1):
-                filename = doc.metadata.get('filename', 'Unknown')
-                preview = doc.page_content[:80].replace('\n', ' ')
+                filename = doc.get('filename', 'Unknown')
+                preview = doc.get('text', '')[:80].replace('\n', ' ')
                 print(f"   {j}. 📄 {filename}")
                 print(f"      └─ {preview}...")
             
@@ -250,21 +342,33 @@ Answer:"""
     print(f"❓ {query}\n")
     
     try:
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 3})
-        relevant_docs = retriever.get_relevant_documents(query)
-        print(f"✅ Found {len(relevant_docs)} most relevant chunks:\n")
+        # Generate query embedding
+        query_embedding = embeddings.embed_query(query)
         
-        for i, doc in enumerate(relevant_docs, 1):
-            filename = doc.metadata.get('filename', 'Unknown')
-            # Show relevant context (first 300 chars, preserving readability)
-            content = doc.page_content[:300]
-            # Add ellipsis if truncated
-            if len(doc.page_content) > 300:
-                content += "..."
-            
-            print(f"   {i}. 📄 {filename}")
-            print(f"      {content}")
-            print()
+        # Query Vertex AI Vector Search
+        response = endpoint.find_neighbors(
+            deployed_index_id=deployed_index_id,
+            queries=[query_embedding],
+            num_neighbors=3
+        )
+        
+        neighbors = response[0] if response else []
+        print(f"✅ Found {len(neighbors)} most relevant chunks:\n")
+        
+        for i, neighbor in enumerate(neighbors, 1):
+            datapoint_id = neighbor.id
+            if datapoint_id in document_metadata:
+                meta = document_metadata[datapoint_id]
+                filename = meta.get('filename', 'Unknown')
+                content = meta.get('text', '')[:300]
+                
+                # Add ellipsis if truncated
+                if len(meta.get('text', '')) > 300:
+                    content += "..."
+                
+                print(f"   {i}. 📄 {filename}")
+                print(f"      {content}")
+                print()
     
     except Exception as e:
         print(f"❌ Error in similarity search: {e}")
@@ -272,11 +376,11 @@ Answer:"""
     # Cleanup
     print("\n🧹 Cleaning up test data...")
     try:
-        # Delete all test documents
+        # Delete all test documents from AltaStata
         for filename in sample_docs.keys():
             file_path = f"{test_dir}/{filename}"
             result = altastata_functions.delete_files(file_path, False, None, None)
-            print(f"   ✅ Deleted: {filename}")
+            print(f"   ✅ Deleted from storage: {filename}")
         
         # Try to delete the directory
         try:
@@ -284,6 +388,10 @@ Answer:"""
             print(f"   ✅ Deleted directory: {test_dir}")
         except:
             pass  # Directory might not be empty
+        
+        # Note: We keep vectors in Vertex AI Vector Search and metadata in JSON
+        # Use cleanup.py to fully clean the Vertex AI resources
+        print(f"   💡 Vectors remain in Vertex AI (use cleanup.py to remove)")
             
     except Exception as e:
         print(f"⚠️  Warning during cleanup: {e}")
@@ -299,19 +407,20 @@ Answer:"""
     print("      └─ Zero-trust security model")
     print()
     print("   🤖 Vertex AI Stack (100%)")
-    print("      ├─ Text Embeddings (768-dim)")
+    print("      ├─ Text Embeddings (text-embedding-004, 768-dim)")
+    print("      ├─ Vector Search (Matching Engine)")
     print("      └─ Gemini 2.5 Flash (LLM)")
     print()
     print("   🔗 Integration")
-    print("      ├─ LangChain RAG pipeline")
-    print("      ├─ FAISS vector store")
+    print("      ├─ LangChain document processing")
+    print("      ├─ Vertex AI Vector Search (production-ready)")
     print("      └─ Full source citations")
     
     print("\n💡 NEXT STEPS FOR PRODUCTION:")
-    print("   ⚡ Scale to Vertex AI Matching Engine (>100K documents)")
     print("   🔐 Add user authentication and audit logging")
     print("   ☁️  Deploy to GKE with Confidential Computing")
     print("   📊 Implement monitoring and observability")
+    print("   ⚡ Scale replicas for high availability")
     print(f"\n{'═' * 80}")
 
 

@@ -13,17 +13,21 @@ pip install altastata fsspec langchain langchain-community sentence-transformers
 python test_rag.py
 ```
 
-### Option 2: Production RAG (Google Vertex AI) ⭐ RECOMMENDED
+### Option 2: Production RAG (Vertex AI Vector Search) ⭐ RECOMMENDED
 
-Production-ready with Google Cloud:
+Production-ready with Google Cloud (Matching Engine on e2-standard-2 VMs):
 
 ```bash
-# See google_vertexai/ folder for complete documentation
-pip install altastata fsspec langchain langchain-google-vertexai langchain-community faiss-cpu google-cloud-aiplatform
+# See QUICKSTART_RAG.md for event-driven system
+pip install altastata fsspec langchain langchain-google-vertexai langchain-community google-cloud-aiplatform
 
-export GOOGLE_CLOUD_PROJECT="your-project-id"
+export GOOGLE_CLOUD_PROJECT="altastata-coco"
 gcloud auth application-default login
 
+# One-time: Setup Vertex AI Vector Search infrastructure (~30 min)
+python setup_vertex_search.py
+
+# Then run the demo
 python test_rag_vertex.py
 ```
 
@@ -39,10 +43,22 @@ Both demos:
 ### 🚀 Getting Started
 
 - **`test_rag.py`** - Basic RAG demo (local HuggingFace)
-- **`google_vertexai/`** ⭐ - Production RAG with Vertex AI
-  - Complete working demo
-  - Setup guides and documentation
-  - Real-world use case analysis
+- **`test_rag_vertex.py`** ⭐ - Production RAG with Vertex AI Vector Search
+  - Complete working demo with Gemini 2.5 Flash
+  - Uses real GCP infrastructure (e2-standard-2 VMs)
+- **`google_vertexai/`** - Production deployment guides and documentation
+
+### 🎯 Event-Driven RAG System (NEW!)
+
+Real-time document indexing with file sharing events:
+
+- **`setup_vertex_search.py`** - One-time setup (creates Vertex AI Vector Search infrastructure)
+- **`alice_upload_docs.py`** - Upload and share documents (parallel batch processing)
+- **`bob_indexer.py`** - Event-driven indexer (auto-indexes when documents are shared)
+- **`bob_query.py`** - Interactive query interface (Gemini 2.5 Flash + vector search)
+- **`cleanup.py`** - Two cleanup modes (quick: data only, full: delete infrastructure)
+
+**See `QUICKSTART_RAG.md` for step-by-step guide!**
 
 ### 📚 Documentation
 
