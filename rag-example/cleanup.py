@@ -9,14 +9,53 @@ import sys
 import os
 import time
 import shutil
+import signal
+import atexit
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from altastata.altastata_functions import AltaStataFunctions
 
+# Global references for cleanup
+bob_altastata = None
+alice_altastata = None
+
+
+def cleanup_on_exit():
+    """Cleanup function called on exit"""
+    global bob_altastata, alice_altastata
+    if bob_altastata:
+        print("\n🛑 Cleaning up Bob...")
+        try:
+            bob_altastata.shutdown()
+        except:
+            pass
+    if alice_altastata:
+        print("🛑 Cleaning up Alice...")
+        try:
+            alice_altastata.shutdown()
+        except:
+            pass
+    print("✅ Cleanup complete")
+
+
+def signal_handler(signum, frame):
+    """Handle SIGTERM and SIGINT"""
+    print(f"\n🛑 Received signal {signum}, cleaning up...")
+    cleanup_on_exit()
+    sys.exit(0)
+
+
+# Register cleanup handlers
+atexit.register(cleanup_on_exit)
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+
 
 def cleanup_storage(account_path, password, test_dir="RAGDocs"):
     """Clean up AltaStata storage"""
+    global bob_altastata, alice_altastata
+    
     print(f"\n🗑️  Cleaning up {test_dir}/...")
     
     try:
@@ -26,6 +65,12 @@ def cleanup_storage(account_path, password, test_dir="RAGDocs"):
             port=25666
         )
         altastata.set_password(password)
+        
+        # Store reference for cleanup
+        if "bob123" in account_path:
+            bob_altastata = altastata
+        elif "alice222" in account_path:
+            alice_altastata = altastata
         
         # Time window
         now_ms = int(time.time() * 1000)
@@ -187,6 +232,18 @@ def main():
     print("\n" + "=" * 80)
     print("✅ Cleanup complete!")
     print("=" * 80)
+    
+    # Explicit cleanup before exit
+    print("\n🛑 Final cleanup...")
+    try:
+        if bob_altastata:
+            bob_altastata.shutdown()
+            print("✅ Bob connection closed")
+        if alice_altastata:
+            alice_altastata.shutdown()
+            print("✅ Alice connection closed")
+    except Exception as e:
+        print(f"⚠️  Cleanup warning: {e}")
 
 
 if __name__ == "__main__":

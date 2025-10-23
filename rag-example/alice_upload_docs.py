@@ -7,13 +7,45 @@ Based on alice_sender.py pattern
 import sys
 import os
 import time
+import signal
+import atexit
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from altastata.altastata_functions import AltaStataFunctions
 
+# Global reference for cleanup
+alice_altastata = None
+
+
+def cleanup_on_exit():
+    """Cleanup function called on exit"""
+    global alice_altastata
+    if alice_altastata:
+        print("\n🛑 Cleaning up Alice...")
+        try:
+            alice_altastata.shutdown()
+        except:
+            pass
+        print("✅ Alice cleanup complete")
+
+
+def signal_handler(signum, frame):
+    """Handle SIGTERM and SIGINT"""
+    print(f"\n🛑 Received signal {signum}, cleaning up Alice...")
+    cleanup_on_exit()
+    sys.exit(0)
+
+
+# Register cleanup handlers
+atexit.register(cleanup_on_exit)
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
+
 
 def main():
+    global alice_altastata
+    
     print("=" * 80)
     print("📤 ALICE - Upload & Share Documents")
     print("=" * 80)
@@ -86,6 +118,14 @@ def main():
     print("✅ All documents shared!")
     print("=" * 80)
     print("\n💡 Bob's indexer should have received events and indexed the documents")
+    
+    # Explicit cleanup before exit
+    print("\n🛑 Cleaning up Alice...")
+    try:
+        alice_altastata.shutdown()
+        print("✅ Alice cleanup complete")
+    except Exception as e:
+        print(f"⚠️  Cleanup warning: {e}")
 
 
 if __name__ == "__main__":

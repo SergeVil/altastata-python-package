@@ -7,12 +7,38 @@ Based on test_rag_vertex.py query pattern
 import sys
 import os
 import json
+import signal
+import atexit
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from langchain_google_vertexai import VertexAIEmbeddings
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
+
+# Global reference for cleanup (bob_query doesn't use AltaStata, but for consistency)
+cleanup_needed = False
+
+
+def cleanup_on_exit():
+    """Cleanup function called on exit"""
+    global cleanup_needed
+    if cleanup_needed:
+        print("\n🛑 Cleaning up...")
+        print("✅ Cleanup complete")
+
+
+def signal_handler(signum, frame):
+    """Handle SIGTERM and SIGINT"""
+    print(f"\n🛑 Received signal {signum}, cleaning up...")
+    cleanup_on_exit()
+    sys.exit(0)
+
+
+# Register cleanup handlers
+atexit.register(cleanup_on_exit)
+signal.signal(signal.SIGTERM, signal_handler)
+signal.signal(signal.SIGINT, signal_handler)
 
 
 def main():

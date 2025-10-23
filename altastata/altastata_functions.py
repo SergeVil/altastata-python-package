@@ -7,6 +7,8 @@ from py4j.java_collections import JavaList
 import io
 import os
 import mmap
+import threading
+import queue
 
 
 class AltaStataEventListener:
@@ -23,26 +25,32 @@ class AltaStataEventListener:
             callback: A function that takes (event_name: str, data: Any) as parameters
         """
         self.callback = callback
+        self._event_queue = queue.Queue()  # Queue for events
+        self._processing = False
+        self._lock = threading.Lock()  # Thread synchronization
     
     def notify(self, altastata_event):
         """
         Called by Java when an event occurs.
+        This method is thread-safe to handle concurrent events.
         
         Args:
             altastata_event: Java AltaStataEvent object
         """
-        try:
-            event_name = altastata_event.getEventName()
-            data = altastata_event.getData()
-            
-            # Convert data to Python-friendly format if possible
-            if data is not None:
-                data = str(data)
-            
-            # Call the Python callback
-            self.callback(event_name, data)
-        except Exception as e:
-            print(f"Error in event listener callback: {e}")
+        # Serialize event processing to prevent race conditions
+        with self._lock:
+            try:
+                event_name = altastata_event.getEventName()
+                data = altastata_event.getData()
+                
+                # Convert data to Python-friendly format if possible
+                if data is not None:
+                    data = str(data)
+                
+                # Call the Python callback
+                self.callback(event_name, data)
+            except Exception as e:
+                print(f"Error in event listener callback: {e}")
     
     class Java:
         implements = ["com.altastata.api.AltaStataEventListener"]
