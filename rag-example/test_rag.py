@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
 """
-RAG Pipeline fsspec test - demonstrates secure RAG with AltaStata
+Basic RAG Pipeline with AltaStata + HuggingFace
 
-This test:
-1. Uploads sample documents to encrypted AltaStata storage
-2. Loads documents using LangChain with fsspec integration
-3. Creates embeddings and vector store
-4. Performs semantic search queries
-5. Cleans up test data
+Demonstrates:
+- Encrypted document storage with AltaStata
+- Local embeddings with sentence-transformers
+- FAISS vector store for semantic search
 
 Requirements:
     pip install altastata fsspec langchain langchain-community sentence-transformers faiss-cpu
@@ -26,148 +24,28 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 
 
-def create_sample_documents():
-    """Create sample policy documents for testing"""
-    documents = {
-        "company_policy.txt": """Company Data Retention Policy
-
-Effective Date: January 1, 2024
-
-Overview:
-This policy establishes guidelines for the retention and disposal of company data to ensure compliance with legal requirements and operational needs.
-
-Data Retention Periods:
-- Employee Records: 7 years after employment termination
-- Financial Records: 10 years from the end of the fiscal year
-- Customer Data: 5 years after last transaction
-- Email Communications: 3 years from date of creation
-- Project Documentation: Permanent retention for active projects, 5 years after project completion
-
-Security Requirements:
-All retained data must be encrypted at rest and in transit. Access to sensitive data is restricted to authorized personnel only. Data destruction must follow secure deletion procedures.
-
-Compliance:
-This policy complies with GDPR, HIPAA, and SOC 2 requirements. Regular audits are conducted quarterly to ensure adherence.
-
-Contact:
-For questions regarding data retention, contact the Data Governance team at datagovernance@company.com
-""",
-        
-        "security_guidelines.txt": """Enterprise Security Guidelines
-
-Version 2.0 - Updated March 2024
-
-Purpose:
-These guidelines establish security best practices for all employees to protect company data and systems.
-
-Password Requirements:
-- Minimum 12 characters
-- Mix of uppercase, lowercase, numbers, and special characters
-- Change passwords every 90 days
-- No password reuse for last 10 passwords
-- Enable multi-factor authentication (MFA) for all accounts
-
-Data Classification:
-- Public: Information freely shareable
-- Internal: For company use only
-- Confidential: Restricted to specific teams
-- Highly Confidential: Requires executive approval for access
-
-Encryption Standards:
-- AES-256 for data at rest
-- TLS 1.3 for data in transit
-- End-to-end encryption for sensitive communications
-- Hardware security modules (HSM) for key management
-
-Access Control:
-- Principle of least privilege applies to all systems
-- Role-based access control (RBAC) enforced
-- Regular access reviews conducted quarterly
-- Immediate revocation upon employment termination
-
-Incident Response:
-Report security incidents immediately to security@company.com or call the security hotline at 1-800-SEC-HELP.
-
-Training:
-All employees must complete annual security awareness training. New employees must complete training within 30 days of hire.
-""",
-
-        "remote_work_policy.txt": """Remote Work Policy
-
-Effective: March 2024
-
-Eligibility:
-All full-time employees are eligible for remote work arrangements with manager approval.
-
-Work Schedule:
-- Core hours: 10 AM - 3 PM in your local timezone
-- Flexible hours outside core time
-- Required attendance at weekly team meetings
-- Availability during business hours via Slack/Teams
-
-Equipment & Technology:
-- Company-provided laptop with encrypted hard drive
-- VPN access mandatory for all remote connections
-- Secure home WiFi network required
-- Use of company-approved collaboration tools only
-
-Security Requirements:
-- Lock screen when away from workstation
-- No public WiFi for accessing company systems
-- Secure storage of company documents
-- Report lost or stolen equipment immediately
-
-Workspace Requirements:
-- Dedicated workspace with minimal distractions
-- Ergonomic setup recommended
-- Professional background for video calls
-- Adequate lighting and internet connectivity
-
-Performance Expectations:
-- Same productivity standards as in-office work
-- Regular check-ins with manager
-- Timely response to communications
-- Participation in virtual team activities
-""",
-
-        "ai_usage_policy.txt": """Artificial Intelligence Usage Policy
-
-Version 1.0 - April 2024
-
-Purpose:
-This policy governs the use of AI tools and services to ensure responsible, ethical, and secure usage across the organization.
-
-Approved AI Tools:
-- GitHub Copilot (for software development)
-- ChatGPT Enterprise (with business associate agreement)
-- Grammarly Business (for writing assistance)
-- Custom internal AI tools approved by IT
-
-Prohibited Activities:
-- Sharing confidential or proprietary data with public AI services
-- Using AI to generate content without human review
-- Bypassing security controls to access unapproved AI tools
-- Using AI for automated decision-making without human oversight
-
-Data Protection:
-- Never input customer PII into AI tools
-- Use only anonymized or synthetic data for AI training
-- Review all AI-generated content for accuracy and bias
-- Maintain audit logs of AI tool usage
-
-Compliance:
-- All AI usage must comply with GDPR, CCPA, and industry regulations
-- Regular assessments of AI tools for security and privacy risks
-- Vendor agreements must include data processing addendums
-- Quarterly reviews of AI usage patterns and risks
-
-Training:
-All employees using AI tools must complete the AI Ethics and Security training module.
-
-Questions:
-Contact the AI Governance team at ai-governance@company.com
-"""
-    }
+def load_sample_documents():
+    """Load sample policy documents from disk"""
+    sample_docs_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "sample_documents")
+    documents = {}
+    
+    # List of sample files to load
+    sample_files = [
+        "company_policy.txt",
+        "security_guidelines.txt",
+        "remote_work_policy.txt",
+        "ai_usage_policy.txt"
+    ]
+    
+    for filename in sample_files:
+        file_path = os.path.join(sample_docs_path, filename)
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                documents[filename] = f.read()
+        except FileNotFoundError:
+            print(f"⚠️  Warning: {filename} not found at {file_path}")
+        except Exception as e:
+            print(f"⚠️  Error loading {filename}: {e}")
     
     return documents
 
@@ -190,9 +68,14 @@ def test_rag_pipeline():
     print("✅ AltaStata initialized")
     
     # Upload sample documents
-    print("\n2️⃣  Uploading sample documents to encrypted storage...")
-    sample_docs = create_sample_documents()
+    print("\n2️⃣  Loading and uploading sample documents to encrypted storage...")
+    sample_docs = load_sample_documents()
     test_dir = "RAGTest/documents"
+    
+    if not sample_docs:
+        print("❌ No sample documents found!")
+        print(f"   Expected location: {os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sample_documents')}")
+        return
     
     for filename, content in sample_docs.items():
         file_path = f"{test_dir}/{filename}"
@@ -232,8 +115,9 @@ def test_rag_pipeline():
     # Split documents into chunks
     print("\n4️⃣  Splitting documents into chunks...")
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100
+        chunk_size=1500,      # ~2-3 paragraphs (better for legal/policy docs)
+        chunk_overlap=300,    # 20% overlap to preserve context across chunks
+        separators=["\n\n", "\n", ". ", " ", ""],  # Split on paragraphs first
     )
     chunks = text_splitter.split_documents(documents)
     print(f"✅ Created {len(chunks)} text chunks")
@@ -317,19 +201,15 @@ def test_rag_pipeline():
         print(f"⚠️  Warning during cleanup: {e}")
     
     print("\n" + "=" * 80)
-    print("✅ RAG Pipeline Test Completed Successfully!")
+    print("✅ Basic RAG Pipeline Test Completed!")
     print("=" * 80)
-    print("\nKey Features Demonstrated:")
-    print("  ✅ Encrypted document storage with AltaStata")
-    print("  ✅ LangChain integration via fsspec")
-    print("  ✅ Semantic search with embeddings")
-    print("  ✅ Document chunking and retrieval")
-    print("  ✅ Similarity scoring")
-    print("\nNext Steps:")
-    print("  • Integrate with your preferred LLM (OpenAI, Anthropic, etc.)")
-    print("  • Add RetrievalQA chain for automated Q&A")
-    print("  • Implement conversation memory for multi-turn dialogues")
-    print("  • Deploy with Confidential Computing for maximum security")
+    print("\n🎯 Features:")
+    print("  ✅ AltaStata encrypted storage")
+    print("  ✅ Local embeddings (HuggingFace)")
+    print("  ✅ Semantic search with FAISS")
+    print("\n💡 For Production:")
+    print("  • Use test_rag_vertex.py for Vertex AI integration")
+    print("  • See VERTEX_AI_SETUP.md for deployment guide")
 
 
 if __name__ == "__main__":

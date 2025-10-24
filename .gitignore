@@ -69,3 +69,10 @@ Thumbs.db
 **/bootstrap-in-place-for-live-iso.ign
 **/worker.ign
 **/metadata.json 
+# Java garbage collection logs
+gc.log*
+
+# Vertex AI runtime config
+rag-example/.vertex_config
+rag-example/setup_output*.log
+setup_output*.log
