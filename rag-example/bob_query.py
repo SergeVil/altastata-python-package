@@ -128,9 +128,19 @@ class BobQuery:
             print(f"     Datapoint ID: {datapoint_id}")
             print()
         
-        # Filter by similarity threshold (lower distance = more similar)
-        SIMILARITY_THRESHOLD = 0.6  # Only include documents with distance < 0.6
+        # Use a more lenient similarity threshold to include more relevant documents
+        # The issue is that Vertex AI similarity scores don't always rank the most relevant documents first
+        SIMILARITY_THRESHOLD = 0.7  # More lenient threshold to include more documents
         relevant_neighbors = [n for n in neighbors if getattr(n, 'distance', 1.0) < SIMILARITY_THRESHOLD]
+        
+        # If we don't have enough documents with the threshold, include more
+        if len(relevant_neighbors) < 2:
+            print(f"⚠️  Only {len(relevant_neighbors)} documents passed threshold, including more documents")
+            # Include all documents but sort by similarity
+            relevant_neighbors = neighbors.copy()
+            relevant_neighbors.sort(key=lambda n: getattr(n, 'distance', 1.0))
+            # Take top 3 most similar
+            relevant_neighbors = relevant_neighbors[:3]
         
         print(f"🎯 Similarity threshold: {SIMILARITY_THRESHOLD}")
         print(f"📊 Relevant documents: {len(relevant_neighbors)}/{len(neighbors)}")
