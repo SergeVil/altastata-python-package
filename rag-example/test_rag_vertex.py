@@ -20,7 +20,8 @@ Setup:
 
 import sys
 import os
-import json
+import atexit
+import signal
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -32,6 +33,33 @@ from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_core.documents import Document
 import vertexai
 from vertexai.preview.generative_models import GenerativeModel
+
+# Global variable to track AltaStata functions for cleanup
+altastata_functions = None
+
+def cleanup_altastata():
+    """Clean up AltaStata Java process"""
+    global altastata_functions
+    if altastata_functions:
+        try:
+            print("\n🧹 Cleaning up AltaStata Java process...")
+            # AltaStataFunctions doesn't have a close() method, but we can set it to None
+            # The Java process will be cleaned up when the Python process exits
+            altastata_functions = None
+            print("✅ AltaStata Java process will be cleaned up on exit")
+        except Exception as e:
+            print(f"⚠️  Warning during AltaStata cleanup: {e}")
+
+def signal_handler(signum, _frame):
+    """Handle interrupt signals"""
+    print(f"\n🛑 Received signal {signum}, cleaning up...")
+    cleanup_altastata()
+    sys.exit(0)
+
+# Register cleanup functions
+atexit.register(cleanup_altastata)
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
 
 
 def load_sample_documents():
@@ -79,23 +107,24 @@ def test_rag_vertex_ai():
     
     if not os.path.exists(config_path):
         print(f"❌ Vertex AI config not found: {config_path}")
-        print(f"\n📝 Run this first:")
-        print(f"   python setup_vertex_search.py")
-        print(f"\n   (This takes 20-40 minutes but only needs to be done once)")
+        print("\n📝 Run this first:")
+        print("   python setup_vertex_search.py")
+        print("\n   (This takes 20-40 minutes but only needs to be done once)")
         return
     
     vertex_config = {}
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         for line in f:
             if '=' in line:
                 key, value = line.strip().split('=', 1)
                 vertex_config[key] = value
     
-    print(f"✅ Config loaded")
+    print("✅ Config loaded")
     print(f"   Index: {vertex_config.get('INDEX_ID', 'N/A')}")
     
     # Initialize AltaStata
     print("\n1️⃣  Initializing AltaStata connection...")
+    global altastata_functions
     altastata_functions = AltaStataFunctions.from_account_dir(
         '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123'
     )
@@ -158,7 +187,7 @@ def test_rag_vertex_ai():
     chunks = text_splitter.split_documents(documents)
     print(f"✅ Created {len(chunks)} text chunks")
     print(f"   Average chunk size: {sum(len(c.page_content) for c in chunks) // len(chunks)} chars")
-    print(f"   💡 Using larger chunks optimized for Gemini 1.5's large context window")
+    print("   💡 Using larger chunks optimized for Gemini 1.5's large context window")
     
     # Create embeddings and index into Vertex AI Vector Search
     print("\n5️⃣  Creating embeddings and indexing...")
@@ -188,35 +217,19 @@ def test_rag_vertex_ai():
         
         print("✅ Connected to Vertex AI Vector Search")
         
-        # Load existing metadata (shared with bob_indexer/bob_query)
-        metadata_path = "/tmp/bob_rag_metadata.json"
-        document_metadata = {}
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, 'r') as f:
-                    document_metadata = json.load(f)
-                print(f"   📂 Loaded existing metadata ({len(document_metadata)} chunks)")
-            except:
-                pass
-        
         # Generate embeddings for all chunks
         print("   Generating embeddings for all chunks...")
         texts = [chunk.page_content for chunk in chunks]
         chunk_embeddings = embeddings.embed_documents(texts)
         
-        # Prepare datapoints
+        # Prepare datapoints with metadata encoded in datapoint_id
         print("   Preparing datapoints...")
         datapoints = []
         
         for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
-            datapoint_id = f"test_{int(os.times()[4]*1000)}_{i}"
-            
-            # Store metadata separately
-            document_metadata[datapoint_id] = {
-                "text": chunk.page_content,
-                "source": chunk.metadata.get("source", ""),
-                "filename": chunk.metadata.get("filename", "")
-            }
+            # Encode metadata in datapoint_id (format: source_file_chunk_index)
+            source_file = chunk.metadata.get("source", "").replace("/", "_")
+            datapoint_id = f"{source_file}_{i}"
             
             datapoints.append({
                 "datapoint_id": datapoint_id,
@@ -227,11 +240,7 @@ def test_rag_vertex_ai():
         print(f"   Upserting {len(datapoints)} vectors to Vertex AI...")
         index.upsert_datapoints(datapoints=datapoints)
         print("✅ Vectors indexed in Vertex AI Vector Search")
-        
-        # Save metadata to disk (shared with bob_query)
-        with open(metadata_path, 'w') as f:
-            json.dump(document_metadata, f)
-        print(f"   💾 Metadata saved to {metadata_path}")
+        print("   💡 Metadata encoded in datapoint IDs - no local JSON needed!")
         print("   💡 100% Vertex AI: Embeddings + Vector Search + Gemini 2.5 Flash")
         
     except Exception as e:
@@ -285,15 +294,69 @@ def test_rag_vertex_ai():
             neighbors = response[0] if response else []
             relevant_docs = []
             
-            for neighbor in neighbors:
-                datapoint_id = neighbor.id
-                if datapoint_id in document_metadata:
-                    meta = document_metadata[datapoint_id]
-                    relevant_docs.append({
-                        "text": meta["text"],
-                        "filename": meta["filename"],
-                        "source": meta["source"]
-                    })
+            # Apply strict similarity threshold (same as bob_query.py)
+            SIMILARITY_THRESHOLD = 0.5
+            relevant_neighbors = [n for n in neighbors if getattr(n, 'distance', 1.0) < SIMILARITY_THRESHOLD]
+            
+            # If we don't have enough with the strict threshold, take top 2 most similar
+            if len(relevant_neighbors) < 2:
+                print(f"   ⚠️  Only {len(relevant_neighbors)} documents passed strict threshold, taking top 2 most similar")
+                relevant_neighbors = neighbors.copy()
+                relevant_neighbors.sort(key=lambda n: getattr(n, 'distance', 1.0))
+                relevant_neighbors = relevant_neighbors[:2]
+            
+            print(f"   🎯 Similarity threshold: {SIMILARITY_THRESHOLD}")
+            print(f"   📊 Relevant documents: {len(relevant_neighbors)}/{len(neighbors)}")
+            
+            for neighbor in relevant_neighbors:
+                datapoint_id = getattr(neighbor, 'id', '') or getattr(neighbor, 'datapoint_id', '')
+                
+                # Parse metadata from datapoint_id (format: source_file_chunk_index)
+                if '_' in datapoint_id:
+                    try:
+                        parts = datapoint_id.rsplit('_', 1)
+                        if len(parts) == 2:
+                            # Convert back to path - handle both old and new directory structures
+                            path_parts = parts[0].split('_')
+                            
+                            if path_parts[0] == 'RAGTest' and len(path_parts) >= 3:
+                                # RAGTest_vertex_ai_filename -> RAGTest/vertex_ai/filename
+                                source_file = f"{path_parts[0]}/{path_parts[1]}_{path_parts[2]}/" + "_".join(path_parts[3:])
+                            elif path_parts[0] == 'RAGDocs' and len(path_parts) >= 2:
+                                # RAGDocs_policies_filename -> RAGDocs/policies/filename
+                                source_file = f"{path_parts[0]}/{path_parts[1]}/" + "_".join(path_parts[2:])
+                            else:
+                                # Fallback: replace all underscores with slashes
+                                source_file = parts[0].replace('_', '/')
+                            chunk_index = int(parts[1])
+                            
+                            # Read full document from AltaStata and re-chunk
+                            try:
+                                with fs.open(source_file, "r") as f:
+                                    full_content = f.read()
+                                
+                                # Re-chunk the document
+                                text_splitter = RecursiveCharacterTextSplitter(
+                                    chunk_size=4000,
+                                    chunk_overlap=800,
+                                    separators=["\n\n", "\n", ". ", " ", ""]
+                                )
+                                chunks = text_splitter.split_text(full_content)
+                                
+                                # Extract specific chunk
+                                if chunk_index < len(chunks):
+                                    relevant_docs.append({
+                                        "text": chunks[chunk_index],
+                                        "filename": os.path.basename(source_file),
+                                        "source": source_file
+                                    })
+                                    print(f"   ✅ Found valid document: {source_file} (chunk {chunk_index})")
+                            except Exception as e:
+                                print(f"   ⚠️  Could not read {source_file}: {e}")
+                                continue
+                    except (ValueError, IndexError):
+                        print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                        continue
             
             # Build context from retrieved documents
             context = "\n\n".join([
@@ -316,7 +379,7 @@ Answer:"""
             answer = response.text.strip()
             
             # Format the answer nicely
-            print(f"🤖 ANSWER:")
+            print("🤖 ANSWER:")
             print()
             for line in answer.split('\n'):
                 print(f"   {line}")
@@ -356,19 +419,59 @@ Answer:"""
         print(f"✅ Found {len(neighbors)} most relevant chunks:\n")
         
         for i, neighbor in enumerate(neighbors, 1):
-            datapoint_id = neighbor.id
-            if datapoint_id in document_metadata:
-                meta = document_metadata[datapoint_id]
-                filename = meta.get('filename', 'Unknown')
-                content = meta.get('text', '')[:300]
-                
-                # Add ellipsis if truncated
-                if len(meta.get('text', '')) > 300:
-                    content += "..."
-                
-                print(f"   {i}. 📄 {filename}")
-                print(f"      {content}")
-                print()
+            datapoint_id = getattr(neighbor, 'id', '') or getattr(neighbor, 'datapoint_id', '')
+            distance = getattr(neighbor, 'distance', 1.0)
+            
+            # Parse metadata from datapoint_id (format: source_file_chunk_index)
+            if '_' in datapoint_id:
+                try:
+                    parts = datapoint_id.rsplit('_', 1)
+                    if len(parts) == 2:
+                        # Convert back to path - handle both old and new directory structures
+                        path_parts = parts[0].split('_')
+                        
+                        if path_parts[0] == 'RAGTest' and len(path_parts) >= 3:
+                            # RAGTest_vertex_ai_filename -> RAGTest/vertex_ai/filename
+                            source_file = f"{path_parts[0]}/{path_parts[1]}_{path_parts[2]}/" + "_".join(path_parts[3:])
+                        elif path_parts[0] == 'RAGDocs' and len(path_parts) >= 2:
+                            # RAGDocs_policies_filename -> RAGDocs/policies/filename
+                            source_file = f"{path_parts[0]}/{path_parts[1]}/" + "_".join(path_parts[2:])
+                        else:
+                            # Fallback: replace all underscores with slashes
+                            source_file = parts[0].replace('_', '/')
+                        chunk_index = int(parts[1])
+                        
+                        # Read full document from AltaStata and re-chunk
+                        try:
+                            with fs.open(source_file, "r") as f:
+                                full_content = f.read()
+                            
+                            # Re-chunk the document
+                            text_splitter = RecursiveCharacterTextSplitter(
+                                chunk_size=4000,
+                                chunk_overlap=800,
+                                separators=["\n\n", "\n", ". ", " ", ""]
+                            )
+                            chunks = text_splitter.split_text(full_content)
+                            
+                            # Extract specific chunk
+                            if chunk_index < len(chunks):
+                                filename = os.path.basename(source_file)
+                                content = chunks[chunk_index][:300]
+                                
+                                # Add ellipsis if truncated
+                                if len(chunks[chunk_index]) > 300:
+                                    content += "..."
+                                
+                                print(f"   {i}. 📄 {filename} (distance: {distance:.3f})")
+                                print(f"      {content}")
+                                print()
+                        except Exception as e:
+                            print(f"   ⚠️  Could not read {source_file}: {e}")
+                            continue
+                except (ValueError, IndexError):
+                    print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                    continue
     
     except Exception as e:
         print(f"❌ Error in similarity search: {e}")
@@ -386,15 +489,20 @@ Answer:"""
         try:
             altastata_functions.delete_files(test_dir, True, None, None)
             print(f"   ✅ Deleted directory: {test_dir}")
-        except:
+        except Exception:
             pass  # Directory might not be empty
         
-        # Note: We keep vectors in Vertex AI Vector Search and metadata in JSON
+        # Note: We keep vectors in Vertex AI Vector Search (metadata encoded in datapoint IDs)
         # Use cleanup.py to fully clean the Vertex AI resources
-        print(f"   💡 Vectors remain in Vertex AI (use cleanup.py to remove)")
+        print("   💡 Vectors remain in Vertex AI (use cleanup.py to remove)")
+        
+        # Clean up AltaStata Java process
+        cleanup_altastata()
             
     except Exception as e:
         print(f"⚠️  Warning during cleanup: {e}")
+        # Still try to clean up AltaStata even if other cleanup failed
+        cleanup_altastata()
     
     print(f"\n{'═' * 80}")
     print("✅ RAG PIPELINE TEST COMPLETED SUCCESSFULLY!")
@@ -429,9 +537,11 @@ if __name__ == "__main__":
         test_rag_vertex_ai()
     except KeyboardInterrupt:
         print("\n\n⚠️  Test interrupted by user")
+        cleanup_altastata()
         sys.exit(0)
     except Exception as e:
         print(f"\n❌ Test failed: {e}")
+        cleanup_altastata()
         import traceback
         traceback.print_exc()
         sys.exit(1)

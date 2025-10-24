@@ -20,8 +20,8 @@ graph TB
     
     subgraph "QUERY PROCESSING"
         J[❓ User Query] --> K[🧠 Query Embedding Generation]
-        K --> L[🔍 Vertex AI Vector Search]
-        L --> M[📊 Apply Similarity Threshold]
+        K --> L[🔍 Vertex AI Vector Search (COSINE_DISTANCE)]
+        L --> M[📊 Top 3 Most Similar Documents]
         M --> N[🎯 Retrieve Relevant Chunks]
         N --> O[📋 Extract Metadata from Datapoint ID]
         O --> P[📖 Read Full Document via AltaStata]
@@ -131,9 +131,10 @@ sequenceDiagram
 - Metadata encoded in Vertex AI datapoint IDs
 
 ### 🎯 **Intelligent Search**
-- Similarity threshold filtering (0.6)
-- Vector similarity search in Vertex AI
-- Context-aware document retrieval
+- **COSINE_DISTANCE** similarity metric for better semantic ranking
+- Strict similarity threshold (0.5) for maximum precision
+- Vector similarity search in Vertex AI with improved accuracy
+- Context-aware document retrieval with fallback to top 2 most similar
 
 ### ⚡ **Performance Optimized**
 - No large local storage requirements
@@ -144,3 +145,25 @@ sequenceDiagram
 - Native support for document loaders
 - Standard text splitting and embeddings
 - Compatible with existing LangChain workflows
+
+## Technical Improvements
+
+### 🎯 **COSINE_DISTANCE vs DOT_PRODUCT_DISTANCE**
+
+**Problem Solved:**
+- **DOT_PRODUCT_DISTANCE** was biased by document length, ranking longer documents higher even when less relevant
+- **COSINE_DISTANCE** normalizes by vector magnitude, focusing on semantic similarity regardless of document size
+
+**Example Impact:**
+- **Before**: `ai_usage_policy.txt` (0.419) ranked higher than `security_guidelines.txt` (0.642) for password queries
+- **After**: `security_guidelines.txt` correctly ranked first for security-related queries
+
+**Configuration:**
+```python
+distance_measure_type="COSINE_DISTANCE"  # Better semantic similarity
+```
+
+### 🔧 **Similarity Threshold Optimization**
+- **Threshold**: 0.5 (strict for high relevance with COSINE_DISTANCE)
+- **Fallback**: Include top 2 most similar documents if threshold too strict
+- **Result**: Maximum precision with highly relevant documents only

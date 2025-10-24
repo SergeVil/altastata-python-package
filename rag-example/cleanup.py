@@ -157,13 +157,15 @@ class CleanupService:
             from langchain_google_vertexai import VertexAIEmbeddings
             
             # Initialize
-            gcp_aiplatform.init(project=vertex_config['PROJECT_ID'], location=vertex_config['LOCATION'])
+            project_id = os.getenv('GOOGLE_CLOUD_PROJECT', 'altastata-coco')
+            location = os.getenv('GOOGLE_CLOUD_LOCATION', 'us-central1')
+            gcp_aiplatform.init(project=project_id, location=location)
             
             # Get the index
             index = matching_engine.MatchingEngineIndex(
                 index_name=vertex_config['INDEX_ID'],
-                project=vertex_config['PROJECT_ID'],
-                location=vertex_config['LOCATION']
+                project=project_id,
+                location=location
             )
             
             print(f"   📊 Connected to index: {index.display_name}")
@@ -171,15 +173,15 @@ class CleanupService:
             # Get embeddings for broad search
             embeddings = VertexAIEmbeddings(
                 model_name="text-embedding-004",
-                project=vertex_config['PROJECT_ID'],
-                location=vertex_config['LOCATION']
+                project=project_id,
+                location=location
             )
             
             # Get endpoint
             endpoint = matching_engine.MatchingEngineIndexEndpoint(
                 index_endpoint_name=vertex_config['ENDPOINT_ID'],
-                project=vertex_config['PROJECT_ID'],
-                location=vertex_config['LOCATION']
+                project=project_id,
+                location=location
             )
             
             print("   🔍 Searching for all datapoints...")
