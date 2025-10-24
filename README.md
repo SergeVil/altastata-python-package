@@ -1,4 +1,4 @@
-# Altastata Python Package v0.1.17
+# Altastata Python Package v0.1.18
 
 A powerful Python package for data processing and machine learning integration with Altastata.
 
@@ -132,11 +132,47 @@ listener = altastata.add_event_listener(event_handler)
 
 See [`event-listener-example/`](event-listener-example/) for complete documentation and working examples.
 
+## LangChain Integration
+
+Use Altastata as a document source for LangChain applications:
+
+```python
+from langchain.document_loaders import DirectoryLoader
+from altastata.fsspec import create_filesystem
+from altastata import AltaStataFunctions
+
+# Create AltaStata connection
+altastata_functions = AltaStataFunctions.from_account_dir('/path/to/account')
+altastata_functions.set_password("your_password")
+
+# Create fsspec filesystem
+fs = create_filesystem(altastata_functions, "my_account")
+
+# Use with LangChain document loaders
+loader = DirectoryLoader("Public/Documents/", filesystem=fs)
+documents = loader.load()
+
+# Use with vector stores
+from langchain.vectorstores import FAISS
+from langchain.embeddings import OpenAIEmbeddings
+
+vectorstore = FAISS.from_documents(documents, OpenAIEmbeddings())
+```
+
+**Perfect for:**
+- RAG (Retrieval-Augmented Generation) applications
+- Document processing pipelines
+- Knowledge base construction
+- Multi-modal AI applications
+
 ## Version Information
 
-**Current Version**: 0.1.17
+**Current Version**: 0.1.18
 
 This version includes:
+- **Event Listener Support**: Real-time notifications for file operations (share, delete, create)
+- **fsspec Integration**: Standard Python filesystem interface for seamless file operations
+- **LangChain Integration**: Native support for LangChain document loaders and vector stores
 - Rebuilt `altastata-hadoop-all.jar` with latest improvements
 - Enhanced error handling in `delete_files` operations
 - Simplified `_read_file` method for better performance
@@ -190,6 +226,8 @@ See `confidential-gke/README.md` for detailed setup instructions.
 ## Recent Improvements
 
 - **Event Listener System**: Real-time notifications for file share, delete, and create events via Py4J callbacks
+- **fsspec Integration**: Standard Python filesystem interface for seamless file operations with any Python library
+- **LangChain Support**: Native integration with LangChain document loaders and vector stores for RAG applications
 - **Multi-Architecture Support**: Docker images now work natively on both AMD64 and ARM64 platforms
 - **Error Handling**: Enhanced `delete_files` method with detailed error reporting
 - **Performance**: Optimized file reading operations

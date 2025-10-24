@@ -79,7 +79,7 @@ The project now builds **multi-architecture images** that work on both AMD64 and
 
 # This creates:
 # - ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch)
-# - ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest (multi-arch)
+# - ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest (multi-arch)
 ```
 
 ### Manual Multi-Architecture Build
@@ -88,7 +88,7 @@ The project now builds **multi-architecture images** that work on both AMD64 and
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest \
   --push \
   .
 ```
@@ -102,7 +102,7 @@ docker run \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2025f_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest
 ```
 
 ### Platform Compatibility
