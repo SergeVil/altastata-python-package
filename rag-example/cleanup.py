@@ -42,17 +42,17 @@ class CleanupService:
             try:
                 self.bob_altastata.shutdown()
                 print("✅ Bob connection closed")
-            except:
+            except Exception:
                 pass
         if self.alice_altastata:
             try:
                 self.alice_altastata.shutdown()
                 print("✅ Alice connection closed")
-            except:
+            except Exception:
                 pass
         print("✅ Cleanup complete")
     
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum, _frame):
         """Handle signals"""
         print(f"\n🛑 Received signal {signum}, cleaning up...")
         self._cleanup()
@@ -66,7 +66,7 @@ class CleanupService:
             return None
         
         vertex_config = {}
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if '=' in line:
                     key, value = line.strip().split('=', 1)
@@ -114,33 +114,130 @@ class CleanupService:
                 if files:
                     print(f"   Found {len(files)} file(s)")
                     for file_path in files:
-                        result = altastata.delete_files(file_path, False, start_time, end_time)
+                        altastata.delete_files(file_path, False, start_time, end_time)
                         print(f"   ✅ Deleted: {file_path}")
                     
                     # Delete directory
                     try:
                         altastata.delete_files(test_dir, True, start_time, end_time)
                         print(f"   ✅ Deleted directory: {test_dir}")
-                    except:
+                    except Exception:
                         pass
                 else:
-                    print(f"   ℹ️  No files found")
+                    print("   ℹ️  No files found")
             
-            except:
-                print(f"   ℹ️  Directory not found or empty")
+            except Exception:
+                print("   ℹ️  Directory not found or empty")
         
         except Exception as e:
             print(f"   ❌ Error: {e}")
     
     def _cleanup_metadata(self):
-        """Clean up metadata file"""
-        print("\n🗑️  Cleaning up metadata...")
+        """Clean up metadata file (legacy - no longer used)"""
+        print("\n🗑️  Cleaning up legacy metadata...")
         metadata_path = "/tmp/bob_rag_metadata.json"
         if os.path.exists(metadata_path):
             os.remove(metadata_path)
-            print(f"   ✅ Deleted metadata file")
+            print("   ✅ Deleted legacy metadata file")
         else:
-            print(f"   ℹ️  No metadata file found")
+            print("   ℹ️  No legacy metadata file found")
+    
+    def _cleanup_vertex_index_data(self):
+        """Clear all datapoints from Vertex AI Vector Search index"""
+        print("\n🗑️  Clearing Vertex AI index data...")
+        
+        vertex_config = self._load_vertex_config()
+        if not vertex_config:
+            print("   ℹ️  No Vertex AI config found")
+            return
+        
+        try:
+            from google.cloud import aiplatform as gcp_aiplatform
+            from google.cloud.aiplatform import matching_engine
+            from langchain_google_vertexai import VertexAIEmbeddings
+            
+            # Initialize
+            gcp_aiplatform.init(project=vertex_config['PROJECT_ID'], location=vertex_config['LOCATION'])
+            
+            # Get the index
+            index = matching_engine.MatchingEngineIndex(
+                index_name=vertex_config['INDEX_ID'],
+                project=vertex_config['PROJECT_ID'],
+                location=vertex_config['LOCATION']
+            )
+            
+            print(f"   📊 Connected to index: {index.display_name}")
+            
+            # Get embeddings for broad search
+            embeddings = VertexAIEmbeddings(
+                model_name="text-embedding-004",
+                project=vertex_config['PROJECT_ID'],
+                location=vertex_config['LOCATION']
+            )
+            
+            # Get endpoint
+            endpoint = matching_engine.MatchingEngineIndexEndpoint(
+                index_endpoint_name=vertex_config['ENDPOINT_ID'],
+                project=vertex_config['PROJECT_ID'],
+                location=vertex_config['LOCATION']
+            )
+            
+            print("   🔍 Searching for all datapoints...")
+            
+            # Try multiple broad queries to find all datapoints
+            broad_queries = [
+                "document text content",
+                "data information", 
+                "file content",
+                "text document",
+                "information data"
+            ]
+            
+            all_datapoint_ids = set()
+            
+            for query in broad_queries:
+                query_embedding = embeddings.embed_query(query)
+                
+                # Search for many neighbors
+                response = endpoint.find_neighbors(
+                    deployed_index_id=vertex_config['DEPLOYED_INDEX_ID'],
+                    queries=[query_embedding],
+                    num_neighbors=50  # Get many neighbors
+                )
+                
+                neighbors = response[0] if response else []
+                
+                # Extract datapoint IDs (if available)
+                for neighbor in neighbors:
+                    if hasattr(neighbor, 'datapoint_id'):
+                        all_datapoint_ids.add(neighbor.datapoint_id)
+                    elif hasattr(neighbor, 'id'):
+                        all_datapoint_ids.add(neighbor.id)
+            
+            print(f"   📊 Found {len(all_datapoint_ids)} unique datapoint IDs")
+            
+            if all_datapoint_ids:
+                print("   🗑️  Removing datapoints...")
+                datapoint_ids_list = list(all_datapoint_ids)
+                
+                # Remove in batches (in case there are limits)
+                batch_size = 100
+                for i in range(0, len(datapoint_ids_list), batch_size):
+                    batch = datapoint_ids_list[i:i+batch_size]
+                    print(f"      Removing batch {i//batch_size + 1}: {len(batch)} datapoints")
+                    
+                    try:
+                        index.remove_datapoints(datapoint_ids=batch)
+                        print(f"      ✅ Removed {len(batch)} datapoints")
+                    except Exception as e:
+                        print(f"      ⚠️  Error removing batch: {e}")
+                
+                print("   ✅ Index data cleared!")
+            else:
+                print("   ℹ️  No datapoint IDs found - index might already be empty")
+                
+        except Exception as e:
+            print(f"   ❌ Error clearing index data: {e}")
     
     def _cleanup_vertex_resources(self):
         """Delete Vertex AI Vector Search index and endpoint"""
@@ -197,6 +294,9 @@ class CleanupService:
         # Clean up metadata
         self._cleanup_metadata()
         
+        # Clear Vertex AI index data
+        self._cleanup_vertex_index_data()
+        
         print("\n✅ Vertex AI infrastructure preserved (quick cleanup mode)")
         print("   💡 Data cleared, but index still ready for new documents")
     
@@ -226,7 +326,7 @@ class CleanupService:
         print("\nSelect cleanup mode:")
         print("  1. Quick cleanup (clear data only)")
         print("     • Deletes AltaStata files")
-        print("     • Deletes metadata file")
+        print("     • Clears Vertex AI index data (datapoints)")
         print("     • KEEPS Vertex AI infrastructure (instant)")
         print()
         print("  2. Full cleanup (clear data + infrastructure)")
@@ -242,7 +342,7 @@ class CleanupService:
         
         print("\n⚠️  This will delete:")
         print("   - All documents in RAGDocs/")
-        print("   - Local metadata (/tmp/bob_rag_metadata.json)")
+        print("   - All datapoints in Vertex AI index")
         if choice == "2":
             print("   - Vertex AI Vector Search index and endpoint")
         

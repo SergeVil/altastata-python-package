@@ -6,7 +6,6 @@ Clean, self-contained version focused on readability
 
 import sys
 import os
-import json
 import signal
 import atexit
 
@@ -28,10 +27,11 @@ class BobQuery:
         
         # State
         self.vertex_config = {}
-        self.document_metadata = {}
         self.embeddings = None
         self.model = None
         self.endpoint = None
+        self.fs = None
+        self.bob_altastata = None
         
         # Setup cleanup
         self._setup_cleanup()
@@ -47,7 +47,7 @@ class BobQuery:
         print("\n🛑 Cleaning up...")
         print("✅ Cleanup complete")
     
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum, _frame):
         """Handle signals"""
         print(f"\n🛑 Received signal {signum}, cleaning up...")
         self._cleanup()
@@ -60,20 +60,15 @@ class BobQuery:
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Vertex AI config not found: {config_path}")
         
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if '=' in line:
                     key, value = line.strip().split('=', 1)
                     self.vertex_config[key] = value
     
-    def _load_metadata(self):
-        """Load document metadata"""
-        metadata_path = "/tmp/bob_rag_metadata.json"
-        if not os.path.exists(metadata_path):
-            raise FileNotFoundError("No documents indexed yet!")
-        
-        with open(metadata_path, 'r') as f:
-            self.document_metadata = json.load(f)
+    def _get_chunk_id(self, base_path, chunk_index):
+        """Generate consistent chunk ID"""
+        return f"{base_path.replace('/', '_')}_{chunk_index}"
     
     def _initialize_vertex_ai(self):
         """Initialize Vertex AI resources"""
@@ -92,8 +87,22 @@ class BobQuery:
         endpoint_name = self.vertex_config['ENDPOINT_ID']
         self.endpoint = aiplatform.MatchingEngineIndexEndpoint(index_endpoint_name=endpoint_name)
     
+    def _connect_to_altastata(self):
+        """Connect to AltaStata for document retrieval"""
+        from altastata.altastata_functions import AltaStataFunctions
+        from altastata.fsspec import create_filesystem
+        
+        self.bob_altastata = AltaStataFunctions.from_account_dir(
+            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123',
+            callback_server_port=25334
+        )
+        self.bob_altastata.set_password("123")
+        self.fs = create_filesystem(self.bob_altastata, "bob123")
+    
     def query_rag(self, query_text: str):
-        """Query using Vertex AI Vector Search + Gemini"""
+        """Query using Vertex AI Vector Search + AltaStata + Gemini"""
+        from langchain.text_splitter import RecursiveCharacterTextSplitter
+        
         # Generate query embedding
         query_embedding = self.embeddings.embed_query(query_text)
         
@@ -101,23 +110,106 @@ class BobQuery:
         response = self.endpoint.find_neighbors(
             deployed_index_id=self.vertex_config['DEPLOYED_INDEX_ID'],
             queries=[query_embedding],
-            num_neighbors=3
+            num_neighbors=20  # Search even more neighbors to find new documents
         )
         
         # Get top results
         neighbors = response[0] if response else []
         
-        # Build context from metadata
+        if not neighbors:
+            return "No relevant documents found.", []
+        
+        # Debug: Print what we found
+        print(f"🔍 Found {len(neighbors)} neighbors:")
+        for i, neighbor in enumerate(neighbors):
+            datapoint_id = getattr(neighbor, 'id', '') or getattr(neighbor, 'datapoint_id', '')
+            distance = getattr(neighbor, 'distance', 1.0)
+            print(f"  {i+1}. Distance: {distance}")
+            print(f"     Datapoint ID: {datapoint_id}")
+            print()
+        
+        # Filter by similarity threshold (lower distance = more similar)
+        SIMILARITY_THRESHOLD = 0.6  # Only include documents with distance < 0.6
+        relevant_neighbors = [n for n in neighbors if getattr(n, 'distance', 1.0) < SIMILARITY_THRESHOLD]
+        
+        print(f"🎯 Similarity threshold: {SIMILARITY_THRESHOLD}")
+        print(f"📊 Relevant documents: {len(relevant_neighbors)}/{len(neighbors)}")
+        
+        if not relevant_neighbors:
+            return "No relevant documents found.", []
+        
+        # Group by source file to avoid reading the same file multiple times
+        source_files = {}
+        for neighbor in relevant_neighbors:
+            # Extract metadata from datapoint ID (format: source_file:chunk_index)
+            datapoint_id = getattr(neighbor, 'id', '') or getattr(neighbor, 'datapoint_id', '')
+            
+            # Handle both formats: source_file:chunk_index and source_file_chunk_index
+            if ':' in datapoint_id:
+                # Format: source_file:chunk_index
+                try:
+                    source_file, chunk_index_str = datapoint_id.rsplit(':', 1)
+                    chunk_index = int(chunk_index_str)
+                except (ValueError, IndexError):
+                    print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                    continue
+            elif '_' in datapoint_id:
+                # Format: source_file_chunk_index (current format)
+                try:
+                    # Find the last underscore and split
+                    parts = datapoint_id.rsplit('_', 1)
+                    if len(parts) == 2:
+                        # Convert back to path format: RAGDocs_policies_filename -> RAGDocs/policies/filename
+                        source_file = parts[0].replace('_', '/', 2)  # Replace first two underscores
+                        chunk_index = int(parts[1])
+                    else:
+                        print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                        continue
+                except (ValueError, IndexError):
+                    print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                    continue
+            else:
+                print(f"   ⚠️  Skipping document without proper datapoint ID: {datapoint_id}")
+                continue
+            
+            # Only process documents that start with RAGDocs/
+            if source_file.startswith('RAGDocs/'):
+                if source_file not in source_files:
+                    source_files[source_file] = []
+                source_files[source_file].append(chunk_index)
+                print(f"   ✅ Found valid document: {source_file} (chunk {chunk_index})")
+            else:
+                print(f"   ⚠️  Skipping document without proper path: {source_file}")
+        
+        # Retrieve content from AltaStata and re-chunk
         docs = []
-        for neighbor in neighbors:
-            datapoint_id = neighbor.id
-            if datapoint_id in self.document_metadata:
-                meta = self.document_metadata[datapoint_id]
-                docs.append({
-                    "text": meta["text"],
-                    "filename": meta["filename"],
-                    "source": meta["source"]
-                })
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=4000,
+            chunk_overlap=800,
+            separators=["\n\n", "\n", ". ", " ", ""]
+        )
+        
+        for source_file, chunk_indices in source_files.items():
+            try:
+                # Read full document from AltaStata
+                with self.fs.open(source_file, "r") as f:
+                    full_content = f.read()
+                
+                # Re-chunk the document
+                chunks = text_splitter.split_text(full_content)
+                
+                # Extract specific chunks
+                for chunk_index in chunk_indices:
+                    if chunk_index < len(chunks):
+                        docs.append({
+                            "text": chunks[chunk_index],
+                            "filename": os.path.basename(source_file),
+                            "source": source_file
+                        })
+                        
+            except Exception as e:
+                print(f"⚠️  Could not read {source_file}: {e}")
+                continue
         
         if not docs:
             return "No relevant documents found.", []
@@ -208,14 +300,13 @@ Answer:"""
             print("   Run: python setup_vertex_search.py")
             return False
         
-        # Load metadata
-        print("\n2️⃣  Loading metadata...")
+        # Connect to AltaStata
+        print("\n2️⃣  Connecting to AltaStata...")
         try:
-            self._load_metadata()
-            print(f"✅ Loaded {len(self.document_metadata)} indexed chunks")
-        except FileNotFoundError:
-            print("❌ No documents indexed yet!")
-            print("   Run bob_indexer.py first, then alice_upload_docs.py")
+            self._connect_to_altastata()
+            print("✅ Connected to AltaStata")
+        except Exception as e:
+            print(f"❌ Failed to connect to AltaStata: {e}")
             return False
         
         # Initialize Vertex AI
