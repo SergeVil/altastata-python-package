@@ -93,6 +93,7 @@ class BobIndexer:
         print(f"\n🔔 EVENT QUEUED: {event_name} (Thread: {thread_name})")
         self.event_queue.put((event_name, data))
     
+    
     def _process_event_queue(self):
         """Process events from the queue sequentially"""
         while not self.stop_processing:
@@ -184,6 +185,39 @@ class BobIndexer:
         print("🤖 BOB INDEXER - Vertex AI Vector Search (Event-Driven)")
         print("=" * 80)
         print(f"\n📍 Project: {self.project_id}, Location: {self.location}")
+        
+        # Check GCP authentication
+        print("\n🔐 Checking GCP authentication...")
+        try:
+            # Try to import and test Google Cloud libraries directly
+            from google.auth import default
+            from google.auth.exceptions import DefaultCredentialsError
+            
+            # This will work in cloud environments with service accounts
+            credentials, project = default()
+            print("✅ GCP authentication verified (service account or ADC)")
+        except DefaultCredentialsError:
+            # Fallback: try gcloud command (for local development)
+            try:
+                import subprocess
+                result = subprocess.run(['gcloud', 'auth', 'application-default', 'print-access-token'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode != 0:
+                    print("❌ GCP authentication required!")
+                    print("   Local: gcloud auth application-default login")
+                    print("   Cloud: Ensure service account is attached")
+                    return False
+                print("✅ GCP authentication verified (gcloud)")
+            except Exception:
+                print("❌ GCP authentication required!")
+                print("   Local: gcloud auth application-default login")
+                print("   Cloud: Ensure service account is attached")
+                return False
+        except Exception as e:
+            print(f"❌ GCP authentication error: {e}")
+            print("   Local: gcloud auth application-default login")
+            print("   Cloud: Ensure service account is attached")
+            return False
         
         # Load Vertex AI config
         print("\n1️⃣  Loading Vertex AI Vector Search configuration...")

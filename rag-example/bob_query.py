@@ -258,13 +258,15 @@ Answer:"""
             print(f"\n{'─' * 80}")
             print(f"📊 QUERY {i}/4")
             print(f"{'─' * 80}")
-            print(f"❓ {query}\n")
+            print(f"❓ QUESTION: {query}\n")
             
             answer, docs = self.query_rag(query)
             
             print("🤖 ANSWER:")
+            print("─" * 40)
             for line in answer.split('\n'):
                 print(f"   {line}")
+            print("─" * 40)
             
             print(f"\n📚 SOURCES ({len(docs)} documents):")
             for j, doc in enumerate(docs, 1):
@@ -288,8 +290,10 @@ Answer:"""
             answer, docs = self.query_rag(query)
             
             print("\n🤖 ANSWER:")
+            print("─" * 40)
             for line in answer.split('\n'):
                 print(f"   {line}")
+            print("─" * 40)
             
             print(f"\n📚 SOURCES: {len(docs)} documents")
             for i, doc in enumerate(docs, 1):
@@ -301,6 +305,39 @@ Answer:"""
         print("🔍 BOB QUERY - Vertex AI Vector Search")
         print("=" * 80)
         print(f"\n📍 Project: {self.project_id}, Location: {self.location}")
+        
+        # Check GCP authentication
+        print("\n🔐 Checking GCP authentication...")
+        try:
+            # Try to import and test Google Cloud libraries directly
+            from google.auth import default
+            from google.auth.exceptions import DefaultCredentialsError
+            
+            # This will work in cloud environments with service accounts
+            credentials, project = default()
+            print("✅ GCP authentication verified (service account or ADC)")
+        except DefaultCredentialsError:
+            # Fallback: try gcloud command (for local development)
+            try:
+                import subprocess
+                result = subprocess.run(['gcloud', 'auth', 'application-default', 'print-access-token'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode != 0:
+                    print("❌ GCP authentication required!")
+                    print("   Local: gcloud auth application-default login")
+                    print("   Cloud: Ensure service account is attached")
+                    return False
+                print("✅ GCP authentication verified (gcloud)")
+            except Exception:
+                print("❌ GCP authentication required!")
+                print("   Local: gcloud auth application-default login")
+                print("   Cloud: Ensure service account is attached")
+                return False
+        except Exception as e:
+            print(f"❌ GCP authentication error: {e}")
+            print("   Local: gcloud auth application-default login")
+            print("   Cloud: Ensure service account is attached")
+            return False
         
         # Load config
         print("\n1️⃣  Loading Vertex AI configuration...")

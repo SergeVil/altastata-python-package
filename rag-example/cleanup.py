@@ -184,37 +184,43 @@ class CleanupService:
                 location=location
             )
             
-            print("   🔍 Searching for all datapoints...")
+            print("   🔍 Checking if index has data...")
             
-            # Try multiple broad queries to find all datapoints
-            broad_queries = [
-                "document text content",
-                "data information", 
-                "file content",
-                "text document",
-                "information data"
-            ]
+            # Simple test query with timeout
+            def timeout_handler(signum, frame):
+                raise TimeoutError("Search timed out")
             
-            all_datapoint_ids = set()
+            signal.signal(signal.SIGALRM, timeout_handler)
+            signal.alarm(30)  # 30 second timeout
             
-            for query in broad_queries:
-                query_embedding = embeddings.embed_query(query)
-                
-                # Search for many neighbors
+            try:
+                query_embedding = embeddings.embed_query("test")
                 response = endpoint.find_neighbors(
                     deployed_index_id=vertex_config['DEPLOYED_INDEX_ID'],
                     queries=[query_embedding],
-                    num_neighbors=50  # Get many neighbors
+                    num_neighbors=10  # Just check if there's any data
                 )
+                signal.alarm(0)  # Cancel timeout
                 
                 neighbors = response[0] if response else []
                 
-                # Extract datapoint IDs (if available)
+                if not neighbors:
+                    print("   ℹ️  Index is already empty - no data to clear")
+                    return
+                
+                # Extract datapoint IDs from the test results
+                all_datapoint_ids = set()
                 for neighbor in neighbors:
                     if hasattr(neighbor, 'datapoint_id'):
                         all_datapoint_ids.add(neighbor.datapoint_id)
                     elif hasattr(neighbor, 'id'):
                         all_datapoint_ids.add(neighbor.id)
+                        
+            except TimeoutError:
+                signal.alarm(0)
+                print("   ⚠️  Search timed out - index might be empty or slow")
+                print("   ℹ️  Skipping index cleanup (assuming empty)")
+                return
             
             print(f"   📊 Found {len(all_datapoint_ids)} unique datapoint IDs")
             
