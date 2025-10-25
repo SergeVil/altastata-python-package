@@ -7,7 +7,6 @@ Clean, self-contained version focused on readability
 import sys
 import os
 import time
-import json
 import threading
 import queue
 import signal
@@ -37,7 +36,6 @@ class BobIndexer:
         self.fs = None
         self.vertex_index = None
         self.vertex_config = {}
-        self.document_metadata = {}
         self.processed_files = set()
         
         # Event processing
@@ -62,11 +60,11 @@ class BobIndexer:
         if self.bob_altastata:
             try:
                 self.bob_altastata.shutdown()
-            except:
+            except Exception:
                 pass
         print("✅ Bob cleanup complete")
     
-    def _signal_handler(self, signum, frame):
+    def _signal_handler(self, signum, _frame):
         """Handle signals"""
         print(f"\n🛑 Received signal {signum}, cleaning up...")
         self._cleanup()
@@ -79,35 +77,22 @@ class BobIndexer:
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"Vertex AI config not found: {config_path}")
         
-        with open(config_path, 'r') as f:
+        with open(config_path, 'r', encoding='utf-8') as f:
             for line in f:
                 if '=' in line:
                     key, value = line.strip().split('=', 1)
                     self.vertex_config[key] = value
     
-    def _load_metadata(self):
-        """Load existing metadata"""
-        metadata_path = "/tmp/bob_rag_metadata.json"
-        if os.path.exists(metadata_path):
-            try:
-                with open(metadata_path, 'r') as f:
-                    self.document_metadata = json.load(f)
-                print(f"✅ Loaded existing metadata ({len(self.document_metadata)} chunks)")
-            except:
-                print("⚠️  Could not load existing metadata")
-    
-    def _save_metadata(self):
-        """Save metadata to disk"""
-        metadata_path = "/tmp/bob_rag_metadata.json"
-        with open(metadata_path, 'w') as f:
-            json.dump(self.document_metadata, f)
-        print(f"💾 Metadata saved to {metadata_path}")
+    def _get_chunk_id(self, base_path, chunk_index):
+        """Generate consistent chunk ID"""
+        return f"{base_path.replace('/', '_')}_{chunk_index}"
     
     def _event_handler(self, event_name, data):
         """Bob's event handler - queues events for sequential processing"""
         thread_name = threading.current_thread().name
         print(f"\n🔔 EVENT QUEUED: {event_name} (Thread: {thread_name})")
         self.event_queue.put((event_name, data))
+    
     
     def _process_event_queue(self):
         """Process events from the queue sequentially"""
@@ -142,7 +127,7 @@ class BobIndexer:
         
         # Check if already processed
         if base_path in self.processed_files:
-            print(f"   ⏭️  Skipping (already indexed)")
+            print("   ⏭️  Skipping (already indexed)")
             return
         
         self.processed_files.add(base_path)
@@ -178,15 +163,7 @@ class BobIndexer:
             print("   4️⃣  Upserting to Vertex AI Vector Search...")
             datapoints = []
             for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
-                datapoint_id = f"{base_path.replace('/', '_')}_{i}"
-                
-                # Store metadata
-                self.document_metadata[datapoint_id] = {
-                    "text": chunk.page_content,
-                    "source": file_path,
-                    "filename": os.path.basename(file_path),
-                    "base_path": base_path
-                }
+                datapoint_id = self._get_chunk_id(base_path, i)
                 
                 datapoints.append({
                     "datapoint_id": datapoint_id,
@@ -196,9 +173,6 @@ class BobIndexer:
             # Upsert to Vertex AI
             self.vertex_index.upsert_datapoints(datapoints=datapoints)
             print(f"   ✅ Indexed {len(datapoints)} chunks to Vertex AI Vector Search!")
-            
-            # Save metadata
-            self._save_metadata()
             
         except Exception as e:
             print(f"   ❌ Error: {e}")
@@ -212,6 +186,39 @@ class BobIndexer:
         print("=" * 80)
         print(f"\n📍 Project: {self.project_id}, Location: {self.location}")
         
+        # Check GCP authentication
+        print("\n🔐 Checking GCP authentication...")
+        try:
+            # Try to import and test Google Cloud libraries directly
+            from google.auth import default
+            from google.auth.exceptions import DefaultCredentialsError
+            
+            # This will work in cloud environments with service accounts
+            credentials, project = default()
+            print("✅ GCP authentication verified (service account or ADC)")
+        except DefaultCredentialsError:
+            # Fallback: try gcloud command (for local development)
+            try:
+                import subprocess
+                result = subprocess.run(['gcloud', 'auth', 'application-default', 'print-access-token'], 
+                                      capture_output=True, text=True, timeout=5)
+                if result.returncode != 0:
+                    print("❌ GCP authentication required!")
+                    print("   Local: gcloud auth application-default login")
+                    print("   Cloud: Ensure service account is attached")
+                    return False
+                print("✅ GCP authentication verified (gcloud)")
+            except Exception:
+                print("❌ GCP authentication required!")
+                print("   Local: gcloud auth application-default login")
+                print("   Cloud: Ensure service account is attached")
+                return False
+        except Exception as e:
+            print(f"❌ GCP authentication error: {e}")
+            print("   Local: gcloud auth application-default login")
+            print("   Cloud: Ensure service account is attached")
+            return False
+        
         # Load Vertex AI config
         print("\n1️⃣  Loading Vertex AI Vector Search configuration...")
         try:
@@ -219,7 +226,7 @@ class BobIndexer:
             print(f"✅ Loaded config - Index: {self.vertex_config.get('INDEX_ID', 'N/A')}")
         except FileNotFoundError as e:
             print(f"❌ {e}")
-            print(f"\n📝 Run this first: python setup_vertex_search.py")
+            print("\n📝 Run this first: python setup_vertex_search.py")
             return False
         
         # Initialize Vertex AI
@@ -242,8 +249,7 @@ class BobIndexer:
             print(f"❌ Failed to connect to Vertex AI Vector Search: {e}")
             return False
         
-        # Load existing metadata
-        self._load_metadata()
+        # No local metadata needed - everything stored in Vertex AI
         
         # Connect to AltaStata
         print("\n3️⃣  Connecting Bob...")
@@ -263,7 +269,7 @@ class BobIndexer:
         
         # Register event listener
         print("\n5️⃣  Registering event listener...")
-        listener = self.bob_altastata.add_event_listener(self._event_handler)
+        self.bob_altastata.add_event_listener(self._event_handler)
         print("✅ Listening for SHARE events")
         
         return True
@@ -286,10 +292,14 @@ class BobIndexer:
             print("\n\n🛑 Stopping...")
             self.stop_processing = True
             if self.bob_altastata:
-                self.bob_altastata.remove_event_listener(listener)
+                try:
+                    self.bob_altastata.remove_event_listener(self._event_handler)
+                except Exception:
+                    pass
             if self.processing_thread:
                 self.processing_thread.join(timeout=5)
-            self.bob_altastata.shutdown()
+            if self.bob_altastata:
+                self.bob_altastata.shutdown()
             print("✅ Stopped")
 
 

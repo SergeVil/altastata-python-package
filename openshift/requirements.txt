@@ -1,6 +1,32 @@
+# Jupyter DataScience Environment
 jupyterlab
 jupyter_contrib_nbextensions
 jupyter_nbextensions_configurator
 ipywidgets
 notebook
 seaborn
+
+# AltaStata Python Package (v0.1.18)
+altastata==0.1.18
+
+# LangChain Ecosystem
+langchain
+langchain-community
+langchain-core
+langchain-google-vertexai
+
+# Google Cloud & Vertex AI
+google-cloud-aiplatform
+vertexai
+
+# Additional ML/Data Science
+numpy
+pandas
+matplotlib
+scikit-learn
+
+# File System Interface
+fsspec
+
+# Optional: For advanced RAG features
+faiss-cpu  # For local vector search (alternative to Vertex AI)

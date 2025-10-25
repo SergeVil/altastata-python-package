@@ -49,17 +49,11 @@ USER 1001
 
 WORKDIR /opt/app-root/lib64/python3.11/site-packages/altastata-package
 
-# Install the package in development mode and verify installation
-RUN pip install -e . && \
-    echo "Directory structure:" && \
-    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package && \
-    echo "\nPackage directory:" && \
-    ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata && \
-    echo "\nPython path:" && \
-    python -c "import sys; print('\n'.join(sys.path))" && \
-    echo "\nTrying to import:" && \
+# Verify that altastata is installed and working
+RUN echo "Verifying altastata installation:" && \
     python -c "import altastata; print('Module location:', altastata.__file__)" && \
-    python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')"
+    python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')" && \
+    echo "✅ AltaStata package is ready!"
 
 # Configure Jupyter and create symbolic links
 WORKDIR /home/jovyan

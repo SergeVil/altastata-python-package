@@ -31,17 +31,18 @@ try:
     # Create index
     print("\n2️⃣  Creating Vector Search Index...")
     print("   (This takes 5-10 minutes...)")
+    print("   Using COSINE_DISTANCE for better semantic similarity")
     print("   Using SMALL shard size for demo (< 10K vectors)")
     
     index = aiplatform.MatchingEngineIndex.create_tree_ah_index(
         display_name="altastata-rag-docs",
         dimensions=768,  # text-embedding-004
         approximate_neighbors_count=10,
-        distance_measure_type="DOT_PRODUCT_DISTANCE",
+        distance_measure_type="COSINE_DISTANCE",
         shard_size="SHARD_SIZE_SMALL",  # For e2-standard-2 compatibility
         index_update_method="STREAM_UPDATE",  # Enable real-time updates
-        description="AltaStata RAG document embeddings (stream updates enabled)",
-        labels={"app": "altastata-rag", "env": "dev"}
+        description="AltaStata RAG document embeddings with COSINE_DISTANCE (stream updates enabled)",
+        labels={"app": "altastata-rag", "env": "dev", "metric": "cosine"}
     )
     
     print(f"✅ Index created: {index.resource_name}")
@@ -50,9 +51,9 @@ try:
     print("\n3️⃣  Creating Index Endpoint...")
     endpoint = aiplatform.MatchingEngineIndexEndpoint.create(
         display_name="altastata-rag-endpoint",
-        description="Endpoint for AltaStata RAG queries",
+        description="Endpoint for AltaStata RAG queries with COSINE_DISTANCE",
         public_endpoint_enabled=True,
-        labels={"app": "altastata-rag", "env": "dev"}
+        labels={"app": "altastata-rag", "env": "dev", "metric": "cosine"}
     )
     
     print(f"✅ Endpoint created: {endpoint.resource_name}")
@@ -77,7 +78,7 @@ try:
     
     # Save config
     config_path = os.path.join(os.path.dirname(__file__), ".vertex_config")
-    with open(config_path, 'w') as f:
+    with open(config_path, 'w', encoding='utf-8') as f:
         f.write(f"PROJECT_ID={project_id}\n")
         f.write(f"LOCATION={location}\n")
         f.write(f"INDEX_ID={index.name}\n")
