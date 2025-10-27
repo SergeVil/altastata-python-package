@@ -45,6 +45,12 @@ class BobQuery:
     def _cleanup(self):
         """Cleanup function"""
         print("\n🛑 Cleaning up...")
+        if self.bob_altastata:
+            try:
+                self.bob_altastata.shutdown()
+                print("✅ AltaStata Java process terminated")
+            except Exception:
+                pass
         print("✅ Cleanup complete")
     
     def _signal_handler(self, signum, _frame):
