@@ -28,7 +28,7 @@ graph TB
         O --> P[📖 Read Chunk Directly from AltaStata]
         P --> R[📄 Use Chunk Content]
         R --> S[📝 Build Context for LLM]
-        S --> T[🤖 Generate Response with Gemini 2.5 Flash]
+        S --> T[🤖 Generate Response via Vertex AI (Gemini 2.5 Flash)]
     end
     
     subgraph "LANGCHAIN INTEGRATION"
@@ -78,7 +78,7 @@ graph TB
     
     class A,B,C,D ingestion
     class E,F,F1,G,H,I indexing
-    class J,K,L,M,N,O,P,Q,R,S,T query
+    class J,K,L,M,N,O,P,R,S,T query
     class U,V,W,X langchain
     class Y,Z,AA,BB vertex
     class CC,DD,EE,FF altastata
@@ -93,7 +93,6 @@ sequenceDiagram
     participant AltaStata
     participant Insurance
     participant VertexAI
-    participant Gemini
     
     Note over Law Firm,AltaStata: Document Ingestion
     Law Firm->>AltaStata: Encrypt & Upload Documents
@@ -107,14 +106,13 @@ sequenceDiagram
     Insurance->>VertexAI: Store in Index
     Insurance->>VertexAI: Store chunk_path in Metadata
     
-    Note over User,Gemini: ChatBot Query Processing
+    Note over User,VertexAI: ChatBot Query Processing
     User->>Insurance: Submit Query
     Insurance->>VertexAI: Generate Query Embedding
     Insurance->>VertexAI: Vector Search
-    Insurance->>Insurance: Apply Similarity Threshold
-    Insurance->>AltaStata: Read Chunks Directly
-    Insurance->>Gemini: Generate Response
-    Gemini->>User: Return Answer
+    Insurance->>AltaStata: Read Chunks Directly (top 2)
+    Insurance->>VertexAI: Generate Response (Gemini 2.5 Flash)
+    VertexAI->>User: Return Answer
 ```
 
 ## Key Architecture Features
@@ -131,9 +129,9 @@ sequenceDiagram
 
 ### 🎯 **Intelligent Search**
 - **COSINE_DISTANCE** similarity metric for better semantic ranking
-- Strict similarity threshold (0.5) for maximum precision
+- Top 2 most similar documents selected for context
 - Vector similarity search in Vertex AI with improved accuracy
-- Context-aware document retrieval with fallback to top 2 most similar
+- Reliable semantic ranking without threshold complexity
 
 ### ⚡ **Performance Optimized**
 - No large local storage requirements
@@ -162,7 +160,7 @@ sequenceDiagram
 distance_measure_type="COSINE_DISTANCE"  # Better semantic similarity
 ```
 
-### 🔧 **Similarity Threshold Optimization**
-- **Threshold**: 0.5 (strict for high relevance with COSINE_DISTANCE)
-- **Fallback**: Include top 2 most similar documents if threshold too strict
-- **Result**: Maximum precision with highly relevant documents only
+### 🔧 **Simplified Result Selection**
+- **Approach**: Always use top 2 most similar documents
+- **Rationale**: COSINE_DISTANCE already provides correct semantic ranking
+- **Result**: Simple, consistent behavior with best matches
