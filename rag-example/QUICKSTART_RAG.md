@@ -118,12 +118,15 @@ python alice_upload_docs.py
    ✅ Loaded: 1024 chars
    2️⃣  Chunking...
    ✅ Created 1 chunks
-   3️⃣  Generating embeddings...
-   4️⃣  Upserting to Vertex AI Vector Search...
+   3️⃣  Storing chunks in AltaStata...
+      📄 Chunk 1/1 (1024 chars): Enterprise Security Guidelines  Version 2.0...
+      ✅ Stored: chunks/RAGDocs/policies/company_policy.txt_0.txt
+   4️⃣  Generating embeddings...
+   5️⃣  Upserting to Vertex AI Vector Search...
 Upserting datapoints MatchingEngineIndex index: projects/177851330934/...
 MatchingEngineIndex index Upserted datapoints. Resource name: projects/177851330934/...
    ✅ Indexed 1 chunks to Vertex AI Vector Search!
-   💾 Metadata saved to /tmp/bob_rag_metadata.json
+   💡 Chunks stored in AltaStata at: chunks/RAGDocs_policies_*.txt
 ================================================================================
 ```
 
@@ -166,7 +169,7 @@ Choice (1 or 2): 2
    every 90 days. Password reuse for the last 10 passwords is not allowed.
 
 📚 SOURCES:
-   1. 📄 security_guidelines.txt
+   1. 📄 security_guidelines.txt (chunk 0)
       └─ Password Requirements: - Minimum 12 characters - Mix of uppercase, lowercase...
 ```
 
@@ -203,18 +206,19 @@ python cleanup.py
 │ 2. Bob receives SHARE events (SecureCloudEventProcessor)               │
 │    → Reads from encrypted storage (fsspec)                             │
 │    → Chunks document (RecursiveCharacterTextSplitter, 4000 chars)     │
-│    → Generates embeddings (Vertex AI text-embedding-004, 768-dim)     │
-│    → Upserts to Vertex AI Vector Search (Matching Engine)             │
-│    → Saves metadata locally (/tmp/bob_rag_metadata.json)              │
+│    → Stores chunks in AltaStata (encrypted, one file per chunk)        │
+│    → Generates embeddings (Vertex AI text-embedding-004, 768-dim)       │
+│    → Upserts to Vertex AI Vector Search (Matching Engine)              │
+│    → Stores chunk_path in metadata (restricts)                          │
 └─────────────────────────────────────────────────────────────────────────┘
                                   ↓
 ┌─────────────────────────────────────────────────────────────────────────┐
 │ 3. Query interface (bob_query.py)                                       │
 │    → Connects to Vertex AI Vector Search endpoint                     │
 │    → Finds similar vectors (k-NN search on e2-standard-2 VMs)         │
-│    → Retrieves full text from local metadata                          │
+│    → Retrieves chunks directly from AltaStata (using chunk_path)       │
 │    → Queries Gemini 2.5 Flash with context                            │
-│    → Returns answer + source citations                                 │
+│    → Returns answer + source citations (with chunk index)              │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -257,7 +261,7 @@ To scale to production:
 ## 💡 Notes
 
 - Bob must be running (`bob_indexer.py`) before Alice uploads
-- Vectors stored on Vertex AI (cloud), metadata in `/tmp/bob_rag_metadata.json` (local)
+- Vectors stored on Vertex AI (cloud), chunks stored in AltaStata (encrypted)
 - Uses Azure accounts (`azure.rsa.bob123`, `azure.rsa.alice222`)
 - Bob uses callback port `25334`, Alice uses gateway port `25555`
 
