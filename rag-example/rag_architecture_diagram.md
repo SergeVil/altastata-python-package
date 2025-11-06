@@ -101,16 +101,15 @@ sequenceDiagram
     Note over Insurance,VertexAI: Indexing Pipeline
     Insurance->>AltaStata: Read Document
     Insurance->>Insurance: Chunk with LangChain
-    Insurance->>AltaStata: Store Chunks (one file per chunk)
+    Insurance->>AltaStata: Encrypt & Store Chunks
     Insurance->>VertexAI: Generate Embeddings
-    Insurance->>VertexAI: Store in Index
-    Insurance->>VertexAI: Store chunk_path in Metadata
+    Insurance->>VertexAI: Store in Index (with chunk_path)
     
     Note over User,VertexAI: ChatBot Query Processing
     User->>Insurance: Submit Query
     Insurance->>VertexAI: Generate Query Embedding
     Insurance->>VertexAI: Vector Search
-    Insurance->>AltaStata: Read Chunks Directly (top 2)
+    Insurance->>AltaStata: Read Chunks (top 2)
     Insurance->>VertexAI: Send Prompt (Query + Chunks)
     VertexAI->>VertexAI: Run Prompt with LLM
     VertexAI->>User: Return Answer
