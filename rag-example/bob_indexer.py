@@ -36,7 +36,6 @@ class BobIndexer:
         self.fs = None
         self.vertex_index = None
         self.vertex_config = {}
-        self.processed_files = set()
         
         # Event processing
         self.event_queue = queue.Queue()
@@ -87,6 +86,11 @@ class BobIndexer:
         """Generate consistent chunk ID"""
         return f"{base_path.replace('/', '_')}_{chunk_index}"
     
+    def _get_chunk_path(self, base_path, chunk_index):
+        """Generate chunk storage path in AltaStata, preserving directory structure"""
+        # Example: RAGDocs/policies/doc.txt -> chunks/RAGDocs/policies/doc.txt_0.txt
+        return f"chunks/{base_path}_{chunk_index}.txt"
+    
     def _event_handler(self, event_name, data):
         """Bob's event handler - queues events for sequential processing"""
         thread_name = threading.current_thread().name
@@ -125,13 +129,6 @@ class BobIndexer:
         
         print(f"📄 File: {file_path}")
         
-        # Check if already processed
-        if base_path in self.processed_files:
-            print("   ⏭️  Skipping (already indexed)")
-            return
-        
-        self.processed_files.add(base_path)
-        
         try:
             # Read from encrypted storage
             print("   1️⃣  Reading file...")
@@ -154,25 +151,49 @@ class BobIndexer:
             chunks = text_splitter.split_documents([doc])
             print(f"   ✅ Created {len(chunks)} chunks")
             
+            # Store chunks in AltaStata and generate embeddings
+            print("   3️⃣  Storing chunks in AltaStata...")
+            chunk_paths = []
+            for i, chunk in enumerate(chunks):
+                chunk_path = self._get_chunk_path(base_path, i)
+                chunk_paths.append(chunk_path)
+                
+                # Debug: print chunk content
+                chunk_preview = chunk.page_content[:200].replace('\n', ' ')
+                print(f"      📄 Chunk {i+1}/{len(chunks)} ({len(chunk.page_content)} chars):")
+                print(f"         {chunk_preview}...")
+                
+                # Store chunk content in AltaStata
+                chunk_content = chunk.page_content.encode('utf-8')
+                self.bob_altastata.create_file(chunk_path, chunk_content)
+                print(f"      ✅ Stored: {chunk_path}")
+            
             # Generate embeddings
-            print("   3️⃣  Generating embeddings...")
+            print("   4️⃣  Generating embeddings...")
             texts = [chunk.page_content for chunk in chunks]
             chunk_embeddings = self.embeddings.embed_documents(texts)
             
-            # Prepare datapoints for Vertex AI
-            print("   4️⃣  Upserting to Vertex AI Vector Search...")
+            # Prepare datapoints for Vertex AI with chunk references
+            print("   5️⃣  Upserting to Vertex AI Vector Search...")
             datapoints = []
-            for i, (chunk, embedding) in enumerate(zip(chunks, chunk_embeddings)):
+            for i, (chunk, embedding, chunk_path) in enumerate(zip(chunks, chunk_embeddings, chunk_paths)):
                 datapoint_id = self._get_chunk_id(base_path, i)
                 
+                # Include chunk path in datapoint_id for easy retrieval
+                # Format: {base_path}_{chunk_index} (chunk_path stored separately in metadata via restricts)
                 datapoints.append({
                     "datapoint_id": datapoint_id,
-                    "feature_vector": embedding
+                    "feature_vector": embedding,
+                    "restricts": [
+                        {"namespace": "chunk_path", "allow_list": [chunk_path]},
+                        {"namespace": "source_file", "allow_list": [base_path]}
+                    ]
                 })
             
             # Upsert to Vertex AI
             self.vertex_index.upsert_datapoints(datapoints=datapoints)
             print(f"   ✅ Indexed {len(datapoints)} chunks to Vertex AI Vector Search!")
+            print(f"   💡 Chunks stored in AltaStata at: chunks/{base_path.replace('/', '_')}_*.txt")
             
         except Exception as e:
             print(f"   ❌ Error: {e}")

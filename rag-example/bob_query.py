@@ -107,8 +107,6 @@ class BobQuery:
     
     def query_rag(self, query_text: str):
         """Query using Vertex AI Vector Search + AltaStata + Gemini"""
-        from langchain.text_splitter import RecursiveCharacterTextSplitter
-        
         # Generate query embedding
         query_embedding = self.embeddings.embed_query(query_text)
         
@@ -156,77 +154,61 @@ class BobQuery:
         if not relevant_neighbors:
             return "No relevant documents found.", []
         
-        # Group by source file to avoid reading the same file multiple times
-        source_files = {}
+        # Extract chunk paths from datapoint IDs and read chunks directly
+        docs = []
         for neighbor in relevant_neighbors:
-            # Extract metadata from datapoint ID (format: source_file:chunk_index)
             datapoint_id = getattr(neighbor, 'id', '') or getattr(neighbor, 'datapoint_id', '')
             
-            # Handle both formats: source_file:chunk_index and source_file_chunk_index
-            if ':' in datapoint_id:
-                # Format: source_file:chunk_index
+            # Parse datapoint_id to reconstruct chunk_path
+            # Format: {base_path.replace('/', '_')}_{chunk_index}
+            # Chunk path: chunks/{base_path}_{chunk_index}.txt
+            if '_' in datapoint_id:
                 try:
-                    source_file, chunk_index_str = datapoint_id.rsplit(':', 1)
-                    chunk_index = int(chunk_index_str)
-                except (ValueError, IndexError):
-                    print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
-                    continue
-            elif '_' in datapoint_id:
-                # Format: source_file_chunk_index (current format)
-                try:
-                    # Find the last underscore and split
                     parts = datapoint_id.rsplit('_', 1)
                     if len(parts) == 2:
-                        # Convert back to path format: RAGDocs_policies_filename -> RAGDocs/policies/filename
-                        source_file = parts[0].replace('_', '/', 2)  # Replace first two underscores
+                        base_path_underscored = parts[0]
                         chunk_index = int(parts[1])
+                        
+                        # Reconstruct original base_path (replace underscores with slashes)
+                        # Handle common patterns: RAGDocs_policies_file -> RAGDocs/policies/file
+                        if base_path_underscored.startswith('RAGDocs_'):
+                            # RAGDocs_policies_filename -> RAGDocs/policies/filename
+                            path_parts = base_path_underscored.split('_')
+                            if len(path_parts) >= 3:
+                                base_path = f"{path_parts[0]}/{path_parts[1]}/" + "_".join(path_parts[2:])
+                            else:
+                                base_path = base_path_underscored.replace('_', '/')
+                        else:
+                            # Generic: replace underscores with slashes
+                            base_path = base_path_underscored.replace('_', '/')
+                        
+                        # Construct chunk_path (same logic as bob_indexer._get_chunk_path)
+                        chunk_path = f"chunks/{base_path}_{chunk_index}.txt"
+                        
+                        # Read chunk directly from AltaStata
+                        try:
+                            with self.fs.open(chunk_path, "r") as f:
+                                chunk_text = f.read()
+                            
+                            docs.append({
+                                "text": chunk_text,
+                                "filename": os.path.basename(base_path),
+                                "source": base_path,
+                                "chunk_path": chunk_path,
+                                "chunk_index": chunk_index
+                            })
+                            print(f"   ✅ Retrieved chunk: {chunk_path} ({len(chunk_text)} chars)")
+                        except Exception as e:
+                            print(f"   ⚠️  Could not read chunk {chunk_path}: {e}")
+                            continue
                     else:
-                        print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                        print(f"   ⚠️  Skipping invalid datapoint ID: {datapoint_id}")
                         continue
-                except (ValueError, IndexError):
-                    print(f"   ⚠️  Skipping document with invalid datapoint ID: {datapoint_id}")
+                except (ValueError, IndexError) as e:
+                    print(f"   ⚠️  Skipping invalid datapoint ID: {datapoint_id} ({e})")
                     continue
             else:
-                print(f"   ⚠️  Skipping document without proper datapoint ID: {datapoint_id}")
-                continue
-            
-            # Only process documents that start with RAGDocs/
-            if source_file.startswith('RAGDocs/'):
-                if source_file not in source_files:
-                    source_files[source_file] = []
-                source_files[source_file].append(chunk_index)
-                print(f"   ✅ Found valid document: {source_file} (chunk {chunk_index})")
-            else:
-                print(f"   ⚠️  Skipping document without proper path: {source_file}")
-        
-        # Retrieve content from AltaStata and re-chunk
-        docs = []
-        text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=4000,
-            chunk_overlap=800,
-            separators=["\n\n", "\n", ". ", " ", ""]
-        )
-        
-        for source_file, chunk_indices in source_files.items():
-            try:
-                # Read full document from AltaStata
-                with self.fs.open(source_file, "r") as f:
-                    full_content = f.read()
-                
-                # Re-chunk the document
-                chunks = text_splitter.split_text(full_content)
-                
-                # Extract specific chunks
-                for chunk_index in chunk_indices:
-                    if chunk_index < len(chunks):
-                        docs.append({
-                            "text": chunks[chunk_index],
-                            "filename": os.path.basename(source_file),
-                            "source": source_file
-                        })
-                        
-            except Exception as e:
-                print(f"⚠️  Could not read {source_file}: {e}")
+                print(f"   ⚠️  Skipping datapoint without proper format: {datapoint_id}")
                 continue
         
         if not docs:
@@ -277,8 +259,9 @@ Answer:"""
             print(f"\n📚 SOURCES ({len(docs)} documents):")
             for j, doc in enumerate(docs, 1):
                 filename = doc['filename']
+                chunk_index = doc.get('chunk_index', '?')
                 preview = doc['text'][:80].replace('\n', ' ')
-                print(f"   {j}. 📄 {filename}")
+                print(f"   {j}. 📄 {filename} (chunk {chunk_index})")
                 print(f"      └─ {preview}...")
             print()
     
@@ -303,7 +286,8 @@ Answer:"""
             
             print(f"\n📚 SOURCES: {len(docs)} documents")
             for i, doc in enumerate(docs, 1):
-                print(f"   {i}. {doc['filename']}")
+                chunk_index = doc.get('chunk_index', '?')
+                print(f"   {i}. {doc['filename']} (chunk {chunk_index})")
     
     def initialize(self):
         """Initialize all components"""

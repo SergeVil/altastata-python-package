@@ -1,6 +1,6 @@
-# Altastata Python Package v0.1.18
+# Altastata Python Package
 
-A powerful Python package for data processing and machine learning integration with Altastata.
+A powerful Python package for secure, encrypted cloud storage with seamless integration for data processing, AI, machine learning, and RAG applications.
 
 ## Installation
 
@@ -10,18 +10,12 @@ pip install altastata
 
 ## Features
 
-- Seamless integration with PyTorch and TensorFlow
-- **fsspec filesystem interface** for standard Python file operations
-- **Real-time Event Notifications**: Listen for file share, delete, and create events
-- Advanced data processing capabilities
-- Java integration through Py4J with optimized memory management
-- Support for large-scale data operations
-- Improved garbage collection and memory optimization
-- Enhanced error handling for cloud operations
-- Optimized file reading with direct attribute access
-- Comprehensive AWS IAM permission management
-- **Confidential Computing Support**: Deploy on Google Cloud Platform with AMD SEV security
-- Robust file operation status tracking
+- **fsspec filesystem interface** - Use standard Python file operations with encrypted cloud storage
+- **Real-time Event Notifications** - Listen for file share, delete, and create events
+- **LangChain Integration** - Native support for document loaders and vector stores
+- **PyTorch & TensorFlow Support** - Custom datasets for machine learning workflows
+- **Multi-cloud Support** - Works with AWS, Azure, GCP, and more
+- **End-to-end Encryption** - AES-256 encryption with zero-trust architecture
 
 ## Quick Start
 
@@ -76,6 +70,8 @@ tensorflow_dataset = AltaStataTensorFlowDataset(
 
 ## fsspec Integration
 
+Altastata implements the fsspec interface, making it compatible with any Python library that uses standard file operations:
+
 ```python
 from altastata import AltaStataFunctions
 from altastata.fsspec import create_filesystem
@@ -87,11 +83,14 @@ altastata_functions.set_password("your_password")
 # Create fsspec filesystem
 fs = create_filesystem(altastata_functions, "my_account")
 
-# Use standard file operations
+# Use it like any Python file system
 files = fs.ls("Public/")
 with fs.open("Public/Documents/file.txt", "r") as f:
     content = f.read()
+    print(content)
 ```
+
+This means you can use Altastata with pandas, dask, xarray, and hundreds of other libraries without any special configuration.
 
 ## Event Listener
 
@@ -165,73 +164,30 @@ vectorstore = FAISS.from_documents(documents, OpenAIEmbeddings())
 - Knowledge base construction
 - Multi-modal AI applications
 
-## Version Information
+## PyTorch & TensorFlow Integration
 
-**Current Version**: 0.1.18
+Altastata provides custom datasets for machine learning workflows:
 
-This version includes:
-- **Event Listener Support**: Real-time notifications for file operations (share, delete, create)
-- **fsspec Integration**: Standard Python filesystem interface for seamless file operations
-- **LangChain Integration**: Native support for LangChain document loaders and vector stores
-- Rebuilt `altastata-hadoop-all.jar` with latest improvements
-- Enhanced error handling in `delete_files` operations
-- Simplified `_read_file` method for better performance
-- Updated AWS account configurations
-- Improved memory management and garbage collection
-- Comprehensive status tracking for cloud operations
+```python
+from altastata import AltaStataFunctions, AltaStataPyTorchDataset
+from altastata.altastata_pytorch_dataset import register_altastata_functions_for_pytorch
 
-## Docker Support
+# Create AltaStata connection
+altastata_functions = AltaStataFunctions.from_account_dir('/path/to/account')
+altastata_functions.set_password("your_password")
 
-The package is available as a **multi-architecture Docker image** that works natively on both AMD64 and ARM64 platforms:
+# Register for PyTorch
+register_altastata_functions_for_pytorch(altastata_functions, "my_account")
 
-```bash
-# Pull multi-architecture image (automatically selects correct architecture)
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
-
-# Or use docker-compose
-docker-compose -f docker-compose-ghcr.yml up -d
+# Use as PyTorch dataset
+dataset = AltaStataPyTorchDataset(
+    "my_account",
+    root_dir="Public/Documents/",
+    file_pattern="*.txt",
+    transform=your_transform
+)
 ```
 
-**Platform Support:**
-- **Apple Silicon Macs**: Native ARM64 performance
-- **Intel Macs**: Native AMD64 performance  
-- **GCP Confidential GKE**: Native AMD64 performance
-- **Other platforms**: Automatic architecture selection
-
-## Confidential Computing Deployment
-
-Deploy Altastata in a secure, confidential computing environment on Google Cloud Platform:
-
-```bash
-# Navigate to confidential GKE setup
-cd confidential-gke
-
-# Deploy confidential cluster with AMD SEV security
-./setup-cluster.sh
-
-# Access Jupyter Lab at the provided URL
-# Stop cluster when not in use (saves costs)
-gcloud container clusters delete altastata-confidential-cluster --zone=us-central1-a
-```
-
-**Features:**
-- **Hardware-level security** with AMD SEV encryption
-- **Memory encryption** during data processing
-- **Multi-cloud storage** support (GCP, AWS, Azure)
-- **Cost optimization** with easy stop/start commands
-- **Multi-architecture support** for both AMD64 and ARM64 platforms
-
-See `confidential-gke/README.md` for detailed setup instructions.
-
-## Recent Improvements
-
-- **Event Listener System**: Real-time notifications for file share, delete, and create events via Py4J callbacks
-- **fsspec Integration**: Standard Python filesystem interface for seamless file operations with any Python library
-- **LangChain Support**: Native integration with LangChain document loaders and vector stores for RAG applications
-- **Multi-Architecture Support**: Docker images now work natively on both AMD64 and ARM64 platforms
-- **Error Handling**: Enhanced `delete_files` method with detailed error reporting
-- **Performance**: Optimized file reading operations
-- **Compatibility**: Updated AWS IAM configurations for better permission management
-- **Documentation**: Consistent version numbering across all components
+See the [full documentation](https://github.com/sergevil/altastata-python-package) for more examples and advanced usage.
 
 This project is licensed under the MIT License - see the LICENSE file for details. 

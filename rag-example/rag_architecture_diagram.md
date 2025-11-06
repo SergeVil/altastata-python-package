@@ -13,9 +13,10 @@ graph TB
     subgraph "INDEXING PIPELINE"
         D --> E[📖 Read Document from AltaStata]
         E --> F[✂️ Chunk Document with LangChain]
-        F --> G[🧠 Generate Embeddings]
+        F --> F1[💾 Store Chunks in AltaStata]
+        F1 --> G[🧠 Generate Embeddings]
         G --> H[💾 Store in Vertex AI Index]
-        H --> I[🏷️ Encode Metadata in Datapoint ID]
+        H --> I[🏷️ Store chunk_path in Metadata]
     end
     
     subgraph "QUERY PROCESSING"
@@ -24,9 +25,8 @@ graph TB
         L --> M[📊 Top 3 Most Similar Documents]
         M --> N[🎯 Retrieve Relevant Chunks]
         N --> O[📋 Extract Metadata from Datapoint ID]
-        O --> P[📖 Read Full Document via AltaStata]
-        P --> Q[✂️ Re-chunk Document on Demand]
-        Q --> R[📄 Extract Specific Chunk]
+        O --> P[📖 Read Chunk Directly from AltaStata]
+        P --> R[📄 Use Chunk Content]
         R --> S[📝 Build Context for LLM]
         S --> T[🤖 Generate Response with Gemini 2.5 Flash]
     end
@@ -55,13 +55,13 @@ graph TB
     H --> L
     N --> O
     O --> P
-    P --> Q
-    Q --> R
+    P --> R
     R --> S
     S --> T
     
     %% Integration Connections
     F --> V
+    F1 --> CC
     G --> W
     H --> X
     L --> Z
@@ -77,7 +77,7 @@ graph TB
     classDef altastata fill:#f1f8e9,stroke:#33691e,stroke-width:2px
     
     class A,B,C,D ingestion
-    class E,F,G,H,I indexing
+    class E,F,F1,G,H,I indexing
     class J,K,L,M,N,O,P,Q,R,S,T query
     class U,V,W,X langchain
     class Y,Z,AA,BB vertex
@@ -89,32 +89,31 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant User
-    participant Alice
+    participant Law Firm
     participant AltaStata
-    participant Bob
+    participant Insurance
     participant VertexAI
     participant Gemini
     
-    Note over Alice,AltaStata: Document Ingestion
-    Alice->>AltaStata: Upload Documents
-    AltaStata->>AltaStata: Encrypt & Store
-    AltaStata->>Bob: SHARE Event
+    Note over Law Firm,AltaStata: Document Ingestion
+    Law Firm->>AltaStata: Encrypt & Upload Documents
+    AltaStata->>Insurance: SHARE Event
     
-    Note over Bob,VertexAI: Indexing Pipeline
-    Bob->>AltaStata: Read Document
-    Bob->>Bob: Chunk with LangChain
-    Bob->>VertexAI: Generate Embeddings
-    Bob->>VertexAI: Store in Index
-    Bob->>VertexAI: Encode Metadata in Datapoint ID
+    Note over Insurance,VertexAI: Indexing Pipeline
+    Insurance->>AltaStata: Read Document
+    Insurance->>Insurance: Chunk with LangChain
+    Insurance->>AltaStata: Store Chunks (one file per chunk)
+    Insurance->>VertexAI: Generate Embeddings
+    Insurance->>VertexAI: Store in Index
+    Insurance->>VertexAI: Store chunk_path in Metadata
     
-    Note over User,Gemini: Query Processing
-    User->>Bob: Submit Query
-    Bob->>VertexAI: Generate Query Embedding
-    Bob->>VertexAI: Vector Search
-    Bob->>Bob: Apply Similarity Threshold
-    Bob->>AltaStata: Read Full Documents
-    Bob->>Bob: Re-chunk on Demand
-    Bob->>Gemini: Generate Response
+    Note over User,Gemini: ChatBot Query Processing
+    User->>Insurance: Submit Query
+    Insurance->>VertexAI: Generate Query Embedding
+    Insurance->>VertexAI: Vector Search
+    Insurance->>Insurance: Apply Similarity Threshold
+    Insurance->>AltaStata: Read Chunks Directly
+    Insurance->>Gemini: Generate Response
     Gemini->>User: Return Answer
 ```
 
@@ -125,10 +124,10 @@ sequenceDiagram
 - No local metadata files needed
 - Real-time event-driven processing
 
-### 🚀 **On-Demand Retrieval**
-- Full documents retrieved via fsspec when needed
-- Re-chunking on demand for exact content extraction
-- Metadata encoded in Vertex AI datapoint IDs
+### 🚀 **Efficient Chunk Retrieval**
+- Chunks stored in AltaStata during indexing (one file per chunk)
+- Chunks retrieved directly from AltaStata (no re-chunking needed)
+- Metadata (chunk_path) stored in Vertex AI restricts for fast lookup
 
 ### 🎯 **Intelligent Search**
 - **COSINE_DISTANCE** similarity metric for better semantic ranking
