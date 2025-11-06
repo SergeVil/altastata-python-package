@@ -111,7 +111,8 @@ sequenceDiagram
     Insurance->>VertexAI: Generate Query Embedding
     Insurance->>VertexAI: Vector Search
     Insurance->>AltaStata: Read Chunks Directly (top 2)
-    Insurance->>VertexAI: Generate Response (Gemini 2.5 Flash)
+    Insurance->>VertexAI: Send Prompt (Query + Chunks)
+    VertexAI->>VertexAI: Run Prompt with LLM
     VertexAI->>User: Return Answer
 ```
 
