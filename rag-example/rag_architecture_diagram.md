@@ -112,7 +112,7 @@ sequenceDiagram
     Insurance->>VertexAI: Vector Search
     Insurance->>AltaStata: Read Chunks Directly (top 2)
     Insurance->>VertexAI: Send Prompt (Query + Chunks)
-    VertexAI->>VertexAI: Process with Gemini 2.5 Flash
+    VertexAI->>VertexAI: Run Prompt with LLM
     VertexAI->>User: Return Answer
 ```
 
