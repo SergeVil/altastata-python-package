@@ -6,8 +6,8 @@ ipywidgets
 notebook
 seaborn
 
-# AltaStata Python Package (v0.1.18)
-altastata==0.1.18
+# AltaStata Python Package (v0.1.19)
+altastata==0.1.19
 
 # LangChain Ecosystem
 langchain
