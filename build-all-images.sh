@@ -22,14 +22,14 @@ docker buildx build \
     --platform linux/amd64,linux/arm64 \
     --file openshift/Dockerfile.amd64 \
     --tag altastata/jupyter-datascience:latest \
-    --tag altastata/jupyter-datascience:2025g_latest \
+    --tag altastata/jupyter-datascience:2025h_latest \
     --load \
     .
 
 # Tag for GHCR
 echo "🏷️  Tagging image for GHCR..."
 docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest
+docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest
 
 echo ""
 echo "✅ Multi-architecture image built successfully!"
@@ -39,7 +39,7 @@ echo "- altastata/jupyter-datascience:latest (works on all platforms)"
 echo ""
 echo "🏷️  GHCR images (tagged but not pushed):"
 echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest"
 echo ""
 echo "🚀 To push to GHCR, run: ./push-to-ghcr.sh"
 echo "🔧 To run locally, use: docker-compose up -d (local image)"
