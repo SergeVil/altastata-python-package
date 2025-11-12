@@ -46,14 +46,18 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
 # Create an instance of AltaStataFunctions
 altastata_functions = AltaStataFunctions.from_credentials(user_properties, private_key)
 altastata_functions.set_password("my_password")
+```
 
+## PyTorch & TensorFlow Integration
+
+```python
 # Register the altastata functions for PyTorch or TensorFlow as a custom dataset
-register_altastata_functions_for_pytorch(altastata_functions, "bob123_rsa")
-register_altastata_functions_for_tensorflow(altastata_functions, "bob123_rsa")
+register_altastata_functions_for_pytorch(altastata_functions, "my_account")
+register_altastata_functions_for_tensorflow(altastata_functions, "my_account")
 
 # For PyTorch application use
 torch_dataset = AltaStataPyTorchDataset(
-    "bob123_rsa",
+    "my_account",
     root_dir=root_dir,
     file_pattern=pattern,
     transform=transform
@@ -61,7 +65,7 @@ torch_dataset = AltaStataPyTorchDataset(
 
 # For TensorFlow application use
 tensorflow_dataset = AltaStataTensorFlowDataset(
-    "bob123_rsa",  # Using AltaStata account for testing
+    "my_account",
     root_dir=root_dir,
     file_pattern=pattern,
     preprocess_fn=preprocess_fn
@@ -123,10 +127,8 @@ listener = altastata.add_event_listener(event_handler)
 ```
 
 **Perfect for:**
+- Data sharing among the users
 - Audit logging and compliance
-- Real-time sync and backup
-- Security monitoring
-- RAG vector store updates
 - Workflow automation
 
 See [`event-listener-example/`](event-listener-example/) for complete documentation and working examples.
@@ -164,30 +166,6 @@ vectorstore = FAISS.from_documents(documents, OpenAIEmbeddings())
 - Knowledge base construction
 - Multi-modal AI applications
 
-## PyTorch & TensorFlow Integration
-
-Altastata provides custom datasets for machine learning workflows:
-
-```python
-from altastata import AltaStataFunctions, AltaStataPyTorchDataset
-from altastata.altastata_pytorch_dataset import register_altastata_functions_for_pytorch
-
-# Create AltaStata connection
-altastata_functions = AltaStataFunctions.from_account_dir('/path/to/account')
-altastata_functions.set_password("your_password")
-
-# Register for PyTorch
-register_altastata_functions_for_pytorch(altastata_functions, "my_account")
-
-# Use as PyTorch dataset
-dataset = AltaStataPyTorchDataset(
-    "my_account",
-    root_dir="Public/Documents/",
-    file_pattern="*.txt",
-    transform=your_transform
-)
-```
-
 See the [full documentation](https://github.com/sergevil/altastata-python-package) for more examples and advanced usage.
 
-This project is licensed under the MIT License - see the LICENSE file for details. 
+This project is licensed under the MIT License. 
