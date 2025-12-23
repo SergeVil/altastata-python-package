@@ -2,23 +2,23 @@
 
 ```mermaid
 sequenceDiagram
-    participant DataPartner
-    participant DataScientist
-    participant AltaStata
+    actor DataPartner
+    participant AltaStata@{ "type": "collections" }
     participant ModelTraining
+    Note right of ModelTraining: Operates inside CoCo
     participant ModelInference
-    
+    Note right of ModelInference: Operates inside CoCo
+    actor DataScientist
     Note over DataPartner,AltaStata: Data Ingestion
     DataPartner->>AltaStata: Encrypt & Upload Training Dataset
-    
     Note over DataScientist,ModelTraining: Model Training and Store
+    DataScientist->>ModelTraining: Initiate model training
     ModelTraining->>AltaStata: Access training dataset
     ModelTraining->>ModelTraining: Train ML Model
     ModelTraining->>AltaStata: Encrypt & Store ML Model
-    
     Note over DataScientist,ModelInference: Model Deployment & Inference
-    ModelInference->>AltaStata: Read ML Model
     DataScientist->>ModelInference: Send Query
+    ModelInference->>AltaStata: Read ML Model
     ModelInference->>ModelInference: Process Query
     ModelInference->>DataScientist: Return Predictions
 ```
