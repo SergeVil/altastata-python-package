@@ -33,10 +33,6 @@ docker buildx build \
     --push \
     .
 
-
-
-
-
 echo ""
 echo "✅ Multi-architecture images (AMD64, ARM64, s390x) pushed successfully to GHCR!"
 echo ""

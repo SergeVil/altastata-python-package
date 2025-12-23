@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   altastata-jupyter:
-    image: altastata/jupyter-datascience:latest
+    image: altastata/jupyter-datascience:2025i_latest
     build:
       context: .
       dockerfile: openshift/Dockerfile.amd64
