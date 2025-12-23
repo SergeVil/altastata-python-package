@@ -417,7 +417,7 @@ This will delete:
 
 1. ✅ **Cluster created** - `altastata-confidential-cluster` (deleted to save costs)
 2. ✅ **Jupyter Lab** - Successfully tested at `http://34.66.100.250:8888/lab`
-3. ✅ **Multi-architecture support** - Works on both AMD64 (GCP) and ARM64 (Mac)
+3. ✅ **Multi-architecture support** - Works on AMD64 (GCP), ARM64 (Mac), and s390x
 4. ✅ **AMD64 Architecture** - Confirmed running on AMD SEV confidential computing
 5. ✅ **Cost optimization** - Cluster deleted to avoid charges
 6. 🔄 **Recreate when needed** - Use `./setup-cluster.sh` to redeploy

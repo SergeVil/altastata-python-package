@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Altastata Python Package GHCR Push Script
-# This script pushes already-built local Docker image for amd64 architecture to GitHub Container Registry
+# This script builds and pushes multi-architecture Docker images (AMD64, ARM64, s390x) to GitHub Container Registry
 
 # Check if GitHub token is set
 if [ -z "$GITHUB_TOKEN" ]; then
@@ -16,23 +16,33 @@ fi
 echo "Logging in to GitHub Container Registry..."
 echo $GITHUB_TOKEN | docker login ghcr.io -u sergevil --password-stdin
 
-echo "Pushing Altastata Python Package Docker Image to GitHub Container Registry..."
+# Create and use buildx builder instance if it doesn't exist
+echo "🔧 Setting up Docker buildx for multi-architecture builds..."
+docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
-# Push AMD64 images
-echo "Pushing jupyter-datascience images..."
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest
+echo "Building and pushing multi-architecture Docker images to GitHub Container Registry..."
+echo "Architectures: AMD64, ARM64, s390x"
+
+# Build and push multi-architecture images using buildx
+echo "Building and pushing jupyter-datascience images..."
+docker buildx build \
+    --platform linux/amd64,linux/arm64,linux/s390x \
+    --file openshift/Dockerfile.amd64 \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
+    --push \
+    .
 
 
 
 
 
 echo ""
-echo "✅ AMD64 image pushed successfully to GHCR!"
+echo "✅ Multi-architecture images (AMD64, ARM64, s390x) pushed successfully to GHCR!"
 echo ""
 echo "Images available at:"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch: amd64, arm64, s390x)"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest (multi-arch: amd64, arm64, s390x)"
 echo ""
 
 echo ""

@@ -86,5 +86,5 @@ brew install gh  # macOS
 gh auth login
 
 # Then use ghcr.io without explicit token
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest
+docker push ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
 ``` 

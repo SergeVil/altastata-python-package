@@ -67,48 +67,50 @@ twine upload dist/*               # Upload to PyPI
 
 ### Multi-Architecture Support
 
-The project now builds **multi-architecture images** that work on both AMD64 and ARM64 platforms:
+The project now builds **multi-architecture images** that work on AMD64, ARM64, and s390x platforms:
 
 - **AMD64 (x86_64)**: Native performance on Intel/AMD processors and GCP nodes
 - **ARM64**: Native performance on Apple Silicon Macs, with emulation support on other platforms
+- **s390x**: Native performance on IBM Z and LinuxONE systems
 
 ### Building Multi-Architecture Images
 ```bash
-# Build multi-architecture image (AMD64 + ARM64)
+# Build multi-architecture image (AMD64 + ARM64 + s390x)
 ./build-all-images.sh
 
 # This creates:
 # - ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch)
-# - ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest (multi-arch)
+# - ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest (multi-arch)
 ```
 
 ### Manual Multi-Architecture Build
 ```bash
 # Build and push multi-architecture image
 docker buildx build \
-  --platform linux/amd64,linux/arm64 \
+  --platform linux/amd64,linux/arm64,linux/s390x \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
   --push \
   .
 ```
 
 ### Running the Container
 ```bash
-# Works on both AMD64 and ARM64 platforms
+# Works on AMD64, ARM64, and s390x platforms
 docker run \
   --name altastata-jupyter \
   -d \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2025g_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
 ```
 
 ### Platform Compatibility
 - **Apple Silicon Macs**: Native ARM64 performance
 - **Intel Macs**: Native AMD64 performance  
 - **GCP Confidential GKE**: Native AMD64 performance
+- **IBM Z and LinuxONE**: Native s390x performance
 - **Other platforms**: Automatic architecture selection
 
 ## PyPI Package Management

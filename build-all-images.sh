@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Altastata Python Package Docker Image Build Script
-# This script builds AMD64 Docker image (works on all platforms)
+# This script builds multi-architecture Docker images (AMD64, ARM64, s390x)
 
 echo "🚀 Building Altastata Python Package Docker Image..."
 
@@ -14,33 +14,31 @@ echo "🔧 Setting up Docker buildx for builds..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
 # Build multi-architecture image locally first
-echo "🏗️  Building multi-architecture image locally (AMD64 + ARM64)..."
+echo "🏗️  Building multi-architecture image locally (AMD64 + ARM64 + s390x)..."
 
-# Build for both amd64 and arm64 using the AMD64-specific Dockerfile
-echo "📦 Building jupyter-datascience image..."
+# Build for amd64, arm64, and s390x using the AMD64-specific Dockerfile
+# Note: Building all architectures - they will be stored in buildx cache
+echo "📦 Building jupyter-datascience image for all architectures (AMD64, ARM64, s390x)..."
 docker buildx build \
-    --platform linux/amd64,linux/arm64 \
+    --platform linux/amd64,linux/arm64,linux/s390x \
     --file openshift/Dockerfile.amd64 \
     --tag altastata/jupyter-datascience:latest \
-    --tag altastata/jupyter-datascience:2025h_latest \
-    --load \
+    --tag altastata/jupyter-datascience:2025i_latest \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
     .
 
-# Tag for GHCR
-echo "🏷️  Tagging image for GHCR..."
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest
-
 echo ""
-echo "✅ Multi-architecture image built successfully!"
+echo "✅ Multi-architecture images built successfully!"
 echo ""
-echo "📦 Local image:"
-echo "- altastata/jupyter-datascience:latest (works on all platforms)"
+echo "📦 Built architectures (all in buildx cache, ready to push):"
+echo "   - linux/amd64"
+echo "   - linux/arm64"
+echo "   - linux/s390x"
 echo ""
-echo "🏷️  GHCR images (tagged but not pushed):"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest"
+echo "🏷️  GHCR images (tagged and ready to push):"
+echo "   - ghcr.io/sergevil/altastata/jupyter-datascience:latest"
+echo "   - ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest"
 echo ""
 echo "🚀 To push to GHCR, run: ./push-to-ghcr.sh"
-echo "🔧 To run locally, use: docker-compose up -d (local image)"
 echo "🌐 To run from GHCR, use: docker-compose -f docker-compose-ghcr.yml up -d" 
