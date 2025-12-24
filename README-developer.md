@@ -65,6 +65,15 @@ twine upload dist/*               # Upload to PyPI
 ```
 ```## Docker Deployment
 
+### Version Management
+
+The Docker image version is centrally managed in `version.sh`. To update the version:
+
+1. Edit `version.sh` and update the `VERSION` variable
+2. Run `./update-version.sh` to sync the version to all configuration files
+
+All build scripts automatically use the version from `version.sh`.
+
 ### Multi-Architecture Support
 
 The project now builds **multi-architecture images** that work on AMD64, ARM64, and s390x platforms:
@@ -80,16 +89,18 @@ The project now builds **multi-architecture images** that work on AMD64, ARM64, 
 
 # This creates:
 # - ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch)
-# - ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest (multi-arch)
+# - ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} (multi-arch, version from version.sh)
 ```
 
 ### Manual Multi-Architecture Build
 ```bash
 # Build and push multi-architecture image
+# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
+source version.sh
 docker buildx build \
   --platform linux/amd64,linux/arm64,linux/s390x \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
   .
 ```
@@ -103,7 +114,7 @@ docker run \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
+  ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}  # Version from version.sh
 ```
 
 ### Platform Compatibility

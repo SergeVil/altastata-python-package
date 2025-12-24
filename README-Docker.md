@@ -23,6 +23,27 @@ This comprehensive guide covers building, running, and deploying the Altastata P
 - GitHub account with access to the repository (for GHCR)
 - GitHub Personal Access Token with `write:packages` permission (for GHCR)
 
+## Version Management
+
+The Docker image version is centrally managed in `version.sh`. To update the version across all scripts and configuration files:
+
+1. Edit `version.sh` and update the `VERSION` variable:
+   ```bash
+   VERSION="2025i_latest"  # Change to your desired version
+   ```
+
+2. Run the update script to sync the version to all configuration files:
+   ```bash
+   ./update-version.sh
+   ```
+
+The version will be automatically used by:
+- Build scripts (`build-all-images.sh`, `push-to-ghcr.sh`)
+- Docker Compose files (`docker-compose.yml`)
+- Kubernetes manifests (`confidential-gke/jupyter-deployment.yaml`)
+
+**Note**: All scripts validate that `VERSION` is set and will exit with an error if it's missing.
+
 ## System Architecture
 
 The Altastata Python Package system consists of a single Jupyter DataScience environment:
@@ -40,7 +61,7 @@ The project now builds **multi-architecture Docker images** that work natively o
 | **Architecture** | **Image Tag**                      | **Size** | **Use Case** |
 |------------------|------------------------------------|----------|--------------|
 | **Multi-Arch (AMD64 + ARM64 + s390x)** | `jupyter-datascience:latest`       | ~7GB per arch | All platforms with native performance |
-| **Multi-Arch (AMD64 + ARM64 + s390x)** | `jupyter-datascience:2025i_latest` | ~7GB per arch | All platforms with native performance |
+| **Multi-Arch (AMD64 + ARM64 + s390x)** | `jupyter-datascience:${VERSION}` (from `version.sh`) | ~7GB per arch | All platforms with native performance |
 
 ### Dockerfile
 
@@ -56,8 +77,10 @@ The project now builds **multi-architecture Docker images** that work natively o
 
 ```bash
 # Pull multi-architecture image (automatically selects correct architecture)
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
-docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
+# Note: Version tag is managed in version.sh (currently: 2025i_latest)
+source version.sh
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
 
 # Or use latest tag
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
@@ -147,10 +170,12 @@ docker buildx build \
   .
 
 # Build and push to GHCR
+# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
+source version.sh
 docker buildx build \
   --platform linux/amd64,linux/arm64,linux/s390x \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
   .
 ```
@@ -228,7 +253,7 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 ```
 
 This script will:
-1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:2025i_latest`
+1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:${VERSION}` (version from `version.sh`)
 
 #### Manual Push
 
@@ -238,10 +263,12 @@ export YOUR_PAT=your_github_token_here
 echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
 
 # Build and push multi-architecture image
+# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
+source version.sh
 docker buildx build \
   --platform linux/amd64,linux/arm64,linux/s390x \
   --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
+  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
   .
 
@@ -256,8 +283,9 @@ docker buildx build \
 # Pull multi-architecture image (automatically selects correct architecture)
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
 
-# Or pull specific version
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest
+# Or pull specific version (from version.sh)
+source version.sh
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
 
 
 

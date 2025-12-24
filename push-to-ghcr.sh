@@ -3,6 +3,17 @@
 # Altastata Python Package GHCR Push Script
 # This script builds and pushes multi-architecture Docker images (AMD64, ARM64, s390x) to GitHub Container Registry
 
+# Load version configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/version.sh"
+
+# Validate version is set
+if [ -z "$VERSION" ]; then
+    echo "Error: VERSION is not set in version.sh"
+    echo "Please ensure version.sh contains: VERSION=\"your_version\""
+    exit 1
+fi
+
 # Check if GitHub token is set
 if [ -z "$GITHUB_TOKEN" ]; then
     echo "Error: GITHUB_TOKEN environment variable not set"
@@ -29,7 +40,7 @@ docker buildx build \
     --platform linux/amd64,linux/arm64,linux/s390x \
     --file openshift/Dockerfile.amd64 \
     --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
-    --tag ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
     --push \
     .
 
@@ -38,7 +49,7 @@ echo "✅ Multi-architecture images (AMD64, ARM64, s390x) pushed successfully to
 echo ""
 echo "Images available at:"
 echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch: amd64, arm64, s390x)"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025i_latest (multi-arch: amd64, arm64, s390x)"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} (multi-arch: amd64, arm64, s390x)"
 echo ""
 
 echo ""
