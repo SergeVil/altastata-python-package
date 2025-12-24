@@ -88,23 +88,21 @@ graph TB
 
 ```mermaid
 sequenceDiagram
-    participant User
-    participant Law Firm
-    participant AltaStata
+    actor User
+    participant LawFirm
+    Note right of LawFirm: Operates inside CoCo
+    participant AltaStata@{ "type": "collections" }
     participant Insurance
-    participant VertexAI
-    
-    Note over Law Firm,AltaStata: Document Ingestion
-    Law Firm->>AltaStata: Encrypt & Upload Documents
+    Note right of Insurance: Operates inside CoCo
+    participant VertexAI@{ "type": "database" }
+    Note over LawFirm,VertexAI: Document Ingestion and Indexing for RAG
+    LawFirm->>AltaStata: Encrypt & Upload Documents
     AltaStata->>Insurance: SHARE Event
-    
-    Note over Insurance,VertexAI: Indexing Pipeline
     Insurance->>AltaStata: Read Document
     Insurance->>Insurance: Chunk with LangChain
     Insurance->>AltaStata: Encrypt & Store Chunks
     Insurance->>VertexAI: Generate Embeddings
     Insurance->>VertexAI: Store in Index (with chunk_path)
-    
     Note over User,VertexAI: ChatBot Query Processing
     User->>Insurance: Submit Query
     Insurance->>VertexAI: Generate Query Embedding

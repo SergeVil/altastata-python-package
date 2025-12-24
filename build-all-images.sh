@@ -1,7 +1,19 @@
 #!/bin/bash
 
 # Altastata Python Package Docker Image Build Script
-# This script builds AMD64 Docker image (works on all platforms)
+# This script builds a local Docker image for development/testing (AMD64)
+# For multi-architecture builds and pushing to GHCR, use push-to-ghcr.sh
+
+# Load version configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/version.sh"
+
+# Validate version is set
+if [ -z "$VERSION" ]; then
+    echo "Error: VERSION is not set in version.sh"
+    echo "Please ensure version.sh contains: VERSION=\"your_version\""
+    exit 1
+fi
 
 echo "🚀 Building Altastata Python Package Docker Image..."
 
@@ -13,34 +25,27 @@ docker network create altastata-network 2>/dev/null || echo "Network altastata-n
 echo "🔧 Setting up Docker buildx for builds..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
-# Build multi-architecture image locally first
-echo "🏗️  Building multi-architecture image locally (AMD64 + ARM64)..."
+# Build image for local development use
+echo "🏗️  Building image for local development (AMD64)..."
 
-# Build for both amd64 and arm64 using the AMD64-specific Dockerfile
-echo "📦 Building jupyter-datascience image..."
+# Build for local use only (AMD64 for local Docker daemon)
+# Note: For multi-arch builds and pushing to GHCR, use push-to-ghcr.sh instead
+echo "📦 Building jupyter-datascience image for local use (AMD64)..."
 docker buildx build \
-    --platform linux/amd64,linux/arm64 \
+    --platform linux/amd64 \
     --file openshift/Dockerfile.amd64 \
     --tag altastata/jupyter-datascience:latest \
-    --tag altastata/jupyter-datascience:2025h_latest \
+    --tag altastata/jupyter-datascience:${VERSION} \
     --load \
     .
 
-# Tag for GHCR
-echo "🏷️  Tagging image for GHCR..."
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker tag altastata/jupyter-datascience:latest ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest
-
 echo ""
-echo "✅ Multi-architecture image built successfully!"
+echo "✅ Local image built successfully!"
 echo ""
-echo "📦 Local image:"
-echo "- altastata/jupyter-datascience:latest (works on all platforms)"
+echo "📦 Local Docker daemon:"
+echo "   - altastata/jupyter-datascience:latest"
+echo "   - altastata/jupyter-datascience:${VERSION}"
 echo ""
-echo "🏷️  GHCR images (tagged but not pushed):"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:2025h_latest"
-echo ""
-echo "🚀 To push to GHCR, run: ./push-to-ghcr.sh"
-echo "🔧 To run locally, use: docker-compose up -d (local image)"
+echo "🚀 To build and push multi-architecture images (AMD64, ARM64, s390x) to GHCR, run: ./push-to-ghcr.sh"
+echo "🔧 To run locally, use: docker-compose up -d"
 echo "🌐 To run from GHCR, use: docker-compose -f docker-compose-ghcr.yml up -d" 

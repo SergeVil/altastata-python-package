@@ -1,9 +1,10 @@
-# Build stage - AMD64 for OpenShift compatibility
+# Build stage - AMD64 base image
+# Note: Base image is AMD64-only. ARM64/s390x builds will use emulation (QEMU) via buildx
 FROM --platform=linux/amd64 quay.io/opendatahub-contrib/workbench-images:jupyter-datascience-c9s-py311_2023c_latest
 
 LABEL maintainer="Altastata Team"
 LABEL version="1.0.0"
-LABEL description="Altastata Jupyter DataScience (AMD64)"
+LABEL description="Altastata Jupyter DataScience (AMD64 base, supports AMD64/ARM64/s390x via buildx)"
 LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-python-package"
 
 USER root
