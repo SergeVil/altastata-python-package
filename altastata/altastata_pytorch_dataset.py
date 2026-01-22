@@ -3,7 +3,6 @@ from torch.utils.data import Dataset
 from pathlib import Path
 from PIL import Image
 import numpy as np
-import torchvision.transforms.functional as F
 import io
 import os
 import json
@@ -14,6 +13,23 @@ import fnmatch
 
 # Global hashmap to store altastata function instances by ID for PyTorch
 _altastata_pytorch_account_registry = {}
+
+# Optional torchvision for image tensor conversion
+try:
+    import torchvision.transforms.functional as _tv_f
+except ImportError:  # pragma: no cover - depends on environment
+    _tv_f = None
+
+
+def _pil_to_tensor(image: Image.Image) -> torch.Tensor:
+    """Convert PIL image to float tensor without torchvision."""
+    if _tv_f is not None:
+        return _tv_f.pil_to_tensor(image)
+    array = np.asarray(image, dtype=np.uint8).copy()
+    if array.ndim == 2:
+        array = array[:, :, None]
+    tensor = torch.from_numpy(array).permute(2, 0, 1)
+    return tensor
 
 def register_altastata_functions_for_pytorch(altastata_functions, account_id):
     _altastata_pytorch_account_registry[account_id] = altastata_functions
@@ -124,7 +140,7 @@ class AltaStataPyTorchDataset(Dataset):
             if self.transform:
                 data = self.transform(data)
             else:
-                data = F.pil_to_tensor(data).float() / 255.0
+                data = _pil_to_tensor(data).float() / 255.0
         elif file_ext == '.csv':
             # Convert bytes to numpy array and then to tensor
             data = np.genfromtxt(io.BytesIO(file_content), delimiter=',')
@@ -132,6 +148,8 @@ class AltaStataPyTorchDataset(Dataset):
         elif file_ext == '.npy':
             # Convert bytes to numpy array and then to tensor
             data = np.load(io.BytesIO(file_content))
+            if data.dtype.byteorder not in ("=", "|"):
+                data = data.byteswap().view(data.dtype.newbyteorder("="))
             data = torch.FloatTensor(data)
         else:
             raise ValueError(f"Unsupported file type: {file_ext}")
