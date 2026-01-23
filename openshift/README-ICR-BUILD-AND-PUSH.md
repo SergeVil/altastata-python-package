@@ -11,12 +11,18 @@ then tagging and pushing the s390x image to IBM Container Registry (ICR).
 
 ## Build s390x (IBM base)
 
+On macOS, use buildx to produce a real s390x image:
+
 ```bash
-docker build -f openshift/Dockerfile.s390x .
+docker buildx build --platform linux/s390x -f openshift/Dockerfile.s390x \
+  -t altastata/jupyter-datascience-s390x:2026b --load .
 ```
 
-This produces an untagged local image. Tag it as
-`altastata/jupyter-datascience-s390x:2026b` after the build completes.
+If you are already on an s390x host, a normal build is fine:
+
+```bash
+docker build -f openshift/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:2026b .
+```
 
 ## Build arm64 (local testing on macOS)
 
@@ -36,7 +42,6 @@ Then open `http://localhost:8889` (token is disabled).
 ## Tag s390x image for ICR
 
 ```bash
-docker tag <IMAGE_ID> altastata/jupyter-datascience-s390x:2026b
 docker tag altastata/jupyter-datascience-s390x:2026b icr.io/altastata/jupyter-datascience-s390x:2026b
 ```
 

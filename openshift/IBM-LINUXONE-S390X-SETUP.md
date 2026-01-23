@@ -178,6 +178,21 @@ cd altastata-python-package
 scp -i /path/to/private-key.pem -r altastata-python-package ubuntu@<FLOATING_IP>:~/
 ```
 
+**Option D: Transfer a prebuilt image from macOS**
+
+If you built the s390x image on macOS, you can export and copy it to the VM:
+
+```bash
+docker save altastata/jupyter-datascience-s390x:2026b -o /tmp/jupyter-2026b.tar
+scp -i /path/to/private-key.pem /tmp/jupyter-2026b.tar ubuntu@<FLOATING_IP>:~/
+```
+
+On the VM, load the image:
+
+```bash
+sudo docker load -i /home/ubuntu/jupyter-2026b.tar
+```
+
 ### Step 2: Navigate to Project Directory
 
 ```bash
