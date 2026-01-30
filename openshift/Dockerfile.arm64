@@ -1,9 +1,9 @@
-# Build stage - arm64 for local testing
+# Build stage - arm64 for local testing of repo code on Mac (not from https://pypi.org/)
 FROM --platform=linux/arm64 python:3.12-slim-bookworm
 
 LABEL maintainer="Altastata Team"
 LABEL version="1.0.0"
-LABEL description="Altastata Jupyter DataScience (arm64 local test)"
+LABEL description="Altastata Jupyter DataScience (arm64 local test on Mac)"
 LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-python-package"
 
 USER root
@@ -59,7 +59,7 @@ ENV ZMQ_BUILD_BUNDLED=0
 RUN echo "Installing regular packages" && \
     pip install --no-cache-dir --upgrade-strategy only-if-needed -r /tmp/requirements.txt
 
-# Create package directory and copy files
+# Create package directory and copy files (local code, not from https://pypi.org/)
 COPY --chown=1001:0 setup.py README.md ${APP_PYTHON_SITE}/altastata-package/
 COPY --chown=1001:0 altastata ${APP_PYTHON_SITE}/altastata-package/altastata/
 COPY --chown=1001:0 pytorch-example ${APP_PYTHON_SITE}/altastata-package/pytorch-example/
@@ -73,7 +73,7 @@ USER 1001
 
 WORKDIR ${APP_PYTHON_SITE}/altastata-package
 
-# Verify that altastata is installed and working
+# Verify that altastata is installed and working (from local copy, not https://pypi.org/)
 RUN echo "Verifying altastata installation:" && \
     python -c "import altastata; print('Module location:', altastata.__file__)" && \
     python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')" && \
@@ -97,6 +97,7 @@ ENV JUPYTER_ENABLE_LAB=yes
 ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
+# PYTHONPATH for local altastata package (not from https://pypi.org/)
 ENV PYTHONPATH=/usr/local/lib/python3.12/site-packages
 
 # Set the image label

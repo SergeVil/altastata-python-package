@@ -123,7 +123,7 @@ docker run \
   --name altastata-jupyter-s390x \
   -d \
   -p 8888:8888 \
-  icr.io/altastata/jupyter-datascience-s390x:2026b
+  icr.io/altastata/jupyter-datascience-s390x:2026c
 ```
 
 ### Platform Compatibility

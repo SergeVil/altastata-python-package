@@ -64,7 +64,7 @@ The s390x (IBM Z/LinuxONE) image is built and tagged separately using
 |------------------|------------------------------------|----------|--------------|
 | **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest`       | ~7GB per arch | AMD64/ARM64 platforms |
 | **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:${VERSION}` (from `version.sh`) | ~7GB per arch | AMD64/ARM64 platforms |
-| **s390x (IBM Z/LinuxONE)** | `jupyter-datascience-s390x:2026b` | ~4-5GB | IBM Z and LinuxONE |
+| **s390x (IBM Z/LinuxONE)** | `jupyter-datascience-s390x:2026c` | ~4-5GB | IBM Z and LinuxONE |
 
 ### Dockerfile
 
@@ -487,8 +487,8 @@ docker exec altastata-jupyter python -c "import sys; print('\n'.join(sys.path))"
 # Check Java installation
 docker exec altastata-jupyter java -version
 
-# Check JAR files
-docker exec altastata-jupyter ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata/lib/
+# Check JAR files (altastata installed via pip)
+docker exec altastata-jupyter ls -la $(docker exec altastata-jupyter python -c "import altastata; import os; print(os.path.dirname(altastata.__file__))")/lib/
 ```
 
 #### 5. Build Failures
