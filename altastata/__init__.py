@@ -39,10 +39,9 @@ class _LazyPyTorchDataset:
 AltaStataPyTorchDataset = _LazyPyTorchDataset()
 AltaStataTensorFlowDataset = _LazyTensorFlowDataset()
 
-# fsspec support
+# fsspec support - import the actual availability flag from the fsspec module
 try:
-    from .fsspec import create_filesystem, register_filesystem
-    FSSPEC_AVAILABLE = True
+    from .fsspec import create_filesystem, register_filesystem, FSSPEC_AVAILABLE
 except ImportError:
     FSSPEC_AVAILABLE = False
 
