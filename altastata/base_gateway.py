@@ -87,7 +87,7 @@ class BaseGateway:
             '--add-opens', 'java.base/java.util=ALL-UNNAMED',
             '-Xms1g',                    # Initial heap size
             '-Xmx4g',                    # Max heap size
-            '-XX:+UseZGC',               # Use ZGC for very low pause times
+            #'-XX:+UseZGC',               # Use ZGC for very low pause times - !!! crashes on IBM Z and LinuxONE !!!
             '-XX:+UnlockExperimentalVMOptions',
             '-XX:+UseStringDeduplication', # Reduce memory usage for strings
             '-Xlog:gc*:file=gc.log:time,uptime:filecount=5,filesize=10M', # GC logging

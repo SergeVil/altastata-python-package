@@ -1,0 +1,84 @@
+# Build stage - s390x for IBM Z and LinuxONE mainframes
+FROM --platform=linux/s390x icr.io/ibmz/ibmz-accelerated-for-pytorch@sha256:b95591595e7ac0b9cc5219355fae61ec2a2766758f768d1d8e4937ae5d219430
+
+LABEL maintainer="Altastata Team"
+LABEL version="1.0.0"
+LABEL description="Altastata Jupyter DataScience (s390x for IBM Z and LinuxONE)"
+LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-python-package"
+
+USER root
+
+# Install Java 17 and build dependencies for scientific Python packages
+RUN dnf install -y java-17-openjdk-devel gcc gcc-c++ gcc-gfortran make openblas openblas-devel \
+    libxml2-devel libxslt-devel \
+    libjpeg-turbo-devel zlib-devel freetype-devel lcms2-devel libtiff-devel libwebp-devel openjpeg2-devel \
+    zeromq-devel libsodium-devel && \
+    dnf clean all
+
+# Set JAVA_HOME
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
+ENV PATH="${PATH}:${JAVA_HOME}/bin"
+
+# Create jovyan user (UID 1001, same as AMD64 version)
+RUN useradd -m -u 1001 -g root -s /bin/bash jovyan
+
+# Create Jupyter configuration directory and set permissions
+RUN mkdir -p /home/jovyan/.jupyter && \
+    mkdir -p /opt/app-root/src && \
+    chown -R 1001:0 /home/jovyan /opt/app-root && \
+    chmod -R g+rwX /home/jovyan /opt/app-root
+
+# Copy requirements files
+COPY --chown=1001:0 openshift/requirements-ibm.txt /tmp/requirements.txt
+
+# Upgrade pip first
+RUN python -m pip install --upgrade pip
+
+# Prefer system ZeroMQ to avoid bundled build failures
+ENV ZMQ_BUILD_BUNDLED=0
+
+# Install Jupyter and datascience packages (PyTorch already in base image)
+RUN echo "Installing regular packages" && \
+    pip install --no-cache-dir --upgrade-strategy only-if-needed -r /tmp/requirements.txt
+
+# Copy pytorch-example for reference
+COPY --chown=1001:0 pytorch-example /opt/app-root/src/pytorch-example/
+
+# Set proper permissions
+RUN chown -R 1001:0 /opt/app-root/src/pytorch-example && \
+    chmod -R g+rwX /opt/app-root/src/pytorch-example
+
+# Switch to non-root user for remaining operations
+USER 1001
+
+# Verify that altastata is installed and working (from pip)
+RUN echo "Verifying altastata installation:" && \
+    python -c "import altastata; print('Module location:', altastata.__file__)" && \
+    python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')" && \
+    echo "✅ AltaStata package is ready!"
+
+# Configure Jupyter
+WORKDIR /home/jovyan
+USER root
+RUN echo '{"ServerApp": {"token": "", "allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
+    chown -R 1001:0 /home/jovyan/.jupyter
+USER 1001
+
+# Expose Jupyter port
+EXPOSE 8888
+
+# Set environment variables for Jupyter
+ENV JUPYTER_ENABLE_LAB=yes
+ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+# PYTHONPATH not needed - altastata installed via pip
+
+# Set the image label
+LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
+LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
+LABEL org.opencontainers.image.version="latest"
+
+# Override base entrypoint and start Jupyter Lab
+ENTRYPOINT []
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/home/jovyan", "--allow-root"]

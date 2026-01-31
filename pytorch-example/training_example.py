@@ -3,17 +3,73 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, SubsetRandomSampler
-import torchvision.transforms as transforms
+from PIL import Image
 from altastata import AltaStataPyTorchDataset
 import altastata_config
 import numpy as np
 from pathlib import Path
+import random
 import time
 from tqdm import tqdm
 
 # Set random seeds for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
+
+
+def _pil_to_tensor(img: Image.Image) -> torch.Tensor:
+    array = np.asarray(img, dtype=np.uint8)
+    if array.ndim == 2:
+        array = array[:, :, None]
+    return torch.from_numpy(array).permute(2, 0, 1)
+
+
+class Compose:
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, img):
+        for transform in self.transforms:
+            img = transform(img)
+        return img
+
+
+class RandomHorizontalFlip:
+    def __init__(self, p=0.5):
+        self.p = p
+
+    def __call__(self, img):
+        if isinstance(img, Image.Image):
+            if random.random() < self.p:
+                return img.transpose(Image.FLIP_LEFT_RIGHT)
+            return img
+        if random.random() < self.p:
+            return torch.flip(img, dims=[2])
+        return img
+
+
+class PILToTensor:
+    def __call__(self, img: Image.Image) -> torch.Tensor:
+        return _pil_to_tensor(img)
+
+
+class ConvertImageDtype:
+    def __init__(self, dtype):
+        self.dtype = dtype
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        if tensor.dtype == torch.uint8 and self.dtype.is_floating_point:
+            return tensor.to(self.dtype) / 255.0
+        return tensor.to(self.dtype)
+
+
+class Normalize:
+    def __init__(self, mean, std):
+        self.mean = torch.tensor(mean).view(-1, 1, 1)
+        self.std = torch.tensor(std).view(-1, 1, 1)
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        return (tensor - self.mean) / self.std
 
 class SimpleCNN(nn.Module):
     def __init__(self):
@@ -160,18 +216,18 @@ def train_model(model, train_loader, val_loader, train_dataset, criterion, optim
 
 def main():
     # Create transforms with data augmentation
-    train_transform = transforms.Compose([
-        transforms.RandomHorizontalFlip(),
-        transforms.PILToTensor(),
-        transforms.ConvertImageDtype(torch.float32),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    train_transform = Compose([
+        RandomHorizontalFlip(),
+        PILToTensor(),
+        ConvertImageDtype(torch.float32),
+        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
     # Create validation transform without augmentation
-    val_transform = transforms.Compose([
-        transforms.PILToTensor(),
-        transforms.ConvertImageDtype(torch.float32),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    val_transform = Compose([
+        PILToTensor(),
+        ConvertImageDtype(torch.float32),
+        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
     # Create datasets using AltaStataPyTorch

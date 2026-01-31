@@ -54,26 +54,31 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 
 ## Multi-Architecture Support
 
-The project now builds **multi-architecture Docker images** that work natively on AMD64, ARM64, and s390x platforms:
+The project builds **multi-architecture Docker images** for AMD64 and ARM64.
+The s390x (IBM Z/LinuxONE) image is built and tagged separately using
+`openshift/Dockerfile.s390x`.
 
 ### Available Images
 
 | **Architecture** | **Image Tag**                      | **Size** | **Use Case** |
 |------------------|------------------------------------|----------|--------------|
-| **Multi-Arch (AMD64 + ARM64 + s390x)** | `jupyter-datascience:latest`       | ~7GB per arch | All platforms with native performance |
-| **Multi-Arch (AMD64 + ARM64 + s390x)** | `jupyter-datascience:${VERSION}` (from `version.sh`) | ~7GB per arch | All platforms with native performance |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest`       | ~7GB per arch | AMD64/ARM64 platforms |
+| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:${VERSION}` (from `version.sh`) | ~7GB per arch | AMD64/ARM64 platforms |
+| **s390x (IBM Z/LinuxONE)** | `jupyter-datascience-s390x:2026c` | ~4-5GB | IBM Z and LinuxONE |
 
 ### Dockerfile
 
-- `openshift/Dockerfile.amd64` - Base Dockerfile used for both architectures
+- `openshift/Dockerfile.amd64` - AMD64 build
+- `openshift/Dockerfile.arm64` - ARM64 local build
+- `openshift/Dockerfile.s390x` - IBM Z/LinuxONE build
 
 ### Build Scripts
 
-- `build-all-images.sh` - Build multi-architecture images and push to GHCR
+- `build-all-images.sh` - Build AMD64/ARM64 images and push to GHCR
 - `push-to-ghcr.sh` - Push already-built local image to GHCR
 - `cleanup-jupyter-images.sh` - Clean up Docker images
 
-### Usage (All Platforms)
+### Usage (AMD64 + ARM64)
 
 ```bash
 # Pull multi-architecture image (automatically selects correct architecture)
@@ -92,8 +97,8 @@ docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:latest
 - **Apple Silicon Macs**: Native ARM64 performance
 - **Intel Macs**: Native AMD64 performance  
 - **GCP Confidential GKE**: Native AMD64 performance
-- **IBM Z and LinuxONE**: Native s390x performance
-- **Other platforms**: Automatic architecture selection
+- **IBM Z and LinuxONE**: Use the `jupyter-datascience-s390x` image
+- **Other platforms**: Automatic architecture selection for AMD64/ARM64
 
 
 
@@ -129,7 +134,7 @@ docker-compose -f docker-compose-ghcr.yml up -d
 ```
 
 This script will:
-1. Build multi-architecture image (AMD64 + ARM64 + s390x) using `openshift/Dockerfile.amd64`
+1. Build multi-architecture image (AMD64 + ARM64) using `openshift/Dockerfile.amd64`
 2. Push all architectures to GHCR with unified tags
 3. Create a single manifest that works on all platforms
 
@@ -138,7 +143,7 @@ This script will:
 ```bash
 # Build multi-architecture image locally (without pushing)
 docker buildx build \
-  --platform linux/amd64,linux/arm64,linux/s390x \
+  --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
   --tag altastata/jupyter-datascience:latest \
   .
@@ -152,7 +157,7 @@ docker buildx build \
 ```
 
 This script will:
-1. Build multi-architecture image (AMD64 + ARM64 + s390x)
+1. Build multi-architecture image (AMD64 + ARM64)
 2. Push all architectures to GHCR with unified tags
 3. Create a single manifest that works on all platforms
 
@@ -164,7 +169,7 @@ docker network create altastata-network
 
 # Build multi-architecture image
 docker buildx build \
-  --platform linux/amd64,linux/arm64,linux/s390x \
+  --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
   --tag altastata/jupyter-datascience:latest \
   .
@@ -173,7 +178,7 @@ docker buildx build \
 # Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
 source version.sh
 docker buildx build \
-  --platform linux/amd64,linux/arm64,linux/s390x \
+  --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
   --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
@@ -266,7 +271,7 @@ echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
 # Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
 source version.sh
 docker buildx build \
-  --platform linux/amd64,linux/arm64,linux/s390x \
+  --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
   --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
@@ -482,8 +487,8 @@ docker exec altastata-jupyter python -c "import sys; print('\n'.join(sys.path))"
 # Check Java installation
 docker exec altastata-jupyter java -version
 
-# Check JAR files
-docker exec altastata-jupyter ls -la /opt/app-root/lib64/python3.11/site-packages/altastata-package/altastata/lib/
+# Check JAR files (altastata installed via pip)
+docker exec altastata-jupyter ls -la $(docker exec altastata-jupyter python -c "import altastata; import os; print(os.path.dirname(altastata.__file__))")/lib/
 ```
 
 #### 5. Build Failures

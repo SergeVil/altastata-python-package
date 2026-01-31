@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torchvision.transforms as transforms
 from PIL import Image
 import matplotlib.pyplot as plt
 import numpy as np
@@ -20,6 +19,47 @@ try:
         pass
 except:
     pass  # Regular Python interpreter
+
+
+def _pil_to_tensor(img: Image.Image) -> torch.Tensor:
+    array = np.asarray(img, dtype=np.uint8)
+    if array.ndim == 2:
+        array = array[:, :, None]
+    return torch.from_numpy(array).permute(2, 0, 1)
+
+
+class Compose:
+    def __init__(self, transforms):
+        self.transforms = transforms
+
+    def __call__(self, img):
+        for transform in self.transforms:
+            img = transform(img)
+        return img
+
+
+class PILToTensor:
+    def __call__(self, img: Image.Image) -> torch.Tensor:
+        return _pil_to_tensor(img)
+
+
+class ConvertImageDtype:
+    def __init__(self, dtype):
+        self.dtype = dtype
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        if tensor.dtype == torch.uint8 and self.dtype.is_floating_point:
+            return tensor.to(self.dtype) / 255.0
+        return tensor.to(self.dtype)
+
+
+class Normalize:
+    def __init__(self, mean, std):
+        self.mean = torch.tensor(mean).view(-1, 1, 1)
+        self.std = torch.tensor(std).view(-1, 1, 1)
+
+    def __call__(self, tensor: torch.Tensor) -> torch.Tensor:
+        return (tensor - self.mean) / self.std
 
 # Define the same model architecture as in training
 class SimpleCNN(nn.Module):
@@ -93,10 +133,10 @@ def display_images(images, predictions, confidences):
 
 def main():
     # Define transforms for inference (no augmentation needed)
-    transform = transforms.Compose([
-        transforms.PILToTensor(),
-        transforms.ConvertImageDtype(torch.float32),
-        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    transform = Compose([
+        PILToTensor(),
+        ConvertImageDtype(torch.float32),
+        Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
     
     # Load the trained model

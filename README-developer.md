@@ -76,15 +76,16 @@ All build scripts automatically use the version from `version.sh`.
 
 ### Multi-Architecture Support
 
-The project now builds **multi-architecture images** that work on AMD64, ARM64, and s390x platforms:
+The project builds **multi-architecture images** for AMD64 and ARM64. The
+s390x (IBM Z/LinuxONE) image is built separately using `openshift/Dockerfile.s390x`.
 
 - **AMD64 (x86_64)**: Native performance on Intel/AMD processors and GCP nodes
 - **ARM64**: Native performance on Apple Silicon Macs, with emulation support on other platforms
-- **s390x**: Native performance on IBM Z and LinuxONE systems
+- **s390x**: Build and tag separately for IBM Z/LinuxONE
 
 ### Building Multi-Architecture Images
 ```bash
-# Build multi-architecture image (AMD64 + ARM64 + s390x)
+# Build multi-architecture image (AMD64 + ARM64)
 ./build-all-images.sh
 
 # This creates:
@@ -98,7 +99,7 @@ The project now builds **multi-architecture images** that work on AMD64, ARM64, 
 # Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
 source version.sh
 docker buildx build \
-  --platform linux/amd64,linux/arm64,linux/s390x \
+  --platform linux/amd64,linux/arm64 \
   --file openshift/Dockerfile.amd64 \
   --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
   --push \
@@ -107,7 +108,7 @@ docker buildx build \
 
 ### Running the Container
 ```bash
-# Works on AMD64, ARM64, and s390x platforms
+# Works on AMD64 and ARM64 platforms
 docker run \
   --name altastata-jupyter \
   -d \
@@ -116,13 +117,21 @@ docker run \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
   ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}  # Version from version.sh
 ```
+```bash
+# IBM Z / LinuxONE (s390x) example
+docker run \
+  --name altastata-jupyter-s390x \
+  -d \
+  -p 8888:8888 \
+  icr.io/altastata/jupyter-datascience-s390x:2026c
+```
 
 ### Platform Compatibility
 - **Apple Silicon Macs**: Native ARM64 performance
 - **Intel Macs**: Native AMD64 performance  
 - **GCP Confidential GKE**: Native AMD64 performance
-- **IBM Z and LinuxONE**: Native s390x performance
-- **Other platforms**: Automatic architecture selection
+- **IBM Z and LinuxONE**: Use the `jupyter-datascience-s390x` image
+- **Other platforms**: Automatic architecture selection for AMD64/ARM64
 
 ## PyPI Package Management
 
