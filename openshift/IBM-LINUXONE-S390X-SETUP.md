@@ -2,6 +2,8 @@
 
 This guide explains how to set up an IBM LinuxONE (s390x) virtual machine on IBM Cloud and build the Jupyter DataScience Docker image for s390x architecture.
 
+**To save money:** You do **not** need a Linux host (LinuxONE VM) for building or publishing the s390x image. Build on Mac with `docker buildx build --platform linux/s390x` and push to ICR (see [README-ICR-BUILD-AND-PUSH.md](README-ICR-BUILD-AND-PUSH.md)). Create a LinuxONE VM only when you need to run or test the image natively on s390x hardware. When not needed, stop or delete the VM in IBM Cloud to avoid ongoing cost.
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)

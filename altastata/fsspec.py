@@ -14,6 +14,7 @@ try:
     FSSPEC_AVAILABLE = True
 except ImportError:
     FSSPEC_AVAILABLE = False
+    AbstractFileSystem = object  # Dummy base class when fsspec not available
 
 
 class AltaStataFileSystem(AbstractFileSystem):
