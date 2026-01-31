@@ -1,8 +1,8 @@
 # Jupyter DataScience Environment
 jupyterlab
 
-# AltaStata Python Package (v0.1.19)
-altastata==0.1.19
+# AltaStata Python Package
+altastata==0.1.21
 
 # Additional ML/Data Science
 numpy

@@ -5,6 +5,7 @@ from PIL import Image
 import numpy as np
 import io
 import os
+import sys
 import json
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
@@ -148,7 +149,10 @@ class AltaStataPyTorchDataset(Dataset):
         elif file_ext == '.npy':
             # Convert bytes to numpy array and then to tensor
             data = np.load(io.BytesIO(file_content))
-            if data.dtype.byteorder not in ("=", "|"):
+            # Only swap when .npy has explicit non-native byte order ('<' or '>' from file).
+            # Do not swap for native ('=') or N/A ('|'), or when already native for this system.
+            native_char = '<' if sys.byteorder == 'little' else '>'
+            if data.dtype.byteorder not in ("=", "|") and data.dtype.byteorder != native_char:
                 data = data.byteswap().view(data.dtype.newbyteorder("="))
             data = torch.FloatTensor(data)
         else:

@@ -15,6 +15,7 @@ from tqdm import tqdm
 # Set random seeds for reproducibility
 torch.manual_seed(42)
 np.random.seed(42)
+random.seed(42)
 
 
 def _pil_to_tensor(img: Image.Image) -> torch.Tensor:
