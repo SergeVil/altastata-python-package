@@ -2,7 +2,7 @@
 jupyterlab
 
 # AltaStata Python Package
-altastata==0.1.21
+altastata==0.1.23
 
 # Additional ML/Data Science
 numpy

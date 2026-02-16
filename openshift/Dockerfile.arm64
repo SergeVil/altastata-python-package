@@ -82,7 +82,7 @@ RUN echo "Verifying altastata installation:" && \
 # Configure Jupyter and create symbolic links
 WORKDIR /home/jovyan
 USER root
-RUN echo '{"ServerApp": {"token": "", "allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
+RUN echo '{"ServerApp": {"allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
     ln -sf ${APP_PYTHON_SITE}/altastata-package/altastata /home/jovyan/altastata && \
     chown -R 1001:0 /home/jovyan/altastata && \
     ln -sf ${APP_PYTHON_SITE}/altastata-package/pytorch-example /opt/app-root/src/pytorch-example && \
@@ -106,5 +106,6 @@ LABEL org.opencontainers.image.description="Jupyter DataScience environment with
 LABEL org.opencontainers.image.version="latest"
 
 # Override base entrypoint and start Jupyter Lab
+# Fixed token for local development (arm64 Mac testing)
 ENTRYPOINT []
-CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/home/jovyan", "--allow-root"]
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/home/jovyan", "--allow-root", "--ServerApp.token=altastata-dev-token"]

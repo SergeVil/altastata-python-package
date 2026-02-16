@@ -107,24 +107,56 @@ docker buildx build \
 ```
 
 ### Running the Container
+
+**Option A: Use pre-built image from GHCR (recommended — no build)**
+
+The image is published to GitHub Container Registry, not Docker Hub. Use the GHCR compose file so the container runs without building:
+
 ```bash
-# Works on AMD64 and ARM64 platforms
+# Run from GitHub Container Registry (no build, fast start)
+docker-compose -f docker-compose-ghcr.yml up -d
+```
+
+Then open **http://localhost:8888**. Use the token from logs: `docker-compose -f docker-compose-ghcr.yml logs | grep token`.
+
+**Option B: Single `docker run` with GHCR image**
+
+```bash
+source version.sh
 docker run \
   --name altastata-jupyter \
   -d \
   -p 8888:8888 \
   -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
   -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}  # Version from version.sh
+  ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
 ```
+
+**Option C: Local build with docker-compose**
+
+`docker-compose up -d` uses image `altastata/jupyter-datascience:${VERSION}` (Docker Hub). That image does not exist there, so Compose will **build** the image locally (can take 10–20 minutes). To use this path:
+
 ```bash
-# IBM Z / LinuxONE (s390x) example
+./update-version.sh   # writes VERSION to .env
+docker-compose up -d  # builds then runs
+```
+
+**IBM Z / LinuxONE (s390x)**
+
+```bash
 docker run \
   --name altastata-jupyter-s390x \
   -d \
   -p 8888:8888 \
   icr.io/altastata/jupyter-datascience-s390x:2026c
 ```
+
+**If the container won’t run**
+
+- **“pull access denied” for `altastata/jupyter-datascience`** — Use the GHCR image: `docker-compose -f docker-compose-ghcr.yml up -d` (see Option A).
+- **“container name already in use”** — Remove the existing container: `docker rm -f altastata-jupyter`, then start again.
+- **Port 8888 in use** — Stop the process using it or change the host port, e.g. `"8889:8888"` in the compose file.
+- **Get Jupyter URL/token** — `docker logs altastata-jupyter 2>&1 | grep -E "http://|token="`
 
 ### Platform Compatibility
 - **Apple Silicon Macs**: Native ARM64 performance

@@ -37,7 +37,7 @@ docker tag <IMAGE_ID> altastata/jupyter-datascience:arm64-local
 docker run --rm -p 8889:8888 altastata/jupyter-datascience:arm64-local
 ```
 
-Then open `http://localhost:8889` (token is disabled).
+Then open `http://localhost:8889/?token=altastata-dev-token` (fixed token for local development).
 
 ## Tag s390x image for ICR
 
