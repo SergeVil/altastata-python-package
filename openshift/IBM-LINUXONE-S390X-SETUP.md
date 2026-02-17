@@ -267,18 +267,36 @@ sudo docker ps | grep jupyter
 
 # View logs
 sudo docker logs altastata-jupyter-s390x
+```
 
-# Get access token (if needed)
+### Step 3: Get Jupyter Token
+
+The s390x image uses **token authentication** for production security. To get the token:
+
+```bash
+# Method 1: Using jupyter server list (recommended)
+sudo docker exec -it altastata-jupyter-s390x jupyter server list
+
+# Example output:
+# Currently running servers:
+# http://localhost:8888/?token=ua5nw5fwkdzseqpp5apj :: /home/jovyan
+
+# Method 2: From container logs
 sudo docker logs altastata-jupyter-s390x | grep token
 ```
 
-### Step 3: Access Jupyter Lab
+The token is the string after `token=` (e.g., `ua5nw5fwkdzseqpp5apj`).
+
+For more details, see [RunPod Token Authentication Guide](https://docs.runpod.io/references/troubleshooting/token-authentication-enabled).
+
+### Step 4: Access Jupyter Lab
 
 1. Get the Floating IP address of your VM
 2. Open browser: `http://<FLOATING_IP>:8888`
-3. Use the token from logs (or empty token if configured)
+3. Enter the token from Step 3 in the Token field
+4. **Optional**: On first login, you can set a password for future access (see [Jupyter Security Documentation](https://jupyter-notebook.readthedocs.io/en/6.2.0/public_server.html#securing-a-notebook-server))
 
-### Step 4: Verify Python Packages
+### Step 5: Verify Python Packages
 
 In a Jupyter notebook, test imports:
 

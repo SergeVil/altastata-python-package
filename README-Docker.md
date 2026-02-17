@@ -217,7 +217,6 @@ docker run -d \
   -v $(pwd)/tensorflow-example:/home/jovyan/tensorflow-example \
   -v $(pwd)/altastata:/home/jovyan/altastata-source \
   -e JUPYTER_ENABLE_LAB=yes \
-  -e JUPYTER_TOKEN= \
   altastata/jupyter-datascience:latest
 ```
 
@@ -808,12 +807,44 @@ docker exec altastata-jupyter ping altastata-web-api
 docker exec altastata-jupyter curl -s http://altastata-admin-api:8084/health
 ```
 
+## Jupyter Token Authentication
+
+### ARM64 Image (Local Development)
+
+The ARM64 image (`Dockerfile.arm64`) uses a **fixed token** for development convenience:
+
+- **Token**: `altastata-dev-token`
+- **Access URL**: `http://localhost:8888/?token=altastata-dev-token`
+
+### S390X Image (Production)
+
+The S390X image (`Dockerfile.s390x`) uses **auto-generated token authentication** for security:
+
+1. **Get the token** by connecting to the container terminal:
+   ```bash
+   docker exec -it <container_name> jupyter server list
+   ```
+
+2. **Example output**:
+   ```
+   http://localhost:8888/?token=ua5nw5fwkdzseqpp5apj :: /home/jovyan
+   ```
+
+3. **Copy the token** (the string after `token=`) and paste it into the JupyterLab login page.
+
+4. **Optional**: On first login with the token, you can set a password for future access.
+
+For more details, see:
+- [RunPod Token Authentication Guide](https://docs.runpod.io/references/troubleshooting/token-authentication-enabled)
+- [Jupyter Notebook Security Documentation](https://jupyter-notebook.readthedocs.io/en/6.2.0/public_server.html#securing-a-notebook-server)
+
 ## Notes
 
 - The container runs as user `1001` for OpenShift compatibility
 - Java 17 is installed for Py4J integration with JAR files
 - PyTorch CPU-only version is installed to reduce image size
-- Jupyter Lab is configured with no token for development convenience
+- ARM64 image uses fixed token (`altastata-dev-token`) for development convenience
+- S390X image uses auto-generated token authentication for production security
 - All examples and source code are mounted as volumes for live editing
 - The package includes large JAR files (83MB altastata-hadoop-all.jar)
 - Symbolic links provide easy access to examples from Jupyter interface
