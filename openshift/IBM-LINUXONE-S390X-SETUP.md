@@ -319,10 +319,10 @@ print(f"Pandas version: {pd.__version__}")
 
 ```bash
 # Pull the s390x S3 Gateway image
-docker pull ghcr.io/sergevil/altastata/s3-gateway-s390x:2025f_latest
+docker pull ghcr.io/sergevil/altastata/s3-gateway-s390x:2026b_latest
 
 # Tag as latest (optional)
-docker tag ghcr.io/sergevil/altastata/s3-gateway-s390x:2025f_latest altastata/s3-gateway-s390x:latest
+docker tag ghcr.io/sergevil/altastata/s3-gateway-s390x:2026b_latest altastata/s3-gateway-s390x:latest
 ```
 
 ### Step 2: Run S3 Gateway Container
@@ -333,7 +333,7 @@ docker run -d \
   --name altastata-s3-gateway \
   -p 9876:9876 \
   -v ~/altastata-data:/app/data \
-  ghcr.io/sergevil/altastata/s3-gateway-s390x:2025f_latest
+  ghcr.io/sergevil/altastata/s3-gateway-s390x:2026b_latest
 ```
 
 ### Step 3: Configure Security Group

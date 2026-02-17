@@ -88,5 +88,5 @@ gh auth login
 # Then use ghcr.io without explicit token
 # Note: Version is managed in version.sh - use ./push-to-ghcr.sh instead
 source version.sh
-docker push ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
+./push-to-ghcr.sh   # Pushes jupyter-datascience-arm64 and jupyter-datascience-amd64:${VERSION}
 ``` 

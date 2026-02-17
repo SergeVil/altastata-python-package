@@ -29,7 +29,7 @@ The Docker image version is centrally managed in `version.sh`. To update the ver
 
 1. Edit `version.sh` and update the `VERSION` variable:
    ```bash
-   VERSION="2025i_latest"  # Change to your desired version
+   VERSION="2026b_latest"  # Change to your desired version
    ```
 
 2. Run the update script to sync the version to all configuration files:
@@ -54,51 +54,51 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 
 ## Multi-Architecture Support
 
-The project builds **multi-architecture Docker images** for AMD64 and ARM64.
-The s390x (IBM Z/LinuxONE) image is built and tagged separately using
-`openshift/Dockerfile.s390x`.
+The project builds **architecture-specific Docker images** for AMD64 and ARM64.
+Each architecture has its own GHCR package. The s390x (IBM Z/LinuxONE) image is built
+separately using `openshift/Dockerfile.s390x`.
 
 ### Available Images
 
-| **Architecture** | **Image Tag**                      | **Size** | **Use Case** |
-|------------------|------------------------------------|----------|--------------|
-| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:latest`       | ~7GB per arch | AMD64/ARM64 platforms |
-| **Multi-Arch (AMD64 + ARM64)** | `jupyter-datascience:${VERSION}` (from `version.sh`) | ~7GB per arch | AMD64/ARM64 platforms |
-| **s390x (IBM Z/LinuxONE)** | `jupyter-datascience-s390x:2026c` | ~4-5GB | IBM Z and LinuxONE |
+| **Architecture** | **Package** | **Image Tag** | **Size** | **Use Case** |
+|------------------|-------------|---------------|----------|--------------|
+| **ARM64** | `jupyter-datascience-arm64` | `${VERSION}` (from `version.sh`) | ~7GB | Apple Silicon, ARM servers |
+| **AMD64** | `jupyter-datascience-amd64` | `${VERSION}` | ~7GB | Intel/AMD x86_64, GCP |
+| **s390x (IBM Z/LinuxONE)** | `jupyter-datascience-s390x` | `${VERSION}` | ~4-5GB | IBM Z and LinuxONE |
 
 ### Dockerfile
 
 - `openshift/Dockerfile.amd64` - AMD64 build
-- `openshift/Dockerfile.arm64` - ARM64 local build
+- `openshift/Dockerfile.arm64` - ARM64 build
 - `openshift/Dockerfile.s390x` - IBM Z/LinuxONE build
 
 ### Build Scripts
 
-- `build-all-images.sh` - Build AMD64/ARM64 images and push to GHCR
-- `push-to-ghcr.sh` - Push already-built local image to GHCR
+- `build-all-images.sh` - Build local AMD64 image
+- `push-to-ghcr.sh` - Build and push ARM64 + AMD64 images to GHCR
 - `cleanup-jupyter-images.sh` - Clean up Docker images
 
 ### Usage (AMD64 + ARM64)
 
 ```bash
-# Pull multi-architecture image (automatically selects correct architecture)
-# Note: Version tag is managed in version.sh (currently: 2025i_latest)
+# Pull image for your platform (version from version.sh, currently: 2026b_latest)
 source version.sh
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
-docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
 
-# Or use latest tag
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
-docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience:latest
+# Apple Silicon (ARM64):
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
+
+# Intel/AMD (AMD64):
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}
+docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}
 ```
 
 ### Platform Compatibility
 
-- **Apple Silicon Macs**: Native ARM64 performance
-- **Intel Macs**: Native AMD64 performance  
-- **GCP Confidential GKE**: Native AMD64 performance
-- **IBM Z and LinuxONE**: Use the `jupyter-datascience-s390x` image
-- **Other platforms**: Automatic architecture selection for AMD64/ARM64
+- **Apple Silicon Macs**: Use `jupyter-datascience-arm64`
+- **Intel Macs**: Use `jupyter-datascience-amd64`
+- **GCP Confidential GKE**: Use `jupyter-datascience-amd64`
+- **IBM Z and LinuxONE**: Use `jupyter-datascience-s390x`
 
 
 
@@ -129,60 +129,33 @@ docker-compose -f docker-compose-ghcr.yml up -d
 ### Build and Push to GHCR
 
 ```bash
-# Build and push multi-architecture image to GHCR
-./build-all-images.sh
+# Build and push architecture-specific images to GHCR
+./push-to-ghcr.sh
 ```
 
 This script will:
-1. Build multi-architecture image (AMD64 + ARM64) using `openshift/Dockerfile.amd64`
-2. Push all architectures to GHCR with unified tags
-3. Create a single manifest that works on all platforms
+1. Build ARM64 image using `openshift/Dockerfile.arm64` and push to `jupyter-datascience-arm64`
+2. Build AMD64 image using `openshift/Dockerfile.amd64` and push to `jupyter-datascience-amd64`
 
 ### Local Build
 
 ```bash
-# Build multi-architecture image locally (without pushing)
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --file openshift/Dockerfile.amd64 \
-  --tag altastata/jupyter-datascience:latest \
-  .
+# Build ARM64 image locally (Apple Silicon):
+docker build -f openshift/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .
+
+# Build AMD64 image locally:
+docker buildx build --platform linux/amd64 -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .
 ```
 
-### Automated Build
-
-```bash
-# Build and push multi-architecture image with GHCR tags
-./build-all-images.sh
-```
-
-This script will:
-1. Build multi-architecture image (AMD64 + ARM64)
-2. Push all architectures to GHCR with unified tags
-3. Create a single manifest that works on all platforms
-
-### Manual Build
+### Manual Build and Push
 
 ```bash
 # Create network first
 docker network create altastata-network
 
-# Build multi-architecture image
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --file openshift/Dockerfile.amd64 \
-  --tag altastata/jupyter-datascience:latest \
-  .
-
-# Build and push to GHCR
-# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
+# Build and push to GHCR (use ./push-to-ghcr.sh for automated push)
 source version.sh
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
-  --push \
-  .
+./push-to-ghcr.sh
 ```
 
 ## Local Development
@@ -208,7 +181,7 @@ docker-compose down
 # Create network
 docker network create altastata-network
 
-# Jupyter DataScience
+# Jupyter DataScience (use image matching your platform: arm64 or amd64)
 docker run -d \
   --name altastata-jupyter \
   -p 8888:8888 \
@@ -217,7 +190,7 @@ docker run -d \
   -v $(pwd)/tensorflow-example:/home/jovyan/tensorflow-example \
   -v $(pwd)/altastata:/home/jovyan/altastata-source \
   -e JUPYTER_ENABLE_LAB=yes \
-  altastata/jupyter-datascience:latest
+  ghcr.io/sergevil/altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64 on Intel/AMD
 ```
 
 ### Development Workflow
@@ -252,29 +225,18 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 #### Automated Push
 
 ```bash
-# Build and push multi-architecture image to GHCR
-./build-all-images.sh
+# Build and push architecture-specific images to GHCR
+./push-to-ghcr.sh
 ```
 
-This script will:
-1. Build and push multi-architecture `jupyter-datascience:latest` and `jupyter-datascience:${VERSION}` (version from `version.sh`)
+This builds and pushes both `jupyter-datascience-arm64` and `jupyter-datascience-amd64` with the version from `version.sh`.
 
 #### Manual Push
 
 ```bash
 # Login first
-export YOUR_PAT=your_github_token_here
-echo $YOUR_PAT | docker login ghcr.io -u sergevil --password-stdin
-
-# Build and push multi-architecture image
-# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
-source version.sh
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
-  --push \
-  .
+export GITHUB_TOKEN=your_github_token_here
+./push-to-ghcr.sh
 
 
 
@@ -284,12 +246,14 @@ docker buildx build \
 ### Pulling Images
 
 ```bash
-# Pull multi-architecture image (automatically selects correct architecture)
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:latest
-
-# Or pull specific version (from version.sh)
+# Pull image for your platform (version from version.sh)
 source version.sh
-docker pull ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
+
+# Apple Silicon (ARM64):
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
+
+# Intel/AMD (AMD64):
+docker pull ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}
 
 
 
@@ -311,12 +275,11 @@ docker-compose -f docker-compose-ghcr.yml up -d
 
 After pushing images to GHCR, you may need to make them public for external access:
 
-1. **Go to the package page**: https://github.com/users/SergeVil/packages/container/package/altastata%2Fjupyter-datascience
-2. **Click "Package settings"** (gear icon)
-3. **Scroll to "Danger Zone"**
-4. **Click "Change visibility"**
-5. **Select "Public"**
-6. **Confirm the change**
+1. **ARM64**: https://github.com/users/SergeVil/packages/container/package/altastata%2Fjupyter-datascience-arm64
+2. **AMD64**: https://github.com/users/SergeVil/packages/container/package/altastata%2Fjupyter-datascience-amd64
+3. **Click "Package settings"** (gear icon) for each
+4. **Scroll to "Danger Zone"** → **"Change visibility"** → **"Public"**
+5. **Confirm the change**
 
 **Note**: Private packages require authentication to pull, while public packages can be pulled by anyone.
 
@@ -444,7 +407,7 @@ docker exec -it altastata-jupyter jupyter lab list
 docker images
 
 # Remove image
-docker rmi altastata/jupyter-datascience:latest
+docker rmi altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64
 
 # Remove unused images
 docker image prune
@@ -492,8 +455,9 @@ docker exec altastata-jupyter ls -la $(docker exec altastata-jupyter python -c "
 
 #### 5. Build Failures
 ```bash
-# Build with verbose output
-docker build --no-cache --progress=plain -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience:latest .
+# Build with verbose output (use image matching your platform)
+docker build --no-cache --progress=plain -f openshift/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .   # ARM64
+docker buildx build --no-cache --progress=plain --platform linux/amd64 -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .   # AMD64
 
 # Check build context
 ls -la .
@@ -519,7 +483,7 @@ docker stop altastata-jupyter
 docker rm altastata-jupyter
 
 # Remove image
-docker rmi altastata/jupyter-datascience:latest
+docker rmi altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64
 
 # Remove volumes
 docker volume rm jupyter-data

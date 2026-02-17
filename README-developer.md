@@ -76,34 +76,22 @@ All build scripts automatically use the version from `version.sh`.
 
 ### Multi-Architecture Support
 
-The project builds **multi-architecture images** for AMD64 and ARM64. The
-s390x (IBM Z/LinuxONE) image is built separately using `openshift/Dockerfile.s390x`.
+The project builds **architecture-specific images** for AMD64 and ARM64.
+Each architecture has its own GHCR package. The s390x (IBM Z/LinuxONE) image
+is built separately using `openshift/Dockerfile.s390x`.
 
-- **AMD64 (x86_64)**: Native performance on Intel/AMD processors and GCP nodes
-- **ARM64**: Native performance on Apple Silicon Macs, with emulation support on other platforms
+- **AMD64 (x86_64)**: `jupyter-datascience-amd64` — Intel/AMD processors and GCP nodes
+- **ARM64**: `jupyter-datascience-arm64` — Apple Silicon Macs and ARM servers
 - **s390x**: Build and tag separately for IBM Z/LinuxONE
 
-### Building Multi-Architecture Images
+### Building and Pushing Images
 ```bash
-# Build multi-architecture image (AMD64 + ARM64)
-./build-all-images.sh
+# Build and push architecture-specific images to GHCR
+./push-to-ghcr.sh
 
 # This creates:
-# - ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch)
-# - ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} (multi-arch, version from version.sh)
-```
-
-### Manual Multi-Architecture Build
-```bash
-# Build and push multi-architecture image
-# Note: Use ./push-to-ghcr.sh instead, which automatically uses version from version.sh
-source version.sh
-docker buildx build \
-  --platform linux/amd64,linux/arm64 \
-  --file openshift/Dockerfile.amd64 \
-  --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
-  --push \
-  .
+# - ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
+# - ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}
 ```
 
 ### Running the Container
@@ -123,21 +111,22 @@ Then open **http://localhost:8888**. Use the token from logs: `docker-compose -f
 
 ```bash
 source version.sh
+# Use image matching your platform (arm64 for Apple Silicon, amd64 for Intel/AMD)
 docker run \
   --name altastata-jupyter \
   -d \
   -p 8888:8888 \
-  -v /Users/sergevilvovsky/.altastata:/opt/app-root/src/.altastata:rw \
-  -v /Users/sergevilvovsky/Desktop:/opt/app-root/src/Desktop:rw \
-  ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}
+  -v ~/.altastata:/opt/app-root/src/.altastata:rw \
+  -v ~/Desktop:/opt/app-root/src/Desktop:rw \
+  ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}   # or jupyter-datascience-amd64
 ```
 
 **Option C: Local build with docker-compose**
 
-`docker-compose up -d` uses image `altastata/jupyter-datascience:${VERSION}` (Docker Hub). That image does not exist there, so Compose will **build** the image locally (can take 10–20 minutes). To use this path:
+`docker-compose up -d` uses image `altastata/jupyter-datascience-${ARCH}:${VERSION}` (ARCH is arm64 or amd64). Compose may **build** the image locally (can take 10–20 minutes). To use this path:
 
 ```bash
-./update-version.sh   # writes VERSION to .env
+./update-version.sh   # writes VERSION and ARCH to .env (detects your platform)
 docker-compose up -d  # builds then runs
 ```
 
@@ -148,12 +137,12 @@ docker run \
   --name altastata-jupyter-s390x \
   -d \
   -p 8888:8888 \
-  icr.io/altastata/jupyter-datascience-s390x:2026c
+  icr.io/altastata/jupyter-datascience-s390x:${VERSION}
 ```
 
 **If the container won’t run**
 
-- **“pull access denied” for `altastata/jupyter-datascience`** — Use the GHCR image: `docker-compose -f docker-compose-ghcr.yml up -d` (see Option A).
+- **“pull access denied” **— Use the GHCR image for your platform: `ghcr.io/sergevil/altastata/jupyter-datascience-arm64` or `jupyter-datascience-amd64` with your version.
 - **“container name already in use”** — Remove the existing container: `docker rm -f altastata-jupyter`, then start again.
 - **Port 8888 in use** — Stop the process using it or change the host port, e.g. `"8889:8888"` in the compose file.
 - **Get Jupyter URL/token** — `docker logs altastata-jupyter 2>&1 | grep -E "http://|token="`

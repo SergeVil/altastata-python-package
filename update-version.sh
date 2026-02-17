@@ -1,8 +1,8 @@
 #!/bin/bash
 # Script to update version in all configuration files
 # This script reads version.sh and updates:
-# - .env (for docker-compose)
-# - confidential-gke/jupyter-deployment.yaml (Kubernetes manifest)
+# - .env (for docker-compose: VERSION, ARCH)
+# - confidential-gke/jupyter-deployment.yaml (Kubernetes manifest, uses jupyter-datascience-amd64)
 
 # Load version configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,23 +15,31 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-echo "Updating version to: ${VERSION}"
+# Detect architecture for docker-compose
+ARCH=$(uname -m)
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
+    ARCH="arm64"
+elif [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
+    ARCH="amd64"
+else
+    ARCH="amd64"  # default
+fi
+
+echo "Updating version to: ${VERSION} (ARCH: ${ARCH})"
 
 # Update .env file for docker-compose
 echo "VERSION=${VERSION}" > .env
-echo "✅ Updated .env file"
+echo "ARCH=${ARCH}" >> .env
+echo "✅ Updated .env file (VERSION=${VERSION}, ARCH=${ARCH})"
 
-# Update Kubernetes deployment manifest
+# Update Kubernetes deployment manifest (GKE runs AMD64)
 if [ -f "confidential-gke/jupyter-deployment.yaml" ]; then
-    # Use sed to replace the version in the image line
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        # macOS requires -i '' for in-place editing
-        sed -i '' "s|ghcr.io/sergevil/altastata/jupyter-datascience:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
+        sed -i '' "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
     else
-        # Linux
-        sed -i "s|ghcr.io/sergevil/altastata/jupyter-datascience:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
+        sed -i "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
     fi
-    echo "✅ Updated confidential-gke/jupyter-deployment.yaml"
+    echo "✅ Updated confidential-gke/jupyter-deployment.yaml (jupyter-datascience-amd64:${VERSION})"
 fi
 
 echo ""

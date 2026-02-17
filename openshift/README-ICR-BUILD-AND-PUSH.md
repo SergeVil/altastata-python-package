@@ -15,13 +15,13 @@ On macOS, use buildx to produce a real s390x image:
 
 ```bash
 docker buildx build --platform linux/s390x -f openshift/Dockerfile.s390x \
-  -t altastata/jupyter-datascience-s390x:2026a_latest --load .
+  -t altastata/jupyter-datascience-s390x:2026b_latest --load .
 ```
 
 If you are already on an s390x host, a normal build is fine:
 
 ```bash
-docker build -f openshift/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:2026a_latest .
+docker build -f openshift/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:2026b_latest .
 ```
 
 ## Build arm64 (local testing on macOS)
@@ -33,8 +33,8 @@ docker build -f openshift/Dockerfile.arm64 .
 Run locally:
 
 ```bash
-docker tag <IMAGE_ID> altastata/jupyter-datascience:arm64-local
-docker run --rm -p 8889:8888 altastata/jupyter-datascience:arm64-local
+docker tag <IMAGE_ID> altastata/jupyter-datascience-arm64:arm64-local
+docker run --rm -p 8889:8888 altastata/jupyter-datascience-arm64:arm64-local
 ```
 
 Then open `http://localhost:8889/?token=altastata-dev-token` (fixed token for local development).
@@ -42,7 +42,9 @@ Then open `http://localhost:8889/?token=altastata-dev-token` (fixed token for lo
 ## Tag s390x image for ICR
 
 ```bash
-docker tag altastata/jupyter-datascience-s390x:2026a_latest icr.io/altastata/jupyter-datascience-s390x:2026a_latest
+# Version from version.sh (e.g. 2026b_latest)
+source version.sh 2>/dev/null || VERSION="2026b_latest"
+docker tag altastata/jupyter-datascience-s390x:${VERSION} icr.io/altastata/jupyter-datascience-s390x:${VERSION}
 ```
 
 ## Login to ICR
@@ -55,7 +57,7 @@ echo "$ICR_TOKEN" | docker login -u iamapikey --password-stdin icr.io
 ## Push to ICR
 
 ```bash
-docker push icr.io/altastata/jupyter-datascience-s390x:2026a_latest
+docker push icr.io/altastata/jupyter-datascience-s390x:${VERSION}
 ```
 
 Optional logout:
