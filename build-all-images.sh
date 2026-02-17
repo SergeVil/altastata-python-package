@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Altastata Python Package Docker Image Build Script
-# This script builds a local Docker image for development/testing (AMD64)
-# For multi-architecture builds and pushing to GHCR, use push-to-ghcr.sh
+# This script builds both ARM64 and AMD64 images for local development/testing (Mac).
+# For pushing to GHCR, use push-to-ghcr.sh
 
 # Load version configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,37 +15,40 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-echo "🚀 Building Altastata Python Package Docker Image..."
+echo "🚀 Building Altastata Python Package Docker Images (ARM64 + AMD64)..."
 
 # Create Docker network if it doesn't exist (shared with main altastata project)
 echo "Creating shared Docker network..."
 docker network create altastata-network 2>/dev/null || echo "Network altastata-network already exists (shared with main project)"
 
-# Create and use a new builder instance for builds
-echo "🔧 Setting up Docker buildx for builds..."
+# Create and use buildx builder
+echo "🔧 Setting up Docker buildx..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
-# Build image for local development use
-echo "🏗️  Building image for local development (AMD64)..."
+# Build ARM64 image
+echo ""
+echo "🏗️  Building jupyter-datascience-arm64..."
+docker build -f openshift/Dockerfile.arm64 \
+    -t altastata/jupyter-datascience-arm64:latest \
+    -t altastata/jupyter-datascience-arm64:${VERSION} \
+    .
 
-# Build for local use only (AMD64 for local Docker daemon)
-# Note: For multi-arch builds and pushing to GHCR, use push-to-ghcr.sh instead
-echo "📦 Building jupyter-datascience image for local use (AMD64)..."
-docker buildx build \
-    --platform linux/amd64 \
-    --file openshift/Dockerfile.amd64 \
-    --tag altastata/jupyter-datascience:latest \
-    --tag altastata/jupyter-datascience:${VERSION} \
+# Build AMD64 image
+echo ""
+echo "🏗️  Building jupyter-datascience-amd64..."
+docker buildx build --platform linux/amd64 -f openshift/Dockerfile.amd64 \
+    -t altastata/jupyter-datascience-amd64:latest \
+    -t altastata/jupyter-datascience-amd64:${VERSION} \
     --load \
     .
 
 echo ""
-echo "✅ Local image built successfully!"
+echo "✅ Both images built successfully!"
 echo ""
 echo "📦 Local Docker daemon:"
-echo "   - altastata/jupyter-datascience:latest"
-echo "   - altastata/jupyter-datascience:${VERSION}"
+echo "   - altastata/jupyter-datascience-arm64:latest and :${VERSION}"
+echo "   - altastata/jupyter-datascience-amd64:latest and :${VERSION}"
 echo ""
-echo "🚀 To build and push multi-architecture images (AMD64, ARM64, s390x) to GHCR, run: ./push-to-ghcr.sh"
+echo "🚀 To push both to GHCR, run: ./push-to-ghcr.sh"
 echo "🔧 To run locally, use: docker-compose up -d"
 echo "🌐 To run from GHCR, use: docker-compose -f docker-compose-ghcr.yml up -d" 

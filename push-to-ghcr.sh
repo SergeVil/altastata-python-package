@@ -1,7 +1,8 @@
 #!/bin/bash
 
 # Altastata Python Package GHCR Push Script
-# This script builds and pushes multi-architecture Docker images (AMD64, ARM64, s390x) to GitHub Container Registry
+# This script builds and pushes Docker images to GitHub Container Registry
+# Separate packages: jupyter-datascience-arm64, jupyter-datascience-amd64
 
 # Load version configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,41 +29,33 @@ echo "Logging in to GitHub Container Registry..."
 echo $GITHUB_TOKEN | docker login ghcr.io -u sergevil --password-stdin
 
 # Create and use buildx builder instance if it doesn't exist
-echo "🔧 Setting up Docker buildx for multi-architecture builds..."
+echo "🔧 Setting up Docker buildx..."
 docker buildx create --name altastata-builder --use 2>/dev/null || docker buildx use altastata-builder
 
-echo "Building and pushing multi-architecture Docker images to GitHub Container Registry..."
-echo "Architectures: AMD64, ARM64, s390x"
+echo "Building and pushing jupyter-datascience images to GHCR..."
+echo "Packages: jupyter-datascience-arm64, jupyter-datascience-amd64"
+echo ""
 
-# Build and push multi-architecture images using buildx
-echo "Building and pushing jupyter-datascience images..."
-docker buildx build \
-    --platform linux/amd64,linux/arm64,linux/s390x \
-    --file openshift/Dockerfile.amd64 \
-    --tag ghcr.io/sergevil/altastata/jupyter-datascience:latest \
-    --tag ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} \
-    --push \
-    .
+# Build and push jupyter-datascience-arm64
+echo "Building and pushing jupyter-datascience-arm64..."
+docker build -f openshift/Dockerfile.arm64 -t ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION} . && \
+    docker push ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
+
+# Build and push jupyter-datascience-amd64
+echo ""
+echo "Building and pushing jupyter-datascience-amd64..."
+docker buildx build --platform linux/amd64 --file openshift/Dockerfile.amd64 \
+    --tag ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION} \
+    --push .
 
 echo ""
-echo "✅ Multi-architecture images (AMD64, ARM64, s390x) pushed successfully to GHCR!"
+echo "✅ Images pushed successfully to GHCR!"
 echo ""
 echo "Images available at:"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:latest (multi-arch: amd64, arm64, s390x)"
-echo "- ghcr.io/sergevil/altastata/jupyter-datascience:${VERSION} (multi-arch: amd64, arm64, s390x)"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}"
+echo "- ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}"
 echo ""
 
-echo ""
-echo "To deploy from GHCR, run:"
-echo "docker-compose -f docker-compose-ghcr.yml up -d"
-
-echo ""
-echo "⚠️  IMPORTANT: If this is a new image, you may need to make it public:"
-echo "1. Go to: https://github.com/users/SergeVil/packages/container/package/altastata%2Fjupyter-datascience"
-echo "2. Click 'Package settings' (gear icon)"
-echo "3. Scroll to 'Danger Zone'"
-echo "4. Click 'Change visibility'"
-echo "5. Select 'Public'"
-echo "6. Confirm the change"
-echo ""
-echo "Note: Private packages require authentication to pull, while public packages can be pulled by anyone." 
+echo "To deploy from GHCR, pull the image for your platform:"
+echo "  ARM64 (Apple Silicon): docker pull ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}"
+echo "  AMD64:                 docker pull ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}" 

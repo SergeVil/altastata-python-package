@@ -46,14 +46,15 @@ cd tensorflow-example && python training_example.py
 
 ### Docker Development
 ```bash
-# Build container
-docker build -t altastata/jupyter-datascience:latest -f openshift/Dockerfile.amd64 .
+# Build container (use image matching your platform: arm64 or amd64)
+docker build -t altastata/jupyter-datascience-arm64:latest -f openshift/Dockerfile.arm64 .   # Apple Silicon
+# or: docker buildx build --platform linux/amd64 -t altastata/jupyter-datascience-amd64:latest -f openshift/Dockerfile.amd64 --load .
 
-# Run with volume mounts (works on all platforms)
+# Run with volume mounts
 docker run -d -p 8888:8888 \
   -v ~/.altastata:/opt/app-root/src/.altastata:rw \
   -v ~/Desktop:/opt/app-root/src/Desktop:rw \
-  altastata/jupyter-datascience:latest
+  altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64
 ```
 
 ### JAR Management
