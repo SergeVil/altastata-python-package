@@ -201,6 +201,27 @@ class AltaStataFunctions(BaseGateway):
         # Convert the Java List to Python List
         return self.convert_java_list_to_python(java_list)
 
+    def revoke_reader_access(self, cloud_path_prefix: str, including_subdirectories: bool, time_interval_start: str, time_interval_end: str, readers_to_revoke: list) -> list:
+        """
+        Revoke reader access for the given users from files that match the cloud path and time range.
+        Callable by the data owner or the custodian. The file is kept; only the listed readers lose access.
+
+        Args:
+            cloud_path_prefix: Prefix that matches the cloud files (e.g. "MyDir/file.txt" or "MyDir/").
+            including_subdirectories: If True, include files in subdirectories.
+            time_interval_start: Filter file versions with creation time >= this value. Use None to ignore.
+            time_interval_end: Filter file versions with creation time <= this value. Use None to ignore.
+            readers_to_revoke: List of user names to revoke access from.
+
+        Returns:
+            List of CloudFileOperationStatus for each revoked file version.
+        """
+        java_list = self.altastata_file_system.revokeReaderAccess(
+            cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end,
+            self.python_list_to_java_array(readers_to_revoke)
+        )
+        return self.convert_java_list_to_python(java_list)
+
     def list_cloud_files_versions(self, cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd):
         # Call the Java method and return the iterator
         return self.altastata_file_system.listCloudFilesVersions(cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd)
