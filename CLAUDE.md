@@ -57,6 +57,11 @@ docker run -d -p 8888:8888 \
   altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64
 ```
 
+### RAG Open LLM on IBM Z (s390x)
+- **Build on server:** `./openshift/rag/build-rag-s390x-on-server.sh` (syncs repo, builds image on LinuxONE; set `SSH_HOST`, `SSH_KEY` if needed).
+- **Push to ICR:** `./openshift/rag/push-rag-s390x-to-icr-from-server.sh` (after build). **Run:** `./openshift/rag/pull-and-run-rag-s390x-from-icr.sh`.
+- **Image:** `openshift/rag/Dockerfile.open_llm_s390x` (base: ibmz-accelerated-for-pytorch; deps layer cached when requirements.txt unchanged). See `rag-example/open_llm/README.md` for full s390x docs.
+
 ### JAR Management
 ```bash
 # Verify JAR integrity

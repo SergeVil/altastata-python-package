@@ -13,6 +13,9 @@ This guide explains how to set up an IBM LinuxONE (s390x) virtual machine on IBM
 - [Filestash Installation (Building from Source)](#filestash-installation-building-from-source)
 - [Building the Docker Image](#building-the-docker-image)
 - [Running the Container](#running-the-container)
+- [RAG Open LLM on s390x](#rag-open-llm-on-s390x)
+- [Deploying S3 Gateway on s390x](#deploying-s3-gateway-on-s390x)
+- [Filestash Installation (Building from Source)](#filestash-installation-building-from-source)
 - [Architecture Support Notes](#architecture-support-notes)
 - [Troubleshooting](#troubleshooting)
 
@@ -313,6 +316,50 @@ print(f"Pandas version: {pd.__version__}")
 # Contact IBM for AI Toolkit access if you need these frameworks
 ```
 
+## RAG Open LLM on s390x
+
+The **Open LLM RAG** app (simple vector store + Transformers + AltaStata) can be built and run on a LinuxONE/s390x VM.
+
+### Build and run
+
+**Option A – Pull from ICR and run:** If the image is published to ICR, from your Mac run:
+```bash
+./openshift/rag/pull-and-run-rag-s390x-from-icr.sh
+```
+- SSHs to the server, **stops/removes** any existing `rag-s390x-test` container **before** pulling, pulls `icr.io/altastata/rag-open-llm-s390x:$VERSION`, runs the container, runs a test query, then **leaves the container running** (no stop/rm at the end).
+- Set **`ICR_TOKEN`** on your Mac so the script can log in to icr.io on the server before pull.
+- **Account:** Default is **HPCS** (`amazon.rsa.hpcs.serge678`; no password). For **bob123** (password-based):
+  ```bash
+  ACCOUNT_NAME=amazon.rsa.bob123 ./openshift/rag/pull-and-run-rag-s390x-from-icr.sh
+  ```
+- Optional: `SSH_HOST`, `SSH_KEY`, `HF_LLM_MODEL=gpt2` (8 GB VMs). See [README-ICR-BUILD-AND-PUSH.md](README-ICR-BUILD-AND-PUSH.md) for full pull-and-run options.
+
+Or manually on the server:
+```bash
+source version.sh 2>/dev/null || VERSION="2026b_latest"
+docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION}
+# Then run with your account dir; see "Run the container" below.
+```
+
+**Option B – Build on the server from your Mac** (syncs repo, builds Docker image):
+```bash
+./openshift/rag/build-rag-s390x-on-server.sh
+```
+Set `SSH_HOST` and `SSH_KEY` if needed (see script defaults). The script uses `GSSAPIAuthentication=no` and `PreferredAuthentications=publickey` to speed up SSH.
+
+**Run the container** (after build or pull):
+- After pushing to ICR, from your Mac run `./openshift/rag/pull-and-run-rag-s390x-from-icr.sh` to pull and run on the server (or run `docker run` manually on the server).
+- Manually on the server: use the same `docker run` as in [rag-example/open_llm/README.md](../rag-example/open_llm/README.md) (env `ALTASTATA_ACCOUNT_DIR`, `HF_LLM_MODEL`, volume mount for `$HOME/.altastata/accounts`). For HPCS accounts add `-e ALTASTATA_USE_HPCS=1`. Open `http://<host>:8000/`.
+
+On **8 GB VMs** use **gpt2** (`HF_LLM_MODEL=gpt2`); on 16+ GB use `HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0`. See [rag-example/open_llm/README.md](../rag-example/open_llm/README.md) for full s390x options (watsonx, llama.cpp, etc.).
+
+**Check logs** (on the server):
+```bash
+ssh -i $SSH_KEY root@<FLOATING_IP> "docker logs rag-s390x-test 2>&1 | tail -80"
+```
+
+**Push RAG s390x to ICR:** See [README-ICR-BUILD-AND-PUSH.md](README-ICR-BUILD-AND-PUSH.md) (build, tag, login, push).
+
 ## Deploying S3 Gateway on s390x
 
 ### Step 1: Pull S3 Gateway Image
@@ -567,9 +614,10 @@ Once you have access, you can use the optimized containers from the AI Toolkit i
 
 **Solutions**:
 1. Verify Floating IP is attached to the VM
-2. Check Security Group rules allow SSH (port 22)
-3. Verify VPC routing and subnet configuration
-4. Check VM is running (not stopped)
+2. Check Security Group rules allow SSH (port 22) and that this security group is **attached** to the instance's network interface
+3. Verify VPC routing and subnet configuration; try from another network (e.g. VPN) if the VM is only reachable from certain IPs
+4. Check VM is running (not stopped). If the VM was force-stopped, start it again and wait 2–3 minutes before retrying SSH
+5. To speed up SSH once it works, use `-o GSSAPIAuthentication=no -o PreferredAuthentications=publickey` (the RAG build/test scripts do this automatically)
 
 ### Issue: Docker Build Fails with "No Space Left on Device"
 

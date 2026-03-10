@@ -4,7 +4,11 @@ Complete examples and documentation for building secure RAG (Retrieval-Augmented
 
 ## Quick Start
 
-### Option 1: Basic RAG (HuggingFace - Local)
+### Option 1: Open-source stack (Chroma + Ollama + Web UI) ⭐ NO GCP
+
+Fully local or self-hosted: Chroma, Ollama, sentence-transformers, and an HTTPS-capable web interface. See **[open_llm/](open_llm/)** for Docker and usage. Open_llm also supports **IBM Z/s390x** (build via `openshift/rag/build-rag-s390x-on-server.sh`, push via `openshift/rag/push-rag-s390x-to-icr-from-server.sh`, run via `openshift/rag/pull-and-run-rag-s390x-from-icr.sh`; see [open_llm/README.md](open_llm/README.md)).
+
+### Option 2: Basic RAG (HuggingFace - Local)
 
 Fast development with local embeddings:
 
@@ -13,7 +17,7 @@ pip install altastata fsspec langchain langchain-community sentence-transformers
 python test_rag.py
 ```
 
-### Option 2: Production RAG (Vertex AI Vector Search) ⭐ RECOMMENDED
+### Option 3: Production RAG (Vertex AI Vector Search)
 
 Production-ready with Google Cloud (Matching Engine on e2-standard-2 VMs):
 

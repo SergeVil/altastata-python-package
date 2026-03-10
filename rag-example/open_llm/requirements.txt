@@ -1,0 +1,22 @@
+# ---- Required (core RAG + web app) ----
+# altastata: install from repo (pip install -e . from repo root) or from Dockerfile COPY
+fsspec
+numpy
+langchain
+langchain-community
+langchain-core
+langchain-text-splitters
+sentence-transformers
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+python-dotenv
+
+# ---- LLM backend (Transformers: Docker, s390x, or LLM_PROVIDER=transformers) ----
+transformers
+accelerate
+
+# Optional: Ollama → pip install langchain-ollama
+# Optional: watsonx → pip install langchain-ibm
+# Optional: MLX (Mac only) → pip install mlx mlx-lm

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AltaStata RAG – Open LLM</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --success: #3fb950;
+      --border: #30363d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+    .container { max-width: 640px; margin: 0 auto; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+    .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+    form { display: flex; flex-direction: column; gap: 1rem; }
+    label { font-weight: 500; font-size: 0.9rem; }
+    textarea {
+      width: 100%;
+      min-height: 100px;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 1rem;
+      resize: vertical;
+    }
+    textarea::placeholder { color: var(--muted); }
+    button {
+      align-self: flex-start;
+      padding: 0.6rem 1.2rem;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+    button:hover { filter: brightness(1.1); }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    .result {
+      margin-top: 2rem;
+      padding: 1.25rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .result h2 { font-size: 1.1rem; margin-top: 0; margin-bottom: 0.75rem; }
+    .answer { white-space: pre-wrap; line-height: 1.5; margin-bottom: 1rem; }
+    .sources { font-size: 0.85rem; color: var(--muted); }
+    .sources ul { margin: 0; padding-left: 1.25rem; }
+    .error { color: #f85149; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>AltaStata RAG</h1>
+    <p class="subtitle">Ask questions over your documents. Each answer may take 1–2 min when using Transformers in Docker (CPU); use MLX on Mac for faster responses.</p>
+
+    <form id="form">
+      <label for="query">Question</label>
+      <textarea id="query" name="query" placeholder="e.g. What are the password requirements?" required></textarea>
+      <button type="submit" id="btn">Ask</button>
+    </form>
+
+    <div id="result" class="result" style="display: none;">
+      <h2>Answer</h2>
+      <div id="answer" class="answer"></div>
+      <h2>Sources</h2>
+      <div id="sources" class="sources"></div>
+    </div>
+    <div id="error" class="result error" style="display: none;"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const result = document.getElementById('result');
+    const answerEl = document.getElementById('answer');
+    const sourcesEl = document.getElementById('sources');
+    const errorEl = document.getElementById('error');
+    const btn = document.getElementById('btn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const query = document.getElementById('query').value.trim();
+      if (!query) return;
+      result.style.display = 'none';
+      errorEl.style.display = 'none';
+      btn.disabled = true;
+      btn.textContent = 'Thinking… (may take 1–2 min)';
+
+      try {
+        const res = await fetch('/query', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          errorEl.textContent = data.error || 'Request failed';
+          errorEl.style.display = 'block';
+          return;
+        }
+        answerEl.textContent = data.answer || 'No answer.';
+        sourcesEl.innerHTML = data.sources && data.sources.length
+          ? '<ul>' + data.sources.map(s => '<li>' + (s.filename || '?') + '</li>').join('') + '</ul>'
+          : 'No sources.';
+        result.style.display = 'block';
+      } catch (err) {
+        const msg = err.message || 'Network error';
+        errorEl.textContent = msg === 'Failed to fetch'
+          ? 'Connection failed or timed out. In Docker the first query can take 2–5 min; try again or check docker logs open_llm-app-1.'
+          : msg;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Ask';
+      }
+    });
+  </script>
+</body>
+</html>

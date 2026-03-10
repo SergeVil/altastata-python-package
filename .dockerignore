@@ -1,0 +1,35 @@
+# From openshift/.dockerignore (context root for docker build)
+.git
+.gitignore
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+env
+pip-log.txt
+pip-delete-this-directory.txt
+.tox
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache
+.env
+.venv
+.DS_Store
+altastata.egg-info/
+
+# RAG: no local index or chroma data in image (index from AltaStata at run time)
+rag-example/open_llm/local_index
+rag-example/open_llm/chroma_data
+
+# Junk / accidental files
+rag-example/open_llm/Auto-updating
+rag-example/open_llm/Auto-updated
+rag-example/open_llm/New
+rag-example/open_llm/Running
+rag-example/open_llm/Summary
