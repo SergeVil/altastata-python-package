@@ -33,6 +33,7 @@ from config import (
     WATSONX_PROJECT_ID,
     WATSONX_MODEL_ID,
     WATSONX_MAX_TOKENS,
+    RAG_DEBUG_RESPONSE,
 )
 from indexer import get_vector_store as _get_vector_store_impl
 
@@ -40,6 +41,35 @@ from indexer import get_vector_store as _get_vector_store_impl
 _cached_embeddings = None
 _cached_vector_store = None
 _cached_llm = None
+
+
+class _TransformersChatWrapper:
+    """Wraps HF pipeline to use chat template when available (fixes empty output for instruction models like SmolLM2)."""
+
+    def __init__(self, pipe):
+        self._pipe = pipe
+
+    def invoke(self, prompt: str):
+        tokenizer = getattr(self._pipe, "tokenizer", None)
+        formatted = prompt
+        if tokenizer is not None and hasattr(tokenizer, "apply_chat_template"):
+            try:
+                formatted = tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    tokenize=False,
+                    add_generation_prompt=True,
+                )
+                if not isinstance(formatted, str):
+                    formatted = prompt
+            except Exception:  # pylint: disable=broad-except
+                pass
+        out = self._pipe(formatted)
+        generated = out[0].get("generated_text", "") if out else ""
+        if isinstance(formatted, str) and generated.startswith(formatted):
+            content = generated[len(formatted) :].strip()
+        else:
+            content = generated.strip()
+        return type("R", (), {"content": content})()
 
 
 def _get_embeddings():
@@ -100,7 +130,6 @@ def _get_llm():
             _cached_llm = _MLXChat(model, tokenizer, MLX_MAX_TOKENS)
         elif LLM_PROVIDER == "transformers":
             from transformers import pipeline
-            from langchain_community.llms import HuggingFacePipeline
             import torch
             device = 0 if torch.cuda.is_available() else -1  # CPU on Mac/390, GPU if present
             model_to_use = HF_LLM_MODEL
@@ -114,7 +143,8 @@ def _get_llm():
                         do_sample=True,
                         device=device,
                     )
-                    _cached_llm = HuggingFacePipeline(pipeline=pipe)
+                    # Use chat template if available (SmolLM2 and other instruction models generate better)
+                    _cached_llm = _TransformersChatWrapper(pipe)
                     if attempt > 0:
                         print(f"✅ Using fallback model: {model_to_use}")
                     break
@@ -265,9 +295,22 @@ Answer:"""
             answer = response.get("generated_text", str(response))
         else:
             answer = str(response)
+        raw_answer = answer
         # Pipeline often returns prompt + generated; keep only the generated part after "Answer:"
         if "Context:" in answer and "Question:" in answer:
             answer = answer.split("Answer:", 1)[-1].strip()
+        # If that left nothing, use whatever comes after the prompt (model may not repeat "Answer:")
+        if not answer or not answer.strip():
+            if raw_answer.startswith(prompt):
+                answer = raw_answer[len(prompt):].strip()
+            elif len(prompt) < len(raw_answer):
+                answer = raw_answer[len(prompt):].strip()
+        if not answer or not answer.strip():
+            if RAG_DEBUG_RESPONSE:
+                print(f"[RAG debug] prompt len={len(prompt)}, raw_answer len={len(raw_answer)}")
+                print(f"[RAG debug] raw_answer start: {repr(raw_answer[:400])}")
+                print(f"[RAG debug] raw_answer end: {repr(raw_answer[-300]) if len(raw_answer) > 300 else ''}")
+            answer = "No text was generated. Try a shorter question, or increase HF_LLM_MAX_NEW_TOKENS (default 400) if you need longer answers."
     except Exception as e:  # pylint: disable=broad-except
         answer = f"LLM error: {e}"
     return answer.strip(), sources

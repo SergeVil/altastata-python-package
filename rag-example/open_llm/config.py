@@ -55,7 +55,7 @@ MLX_MAX_TOKENS = int(os.getenv("MLX_MAX_TOKENS", "128"))
 # Hugging Face Transformers (when LLM_PROVIDER=transformers). Same on Mac, Docker, and IBM 390.
 # SmolLM2-360M is faster than TinyLlama on CPU; for much faster responses on Mac use LLM_PROVIDER=ollama with Ollama on the host.
 HF_LLM_MODEL = os.getenv("HF_LLM_MODEL", "HuggingFaceTB/SmolLM2-360M-Instruct")
-HF_LLM_MAX_NEW_TOKENS = int(os.getenv("HF_LLM_MAX_NEW_TOKENS", "80"))
+HF_LLM_MAX_NEW_TOKENS = int(os.getenv("HF_LLM_MAX_NEW_TOKENS", "400"))
 # If HF_LLM_MODEL fails to load (gated, missing, etc.), use this fallback. Should be small and ungated.
 HF_LLM_FALLBACK_MODEL = os.getenv("HF_LLM_FALLBACK_MODEL", "gpt2")
 
@@ -80,3 +80,5 @@ SSL_CERT_FILE = os.getenv("SSL_CERT_FILE", "")
 SSL_KEY_FILE = os.getenv("SSL_KEY_FILE", "")
 # Max seconds for a single RAG query (Transformers on CPU needs more; Ollama is faster)
 QUERY_TIMEOUT = int(os.getenv("QUERY_TIMEOUT", "180"))
+# Set RAG_DEBUG_RESPONSE=1 to log raw model response length and snippet (for diagnosing empty answers)
+RAG_DEBUG_RESPONSE = os.getenv("RAG_DEBUG_RESPONSE", "").strip().lower() in ("1", "true", "yes")

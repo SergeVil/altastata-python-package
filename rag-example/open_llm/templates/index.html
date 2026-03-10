@@ -69,6 +69,7 @@
     .sources { font-size: 0.85rem; color: var(--muted); }
     .sources ul { margin: 0; padding-left: 1.25rem; }
     .error { color: #f85149; }
+    .source-preview { font-size: 0.85rem; color: var(--muted); display: block; margin-top: 0.25rem; max-width: 100%; }
   </style>
 </head>
 <body>
@@ -92,6 +93,11 @@
   </div>
 
   <script>
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
     const form = document.getElementById('form');
     const result = document.getElementById('result');
     const answerEl = document.getElementById('answer');
@@ -120,9 +126,13 @@
           errorEl.style.display = 'block';
           return;
         }
-        answerEl.textContent = data.answer || 'No answer.';
+        answerEl.textContent = data.answer || 'No answer was returned. The request may have timed out or the model hit the token limit. Try a shorter question or increase QUERY_TIMEOUT / HF_LLM_MAX_NEW_TOKENS.';
         sourcesEl.innerHTML = data.sources && data.sources.length
-          ? '<ul>' + data.sources.map(s => '<li>' + (s.filename || '?') + '</li>').join('') + '</ul>'
+          ? '<ul>' + data.sources.map(s => {
+              const preview = (s.preview || '').trim();
+              return '<li><strong>' + (s.filename || '?') + '</strong>' +
+                (preview ? '<br><span class="source-preview">' + escapeHtml(preview) + '</span>' : '') + '</li>';
+            }).join('') + '</ul>'
           : 'No sources.';
         result.style.display = 'block';
       } catch (err) {

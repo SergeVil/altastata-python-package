@@ -336,7 +336,7 @@ The **Open LLM RAG** app (simple vector store + Transformers + AltaStata) can be
 
 Or manually on the server:
 ```bash
-source version.sh 2>/dev/null || VERSION="2026b_latest"
+source version.sh 2>/dev/null || VERSION="2026c_latest"
 docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION}
 # Then run with your account dir; see "Run the container" below.
 ```

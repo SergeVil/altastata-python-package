@@ -15,13 +15,13 @@ On macOS, use buildx to produce a real s390x image:
 
 ```bash
 docker buildx build --platform linux/s390x -f openshift/Dockerfile.s390x \
-  -t altastata/jupyter-datascience-s390x:2026b_latest --load .
+  -t altastata/jupyter-datascience-s390x:2026c_latest --load .
 ```
 
 If you are already on an s390x host, a normal build is fine:
 
 ```bash
-docker build -f openshift/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:2026b_latest .
+docker build -f openshift/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:2026c_latest .
 ```
 
 ## Build arm64 (local testing on macOS)
@@ -42,8 +42,8 @@ Then open `http://localhost:8889/?token=altastata-dev-token` (fixed token for lo
 ## Tag s390x image for ICR
 
 ```bash
-# Version from version.sh (e.g. 2026b_latest)
-source version.sh 2>/dev/null || VERSION="2026b_latest"
+# Version from version.sh (e.g. 2026c_latest)
+source version.sh 2>/dev/null || VERSION="2026c_latest"
 docker tag altastata/jupyter-datascience-s390x:${VERSION} icr.io/altastata/jupyter-datascience-s390x:${VERSION}
 ```
 
@@ -81,7 +81,7 @@ Same pattern for the RAG s390x image: build (on s390x host or with buildx), tag 
 ```bash
 # On the s390x server (or from Mac via build-rag-s390x-on-server.sh)
 source version.sh 2>/dev/null || true
-docker build -f openshift/rag/Dockerfile.open_llm_s390x -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${VERSION:-2026b_latest} .
+docker build -f openshift/rag/Dockerfile.open_llm_s390x -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${VERSION:-2026c_latest} .
 ```
 
 **On macOS with buildx** (cross-build; no cache from previous s390x builds):
@@ -89,12 +89,12 @@ docker build -f openshift/rag/Dockerfile.open_llm_s390x -t altastata/rag-open-ll
 ```bash
 source version.sh 2>/dev/null || true
 docker buildx build --platform linux/s390x -f openshift/rag/Dockerfile.open_llm_s390x \
-  -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${VERSION:-2026b_latest} --load .
+  -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${VERSION:-2026c_latest} --load .
 ```
 
 ### Tag and push RAG s390x to ICR
 
-Uses the same **VERSION** as the Jupyter notebook image (from `version.sh`, currently **2026b_latest**).
+Uses the same **VERSION** as the Jupyter notebook image (from `version.sh`, currently **2026c_latest**).
 
 **Push from server** (image was built with `build-rag-s390x-on-server.sh`):
 ```bash
@@ -104,7 +104,7 @@ export ICR_TOKEN="PASTE_NICOLAS_TOKEN_HERE"
 
 **Or manual (on the server):**
 ```bash
-source version.sh 2>/dev/null || VERSION="2026b_latest"
+source version.sh 2>/dev/null || VERSION="2026c_latest"
 docker tag altastata/rag-open-llm-s390x:latest icr.io/altastata/rag-open-llm-s390x:${VERSION}
 echo "$ICR_TOKEN" | docker login -u iamapikey --password-stdin icr.io
 docker push icr.io/altastata/rag-open-llm-s390x:${VERSION}
@@ -132,7 +132,7 @@ If you see **"manifest not found"**, the image is not in ICR yet—build on the 
 
 **Or manually on the s390x server:**
 ```bash
-source version.sh 2>/dev/null || VERSION="2026b_latest"
+source version.sh 2>/dev/null || VERSION="2026c_latest"
 docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION}
 # Password-based account (e.g. bob123):
 docker run -d -p 8000:8000 --name rag \

@@ -2,7 +2,7 @@
 # Pull the RAG s390x image from ICR and run it on the server (no local build).
 # Run from repo root on your Mac. Uses same VERSION as Jupyter (version.sh).
 #
-# Memory: We recommend 16 GB RAM for the default model (TinyLlama). On 8 GB, set
+# Memory: We recommend 16 GB RAM for the default model (SmolLM2-360M). On 8 GB, set
 #   HF_LLM_MODEL=gpt2 to avoid OOM (weaker answers).
 # Hardware: Inference runs on CPU; NNPA/zDNN acceleration on IBM Z (e.g. z16/z17) can
 #   speed up inference when available in the runtime environment.
@@ -37,7 +37,7 @@ REMOTE_HPCS_BLOB="${REMOTE_HPCS_BLOB:-$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME/h
 REMOTE_PROPERTIES_FILE="${REMOTE_PROPERTIES_FILE:-$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME/altastata-myorgrsa444-serge678.user.properties}"
 CONTAINER_NAME="rag-s390x-test"
 MAX_WAIT="${MAX_WAIT:-300}"
-HF_LLM_MODEL="${HF_LLM_MODEL:-TinyLlama/TinyLlama-1.1B-Chat-v1.0}"
+HF_LLM_MODEL="${HF_LLM_MODEL:-HuggingFaceTB/SmolLM2-360M-Instruct}"
 # Transformers on CPU (s390x) is slow; allow longer for first query
 QUERY_TIMEOUT="${QUERY_TIMEOUT:-400}"
 RAG_IMAGE="icr.io/altastata/rag-open-llm-s390x:$VERSION"
