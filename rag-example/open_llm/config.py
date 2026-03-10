@@ -52,8 +52,9 @@ OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "128"))
 MLX_MODEL = os.getenv("MLX_MODEL", "mlx-community/Llama-3.2-1B-Instruct-4bit")
 MLX_MAX_TOKENS = int(os.getenv("MLX_MAX_TOKENS", "128"))
 
-# Hugging Face Transformers (when LLM_PROVIDER=transformers). Same on Mac, Docker, and IBM 390. TinyLlama is instruction-tuned; gpt2 for smaller/faster.
-HF_LLM_MODEL = os.getenv("HF_LLM_MODEL", "TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+# Hugging Face Transformers (when LLM_PROVIDER=transformers). Same on Mac, Docker, and IBM 390.
+# SmolLM2-360M is faster than TinyLlama on CPU; for much faster responses on Mac use LLM_PROVIDER=ollama with Ollama on the host.
+HF_LLM_MODEL = os.getenv("HF_LLM_MODEL", "HuggingFaceTB/SmolLM2-360M-Instruct")
 HF_LLM_MAX_NEW_TOKENS = int(os.getenv("HF_LLM_MAX_NEW_TOKENS", "80"))
 # If HF_LLM_MODEL fails to load (gated, missing, etc.), use this fallback. Should be small and ungated.
 HF_LLM_FALLBACK_MODEL = os.getenv("HF_LLM_FALLBACK_MODEL", "gpt2")

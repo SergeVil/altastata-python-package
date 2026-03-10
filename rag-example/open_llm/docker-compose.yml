@@ -2,7 +2,9 @@
 # Usage:
 #   1. Copy .env.example to .env and set ALTASTATA_ACCOUNT_DIR (path on host to your account dir).
 #   2. docker compose up -d
-#   3. Open http://localhost:8766 (app indexes sample_documents on first start if local_index is empty).
+#   3. Open http://localhost:8766
+# With ALTASTATA_ACCOUNT_DIR set, the app entrypoint builds the index from AltaStata at first start if local_index is empty.
+# Without AltaStata: run "docker compose exec app python index_local.py" to index sample_documents, then query.
 # Optional: set LLM_PROVIDER=ollama and start the ollama service to use Ollama instead of Transformers.
 # Note: MLX is Mac-only; in Docker we always use transformers (or ollama if you add the ollama service).
 

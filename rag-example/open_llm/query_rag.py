@@ -8,6 +8,7 @@ Returns answer and source chunks for citations.
 
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 if _REPO_ROOT not in sys.path:
@@ -204,15 +205,11 @@ def query_rag(
     if fs is None and ALTASTATA_ACCOUNT_DIR and os.path.isdir(ALTASTATA_ACCOUNT_DIR):
         fs, _af = _connect_altastata()
 
-    sources = []
-    chunk_texts = []
-    for doc, _score in top:
+    def fetch_one(idx, doc, _score):
         meta = doc.metadata
         chunk_path = meta.get("chunk_path") or meta.get("source")
         if not chunk_path:
-            chunk_texts.append(doc.page_content)
-            sources.append({"filename": meta.get("filename", "unknown"), "text": doc.page_content[:200]})
-            continue
+            return idx, doc.page_content, {"filename": meta.get("filename", "unknown"), "text": doc.page_content[:200]}
         if fs:
             try:
                 with fs.open(chunk_path, "r") as f:
@@ -222,12 +219,30 @@ def query_rag(
                 print(f"⚠️  Could not read {chunk_path}: {e}")
         else:
             text = doc.page_content
-        chunk_texts.append(text)
-        sources.append({
+        return idx, text, {
             "filename": meta.get("filename", os.path.basename(chunk_path)),
             "chunk_path": chunk_path,
             "text": text[:300],
-        })
+        }
+
+    sources = []
+    chunk_texts = []
+    if len(top) <= 1:
+        for i, (doc, sc) in enumerate(top):
+            _, text, src = fetch_one(i, doc, sc)
+            chunk_texts.append(text)
+            sources.append(src)
+    else:
+        results_by_idx = {}
+        with ThreadPoolExecutor(max_workers=min(len(top), 8)) as executor:
+            futures = {executor.submit(fetch_one, i, doc, sc): i for i, (doc, sc) in enumerate(top)}
+            for fut in as_completed(futures):
+                idx, text, src = fut.result()
+                results_by_idx[idx] = (text, src)
+        for i in range(len(top)):
+            text, src = results_by_idx[i]
+            chunk_texts.append(text)
+            sources.append(src)
 
     context = "\n\n".join([f"[Excerpt {i+1}]:\n{t}" for i, t in enumerate(chunk_texts)])
     prompt = f"""Answer in 2-4 short sentences. Use only the context below. If the context doesn't have the answer, say "Not in the documents."

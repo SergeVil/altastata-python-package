@@ -62,6 +62,12 @@ docker run -d -p 8888:8888 \
 - **Push to ICR:** `./openshift/rag/push-rag-s390x-to-icr-from-server.sh` (after build). **Run:** `./openshift/rag/pull-and-run-rag-s390x-from-icr.sh`.
 - **Image:** `openshift/rag/Dockerfile.open_llm_s390x` (base: ibmz-accelerated-for-pytorch; deps layer cached when requirements.txt unchanged). See `rag-example/open_llm/README.md` for full s390x docs.
 
+### RAG Open LLM on Mac (same layout as s390x)
+- **Build and run:** `ALTASTATA_ACCOUNT_DIR=$HOME/.altastata/accounts/amazon.rsa.bob123 ./openshift/rag/build-and-run-rag-mac.sh` (AltaStata only, index at startup).
+- **Image:** `openshift/rag/Dockerfile.open_llm_mac` (python:3.11-slim; no sample_documents, same entrypoint as s390x).
+- **Faster answers:** Run Ollama on the host (e.g. `ollama run smollm2:360m`), then `LLM_PROVIDER=ollama` with same script; script passes `OLLAMA_BASE_URL=http://host.docker.internal:11434`.
+- **Query path:** Chunk reads from AltaStata are parallelized (ThreadPoolExecutor). Default Transformers model is SmolLM2-360M-Instruct. Entrypoint logs account dir and indexer result for debugging.
+
 ### JAR Management
 ```bash
 # Verify JAR integrity

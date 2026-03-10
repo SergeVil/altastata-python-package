@@ -52,11 +52,13 @@ _altastata_af = None
 @app.on_event("startup")
 def startup():
     global _altastata_fs, _altastata_af
+    print(f"[web_app] startup: ALTASTATA_ACCOUNT_DIR={ALTASTATA_ACCOUNT_DIR!r}, isdir={os.path.isdir(ALTASTATA_ACCOUNT_DIR) if ALTASTATA_ACCOUNT_DIR else False}")
     if ALTASTATA_ACCOUNT_DIR and os.path.isdir(ALTASTATA_ACCOUNT_DIR):
         try:
             from altastata.altastata_functions import AltaStataFunctions
             from altastata.fsspec import create_filesystem
             from config import ALTASTATA_PASSWORD, ALTASTATA_ACCOUNT_ID
+            print("[web_app] Connecting to AltaStata...")
             _altastata_af = AltaStataFunctions.from_account_dir(
                 ALTASTATA_ACCOUNT_DIR,
                 callback_server_port=0,
@@ -65,8 +67,11 @@ def startup():
             if not ALTASTATA_USE_HPCS:
                 _altastata_af.set_password(ALTASTATA_PASSWORD)
             _altastata_fs = create_filesystem(_altastata_af, ALTASTATA_ACCOUNT_ID)
+            print("[web_app] AltaStata connected (used for reading chunk sources at query time)")
         except Exception as e:
-            print(f"⚠️  AltaStata startup: {e}")
+            print(f"⚠️  AltaStata startup failed: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Warmup in background: load embeddings, vector store, and LLM. Skip a full LLM invoke for
     # Transformers (CPU inference can take minutes); first user query will do the first generation.
@@ -85,6 +90,7 @@ def startup():
             print(f"⚠️  Warmup skipped: {e}")
     import threading
     threading.Thread(target=_warmup, daemon=True).start()
+    print("RAG app startup complete — web UI available on port", os.getenv("WEB_PORT", "8000"))
 
 
 class QueryRequest(BaseModel):

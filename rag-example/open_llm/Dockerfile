@@ -1,5 +1,7 @@
 # AltaStata RAG – Open LLM stack (simple vector store + Ollama + AltaStata)
 # Build from repo root: docker build -f rag-example/open_llm/Dockerfile .
+# Used by docker-compose (app + indexer). Includes sample_documents so you can run index_local.py for a quick demo without AltaStata.
+# For AltaStata-only Mac (same layout as s390x): use openshift/rag/Dockerfile.open_llm_mac and build-and-run-rag-mac.sh.
 
 FROM python:3.11-slim
 

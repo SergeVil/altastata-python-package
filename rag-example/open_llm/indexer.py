@@ -148,17 +148,24 @@ class OpenRAGIndexer:
         """One-off: list files under path_prefix in AltaStata and index each."""
         if not self.fs or not self.vector_store:
             raise RuntimeError("Initialize first with initialize()")
+        print(f"[indexer] Listing AltaStata path: {path_prefix!r}")
         try:
             entries = self.fs.find(path_prefix)
         except Exception as e:
             print(f"❌ List failed: {e}")
+            import traceback
+            traceback.print_exc()
             return
         files = [e for e in entries if getattr(e, "type", None) != 1 and not e.endswith("/")]
+        print(f"[indexer] Found {len(entries)} entries, {len(files)} file(s) to index")
+        if not files:
+            print(f"[indexer] No files at {path_prefix!r}. Upload documents to AltaStata and share with this account, or use a path that already has files.")
         for f in files:
             self._index_file(f)
 
     def initialize(self):
         """Connect AltaStata, load embeddings, create or connect simple vector store."""
+        print(f"[indexer] initialize: ALTASTATA_ACCOUNT_DIR={ALTASTATA_ACCOUNT_DIR!r}, isdir={os.path.isdir(ALTASTATA_ACCOUNT_DIR) if ALTASTATA_ACCOUNT_DIR else False}")
         if not ALTASTATA_ACCOUNT_DIR or not os.path.isdir(ALTASTATA_ACCOUNT_DIR):
             print("❌ Set ALTASTATA_ACCOUNT_DIR to your AltaStata account directory (e.g. .altastata/accounts/azure.rsa.bob123)")
             return False
@@ -166,6 +173,7 @@ class OpenRAGIndexer:
         from altastata.altastata_functions import AltaStataFunctions
         from altastata.fsspec import create_filesystem
 
+        print("[indexer] Connecting to AltaStata (from_account_dir + set_password)...")
         self.altastata = AltaStataFunctions.from_account_dir(
             ALTASTATA_ACCOUNT_DIR,
             callback_server_port=ALTASTATA_CALLBACK_PORT,

@@ -2,6 +2,8 @@
 
 This variant of the RAG example uses **no GCP**: open-source LLM (Ollama), a vector store (default: simple), and local embeddings (sentence-transformers), with **LangChain** for orchestration. Data can live in **AltaStata** (encrypted); the stack runs locally or in Docker.
 
+**Recent changes:** Default Transformers model is **SmolLM2-360M-Instruct** (faster than TinyLlama on CPU). Chunk reads from AltaStata are **parallelized** to reduce query latency. Mac build script (`openshift/rag/build-and-run-rag-mac.sh`) supports `LLM_PROVIDER=ollama` with Ollama on the host for much faster answers. Entrypoint and indexer emit clearer logs for AltaStata connection debugging.
+
 ## Simplest demo (ARM, x86 – no Docker)
 
 Uses a **simple vector store** (pure Python + numpy). Works on **ARM and x86** out of the box; for **IBM Z (s390x)** see [IBM Z (s390x) – will it work?](#ibm-z-s390x--will-it-work) below.
@@ -230,6 +232,18 @@ This starts:
 
 Open **http://localhost:8766** to use the web UI.
 
+**Mac image (same layout as s390x – AltaStata only):** To run the same setup as on IBM 390 (no sample_documents, index from AltaStata at startup) on your Mac:
+
+```bash
+# From repo root. Set your account dir (password-based or HPCS).
+ALTASTATA_ACCOUNT_DIR=$HOME/.altastata/accounts/amazon.rsa.bob123 ./openshift/rag/build-and-run-rag-mac.sh
+# Optional: ALTASTATA_PASSWORD=yourpass HF_LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct
+# Much faster: run Ollama on the host (ollama run smollm2:360m), then:
+# LLM_PROVIDER=ollama ALTASTATA_ACCOUNT_DIR=... ./openshift/rag/build-and-run-rag-mac.sh
+```
+
+Image: `openshift/rag/Dockerfile.open_llm_mac`. Build only: `docker build -f openshift/rag/Dockerfile.open_llm_mac -t altastata/rag-open-llm:latest .`
+
 ### 3. HTTPS in front of the app
 
 The app supports TLS if you set `SSL_CERT_FILE` and `SSL_KEY_FILE` (e.g. in `docker-compose` `environment` and mount the certs). Alternatively, put a reverse proxy in front:
@@ -239,7 +253,7 @@ The app supports TLS if you set `SSL_CERT_FILE` and `SSL_KEY_FILE` (e.g. in `doc
 
 ### 4. Indexing inside Docker
 
-**Automatic at startup (s390x / production image):** When using the s390x image (`openshift/rag/Dockerfile.open_llm_s390x`), the entrypoint builds the index from AltaStata at container start if no index exists: it runs `indexer --once` on `RAG_INDEX_PATH` (default `RAGDocs/policies`). So the first run indexes automatically; no manual indexer step needed.
+**Automatic at startup (s390x / Mac production images):** When using the s390x image (`openshift/rag/Dockerfile.open_llm_s390x`) or the Mac image (`openshift/rag/Dockerfile.open_llm_mac`), the entrypoint builds the index from AltaStata at container start if no index exists: it runs `indexer --once` on `RAG_INDEX_PATH` (default `RAGDocs/policies`). So the first run indexes automatically; no manual indexer step needed.
 
 **Manual (docker-compose or one-off):** To run the indexer inside the same app image (e.g. one-off index after startup):
 
@@ -433,7 +447,7 @@ source ../../version.sh 2>/dev/null || true
 # Replace with your AltaStata account dir (must contain the account subdir, e.g. amazon.rsa.bob123)
 export ALTASTATA_ACCOUNT_DIR="$HOME/.altastata/accounts/amazon.rsa.bob123"
 
-# 8 GB VM: use gpt2. 16+ GB: use TinyLlama for better answers.
+# 8 GB VM: use gpt2. For faster answers (still decent quality): HF_LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct. 16+ GB: TinyLlama for best quality.
 docker run -d -p 8000:8000 --name rag \
   -e ALTASTATA_ACCOUNT_DIR=$ALTASTATA_ACCOUNT_DIR \
   -e HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
@@ -451,7 +465,7 @@ docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION:-2026b_latest}
 
 **Pull and run from your Mac (script):** From repo root run `./openshift/rag/pull-and-run-rag-s390x-from-icr.sh`. It SSHs to the server, stops/removes any existing RAG container, pulls the image, runs the container, runs a test query, and leaves the container running. Set `ICR_TOKEN` on your Mac. **Accounts:** Default is **HPCS** (`amazon.rsa.hpcs.serge678`; no password; script passes `ALTASTATA_USE_HPCS=1`). For **bob123** (password-based): `ACCOUNT_NAME=amazon.rsa.bob123 ./openshift/rag/pull-and-run-rag-s390x-from-icr.sh`. Optional env: `SSH_HOST`, `SSH_KEY`, `HF_LLM_MODEL=gpt2` (8 GB VMs). Account dir must exist on the server at `$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME` (default `/root/.altastata/accounts/...`).
 
-Use an NNPA-capable host for faster inference. On **small VMs (e.g. 8 GB RAM)**, set **`HF_LLM_MODEL=gpt2`** to avoid OOM (or use **watsonx** for better answers without a local model).
+Use an NNPA-capable host for faster inference. **Faster models:** set **`HF_LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct`** for roughly 2–3× faster inference than TinyLlama with still usable RAG answers (360M params, instruction-tuned). **`HF_LLM_MODEL=gpt2`** is fastest but gives weak quality. On **small VMs (8 GB RAM)** use **gpt2** to avoid OOM, or **watsonx** for better answers without a local model.
 
 **scikit-learn on IBM Z:** The base image **icr.io/ibmz/ibmz-accelerated-for-pytorch** is PyTorch and zDNN only; it does **not** include scikit-learn, so our `pip install -r requirements.txt` builds it from source (slow on s390x). The Dockerfile caches that layer until `requirements.txt` changes. To confirm the base has no scikit-learn: `docker run --rm icr.io/ibmz/ibmz-accelerated-for-pytorch:1.3.0 pip list | grep -i scikit`. For pre-built ML stacks on Z, see [IBM Cloud Pak for Data](https://www.ibm.com/docs/en/solution-assurance?topic=solutions-set-up-cloud-pak-data-z-linuxone) (OpenShift on Z + entitlement required).
 
@@ -463,18 +477,18 @@ To run **the same RAG stack** on your Mac, in Docker, and on IBM 390, use the **
 
 ```bash
 LLM_PROVIDER=transformers
-# Default (TinyLlama) works on Mac, Docker, and IBM 390; no override needed
-# HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0
+# Default is SmolLM2-360M-Instruct (faster than TinyLlama on CPU); works on Mac, Docker, and IBM 390
+# HF_LLM_MODEL=HuggingFaceTB/SmolLM2-360M-Instruct
 # HF_LLM_MAX_NEW_TOKENS=80
 ```
 
 **On your Mac:** Install deps (including `transformers`), run `python index_local.py` then `python web_app.py`. The app loads the model and runs it locally.
 
-**In Docker:** `docker compose up -d app` uses the same default (TinyLlama). No extra env needed.
+**In Docker:** `docker compose up -d app` uses the same default (SmolLM2-360M). No extra env needed.
 
 **On IBM 390:** Use a **Docker image that has PyTorch for s390x** (e.g. IBM’s **ibmz-accelerated-for-pytorch** from [IBM Z Open Source Hub](https://ibm.github.io/ibm-z-oss-hub/containers/ibmz-accelerated-for-pytorch.html), or build our Dockerfile on an s390x host). Install the repo and open_llm requirements, set the same env vars, then run `index_local.py` and `web_app.py` inside the container. The model is pulled from Hugging Face at first run; no separate “model container” for 390.
 
-**Summary:** `LLM_PROVIDER=transformers` + default **TinyLlama/TinyLlama-1.1B-Chat-v1.0** gives you one stack for Mac, Docker, and IBM 390. For smaller/faster (lower quality) set `HF_LLM_MODEL=gpt2`.
+**Summary:** `LLM_PROVIDER=transformers` + default **SmolLM2-360M-Instruct** gives you one stack for Mac, Docker, and IBM 390 (faster than TinyLlama on CPU). For **fastest** (weak quality): `HF_LLM_MODEL=gpt2`. For larger/better quality: `HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0`.
 
 ## Files
 
@@ -482,7 +496,7 @@ LLM_PROVIDER=transformers
 |------|--------|
 | `config.py` | Env-based config (AltaStata, vector store, Ollama, web, chunking). |
 | `indexer.py` | Index AltaStata docs into simple store + store chunks in AltaStata. |
-| `query_rag.py` | RAG query: Vector retrieval + AltaStata chunks + Ollama. |
+| `query_rag.py` | RAG query: Vector retrieval + parallel AltaStata chunk fetch + LLM (Ollama/Transformers/MLX). |
 | `web_app.py` | FastAPI app: GET `/` (UI), POST `/query` (JSON). |
 | `templates/index.html` | Simple query form and result display. |
 | `Dockerfile` | Image: AltaStata + open_llm deps + web app. |
