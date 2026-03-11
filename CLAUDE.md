@@ -35,7 +35,7 @@ pip install -e .
 python -m build
 
 # Run basic tests
-python test_script.py
+python examples/smoke-test/test_script.py
 
 # Test PyTorch example
 cd examples/pytorch-example && python training_example.py

@@ -46,8 +46,8 @@ pip install -e .
 # Install from pypi.org
 pip install altastata
 
-# Run tests
-python test_script.py
+# Run smoke tests (core API)
+python examples/smoke-test/test_script.py
 
 ## Build and Upload
 
@@ -63,7 +63,10 @@ twine upload dist/*                               # Upload to PyPI
 ./containers/jupyter/build-all-images.sh           # Build Docker images
 ./containers/jupyter/push-to-ghcr.sh               # Push to GHCR
 ```
-```## Docker Deployment
+
+## Docker Deployment
+
+Full guide: [containers/jupyter/README-Docker.md](containers/jupyter/README-Docker.md)
 
 ### Version Management
 
@@ -102,10 +105,17 @@ The image is published to GitHub Container Registry, not Docker Hub. Use the GHC
 
 ```bash
 # Run from GitHub Container Registry (no build, fast start)
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 ```
 
-Then open **http://localhost:8888**. Use the token from logs: `docker-compose -f docker-compose-ghcr.yml logs | grep token`.
+Then open **http://localhost:8888/lab**. The token is generated at startup; get it from the logs:
+
+```bash
+docker compose -f containers/jupyter/docker-compose-ghcr.yml logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"
+# or
+docker exec altastata-jupyter jupyter server list
+```
+Use the URL with `?token=...` from the output, or paste the token on the login page. If you still see an old fixed token, rebuild the image and recreate the container (see containers/jupyter/README-Docker.md).
 
 **Option B: Single `docker run` with GHCR image**
 
@@ -123,12 +133,14 @@ docker run \
 
 **Option C: Local build with docker-compose**
 
-`docker-compose up -d` uses image `altastata/jupyter-datascience-${ARCH}:${VERSION}` (ARCH is arm64 or amd64). Compose may **build** the image locally (can take 10–20 minutes). To use this path:
+`docker compose -f containers/jupyter/docker-compose.yml up -d` uses image `altastata/jupyter-datascience-${ARCH}:${VERSION}` (ARCH is arm64 or amd64). Compose may **build** the image locally (can take 10–20 minutes). To use this path:
 
 ```bash
 ./update-version.sh   # writes VERSION and ARCH to .env (detects your platform)
-docker-compose up -d  # builds then runs
+docker compose -f containers/jupyter/docker-compose.yml up -d  # builds then runs
 ```
+
+Then open **http://localhost:8888/lab**. Get the generated token from the logs: `docker compose -f containers/jupyter/docker-compose.yml logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"` or `docker exec altastata-jupyter jupyter server list`.
 
 **IBM Z / LinuxONE (s390x)**
 
