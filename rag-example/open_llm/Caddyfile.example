@@ -1,0 +1,13 @@
+# Example Caddyfile for HTTPS in front of the RAG app.
+# Uncomment the caddy service in docker-compose.yml and mount this as Caddyfile.
+# Replace example.com with your hostname or use localhost with a self-signed cert.
+
+:8443 {
+    tls internal
+    reverse_proxy app:8000
+}
+
+# For a real domain with automatic TLS:
+# example.com {
+#     reverse_proxy app:8000
+# }
