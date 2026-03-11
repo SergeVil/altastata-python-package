@@ -39,7 +39,7 @@ The Docker image version is centrally managed in `version.sh`. To update the ver
 
 The version will be automatically used by:
 - Build scripts (`containers/jupyter/build-all-images.sh`, `containers/jupyter/push-to-ghcr.sh`)
-- Docker Compose files (`docker-compose.yml`)
+- Docker Compose files (`containers/jupyter/docker-compose.yml`, `containers/jupyter/docker-compose-ghcr.yml`)
 - Kubernetes manifests (`containers/confidential-gke/jupyter-deployment.yaml`)
 
 **Note**: All scripts validate that `VERSION` is set and will exit with an error if it's missing.
@@ -110,19 +110,22 @@ docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${V
 # 1. Build the image
 ./containers/jupyter/build-all-images.sh
 
-# 2. Run locally
-docker-compose up -d
+# 2. Run locally (from repo root)
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
-# 3. Access Jupyter Lab
-# Jupyter Lab: http://localhost:8888
+# 3. Access Jupyter Lab at http://localhost:8888/lab
+# Get the token from logs: docker logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"
+# Or: docker exec altastata-jupyter jupyter server list
 ```
 
 ### Option 2: Use Pre-built GHCR Images
 
 ```bash
-# Run from GitHub Container Registry
-docker-compose -f docker-compose-ghcr.yml up -d
+# Run from GitHub Container Registry (from repo root)
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 ```
+
+Then open **http://localhost:8888/lab**. Get the generated token from the logs: `docker logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"` or `docker exec altastata-jupyter jupyter server list`.
 
 ## Building Images
 
@@ -165,14 +168,14 @@ source version.sh
 #### Full System
 
 ```bash
-# Start Jupyter service
-docker-compose up -d
+# Start Jupyter service (from repo root)
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # View logs
-docker-compose logs -f
+docker compose -f containers/jupyter/docker-compose.yml logs -f
 
 # Stop service
-docker-compose down
+docker compose -f containers/jupyter/docker-compose.yml down
 ```
 
 ### Individual Container
@@ -199,13 +202,13 @@ docker run -d \
 # 1. Make code changes to Python package...
 
 # 2. Rebuild image
-docker-compose build altastata-jupyter
+docker compose -f containers/jupyter/docker-compose.yml build altastata-jupyter
 
 # 3. Restart service
-docker-compose up -d altastata-jupyter
+docker compose -f containers/jupyter/docker-compose.yml up -d altastata-jupyter
 
 # 4. View logs
-docker-compose logs -f altastata-jupyter
+docker compose -f containers/jupyter/docker-compose.yml logs -f altastata-jupyter
 ```
 
 ## GitHub Container Registry (GHCR)
@@ -264,11 +267,11 @@ docker pull ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}
 
 ```bash
 # Deploy using GHCR image
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 
 # Update deployment with latest image
-docker-compose -f docker-compose-ghcr.yml pull
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml pull
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 ```
 
 ### Making Packages Public
@@ -507,13 +510,13 @@ When deployed, the service is available at:
 ./containers/jupyter/build-all-images.sh
 
 # 2. Start development environment
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # 3. Access Jupyter Lab at http://localhost:8888
 
 # 4. Make changes and rebuild if needed
-docker-compose build altastata-jupyter
-docker-compose up -d altastata-jupyter
+docker compose -f containers/jupyter/docker-compose.yml build altastata-jupyter
+docker compose -f containers/jupyter/docker-compose.yml up -d altastata-jupyter
 ```
 
 ### Production Deployment Workflow
@@ -526,17 +529,17 @@ docker-compose up -d altastata-jupyter
 ./containers/jupyter/push-to-ghcr.sh
 
 # 3. Deploy from GHCR
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 
 # 4. Monitor deployment
-docker-compose -f docker-compose-ghcr.yml logs -f
+docker compose -f containers/jupyter/docker-compose-ghcr.yml logs -f
 ```
 
 ### Package Development Workflow
 
 ```bash
 # 1. Start development environment
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # 2. Access Jupyter Lab
 open http://localhost:8888
@@ -564,7 +567,7 @@ cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
 
 # Build and start Jupyter environment
 ./containers/jupyter/build-all-images.sh
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # Access Jupyter Lab
 open http://localhost:8888
@@ -587,12 +590,12 @@ open http://localhost:8888
 # Terminal 1: Start main Altastata project
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/mycloud
 ./containers/jupyter/build-all-images.sh
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # Terminal 2: Start Python package
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
 ./containers/jupyter/build-all-images.sh
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # Access all services:
 # - Web UI: http://localhost:3000
@@ -667,10 +670,10 @@ for batch in DataLoader(dataset):
 ```bash
 # Deploy both projects from GHCR
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/mycloud
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
-docker-compose -f docker-compose-ghcr.yml up -d
+docker compose -f containers/jupyter/docker-compose-ghcr.yml up -d
 
 # Configure Jupyter for inference workloads
 docker exec altastata-jupyter pip install fastapi uvicorn
@@ -684,7 +687,7 @@ docker exec altastata-jupyter pip install fastapi uvicorn
 
 ```bash
 # Start with volume mounts for live editing
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # Edit Python files directly on host:
 # - ./altastata/ → /home/jovyan/altastata-source
@@ -711,7 +714,7 @@ docker-compose up -d altastata-web-ui altastata-admin-ui
 
 # Developer 3: ML/Python package
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
-docker-compose up -d
+docker compose -f containers/jupyter/docker-compose.yml up -d
 
 # All share the same altastata-network for communication
 ```
@@ -773,30 +776,22 @@ docker exec altastata-jupyter curl -s http://altastata-admin-api:8084/health
 
 ## Jupyter Token Authentication
 
-### ARM64 Image (Local Development)
+The Jupyter container does **not** use a hardcoded token; a token is **generated at startup** (all images: arm64, amd64, s390x). If you still see an old fixed token, rebuild the image and recreate the container. Use one of these to get the current token:
 
-The ARM64 image (`Dockerfile.arm64`) uses a **fixed token** for development convenience:
-
-- **Token**: `altastata-dev-token`
-- **Access URL**: `http://localhost:8888/?token=altastata-dev-token`
-
-### S390X Image (Production)
-
-The S390X image (`Dockerfile.s390x`) uses **auto-generated token authentication** for security:
-
-1. **Get the token** by connecting to the container terminal:
+1. **From container logs** (look for a line with `http://127.0.0.1:8888` and `?token=...`):
    ```bash
-   docker exec -it <container_name> jupyter server list
+   docker logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"
    ```
 
-2. **Example output**:
+2. **From inside the container**:
+   ```bash
+   docker exec altastata-jupyter jupyter server list
    ```
-   http://localhost:8888/?token=ua5nw5fwkdzseqpp5apj :: /home/jovyan
-   ```
+   Example output: `http://localhost:8888/?token=abc123... :: /home/jovyan`
 
-3. **Copy the token** (the string after `token=`) and paste it into the JupyterLab login page.
+3. **Copy the token** (the string after `?token=`) and either open that full URL in the browser or go to **http://localhost:8888/lab** and paste the token when prompted.
 
-4. **Optional**: On first login with the token, you can set a password for future access.
+4. **Optional**: On first login, you can set a password for future access.
 
 For more details, see:
 - [RunPod Token Authentication Guide](https://docs.runpod.io/references/troubleshooting/token-authentication-enabled)
@@ -807,8 +802,7 @@ For more details, see:
 - The container runs as user `1001` for OpenShift compatibility
 - Java 17 is installed for Py4J integration with JAR files
 - PyTorch CPU-only version is installed to reduce image size
-- ARM64 image uses fixed token (`altastata-dev-token`) for development convenience
-- S390X image uses auto-generated token authentication for production security
+- Jupyter token is auto-generated at container startup (see [Jupyter Token Authentication](#jupyter-token-authentication))
 - All examples and source code are mounted as volumes for live editing
 - The package includes large JAR files (83MB altastata-hadoop-all.jar)
 - Symbolic links provide easy access to examples from Jupyter interface

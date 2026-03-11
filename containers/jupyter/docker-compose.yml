@@ -1,17 +1,21 @@
 version: '3.8'
 
+# Jupyter stack. Run from repo root: docker compose -f containers/jupyter/docker-compose.yml up -d
 # ARCH is set by update-version.sh or .env (arm64|amd64). Default: amd64.
-# VERSION is from version.sh. Run ./update-version.sh to sync .env with version.sh.
+# VERSION is from version.sh. Run ./update-version.sh to sync.
 services:
   altastata-jupyter:
-    image: ghcr.io/sergevil/altastata/jupyter-datascience-${ARCH:-amd64}:${VERSION}
+    image: altastata/jupyter-datascience-${ARCH:-amd64}:${VERSION}
+    build:
+      context: ../..
+      dockerfile: containers/jupyter/Dockerfile.${ARCH:-amd64}
     container_name: altastata-jupyter
     ports:
       - "8888:8888"
     volumes:
-      - ./examples/pytorch-example:/home/jovyan/pytorch-example
-      - ./examples/tensorflow-example:/home/jovyan/tensorflow-example
-      - ./altastata:/home/jovyan/altastata-source
+      - ../../examples/pytorch-example:/home/jovyan/pytorch-example
+      - ../../examples/tensorflow-example:/home/jovyan/tensorflow-example
+      - ../../altastata:/home/jovyan/altastata-source
       - jupyter-data:/home/jovyan/work
     environment:
       - JUPYTER_ENABLE_LAB=yes
@@ -33,4 +37,4 @@ volumes:
 
 networks:
   altastata-network:
-    driver: bridge 
+    driver: bridge

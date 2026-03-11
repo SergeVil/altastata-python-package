@@ -1,4 +1,4 @@
-# From containers/jupyter/.dockerignore (context root for docker build)
+# Used for all docker builds from repo root (context is .). Do not move.
 .git
 .gitignore
 __pycache__

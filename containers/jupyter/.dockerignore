@@ -1,3 +1,4 @@
+# Reference only. Builds use repo root as context; root .dockerignore is used.
 .git
 .gitignore
 __pycache__
