@@ -38,9 +38,9 @@ The Docker image version is centrally managed in `version.sh`. To update the ver
    ```
 
 The version will be automatically used by:
-- Build scripts (`build-all-images.sh`, `push-to-ghcr.sh`)
+- Build scripts (`containers/jupyter/build-all-images.sh`, `containers/jupyter/push-to-ghcr.sh`)
 - Docker Compose files (`docker-compose.yml`)
-- Kubernetes manifests (`confidential-gke/jupyter-deployment.yaml`)
+- Kubernetes manifests (`containers/confidential-gke/jupyter-deployment.yaml`)
 
 **Note**: All scripts validate that `VERSION` is set and will exit with an error if it's missing.
 
@@ -56,7 +56,7 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 
 The project builds **architecture-specific Docker images** for AMD64 and ARM64.
 Each architecture has its own GHCR package. The s390x (IBM Z/LinuxONE) image is built
-separately using `openshift/Dockerfile.s390x`.
+separately using `containers/jupyter/Dockerfile.s390x`.
 
 ### Available Images
 
@@ -68,15 +68,15 @@ separately using `openshift/Dockerfile.s390x`.
 
 ### Dockerfile
 
-- `openshift/Dockerfile.amd64` - AMD64 build
-- `openshift/Dockerfile.arm64` - ARM64 build
-- `openshift/Dockerfile.s390x` - IBM Z/LinuxONE build
+- `containers/jupyter/Dockerfile.amd64` - AMD64 build
+- `containers/jupyter/Dockerfile.arm64` - ARM64 build
+- `containers/jupyter/Dockerfile.s390x` - IBM Z/LinuxONE build
 
 ### Build Scripts
 
-- `build-all-images.sh` - Build local AMD64 image
-- `push-to-ghcr.sh` - Build and push ARM64 + AMD64 images to GHCR
-- `cleanup-jupyter-images.sh` - Clean up Docker images
+- `containers/jupyter/build-all-images.sh` - Build local AMD64 image
+- `containers/jupyter/push-to-ghcr.sh` - Build and push ARM64 + AMD64 images to GHCR
+- `containers/jupyter/cleanup-jupyter-images.sh` - Clean up Docker images
 
 ### Usage (AMD64 + ARM64)
 
@@ -108,7 +108,7 @@ docker run -p 8888:8888 ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${V
 
 ```bash
 # 1. Build the image
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 
 # 2. Run locally
 docker-compose up -d
@@ -130,21 +130,21 @@ docker-compose -f docker-compose-ghcr.yml up -d
 
 ```bash
 # Build and push architecture-specific images to GHCR
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 ```
 
 This script will:
-1. Build ARM64 image using `openshift/Dockerfile.arm64` and push to `jupyter-datascience-arm64`
-2. Build AMD64 image using `openshift/Dockerfile.amd64` and push to `jupyter-datascience-amd64`
+1. Build ARM64 image using `containers/jupyter/Dockerfile.arm64` and push to `jupyter-datascience-arm64`
+2. Build AMD64 image using `containers/jupyter/Dockerfile.amd64` and push to `jupyter-datascience-amd64`
 
 ### Local Build
 
 ```bash
 # Build ARM64 image locally (Apple Silicon):
-docker build -f openshift/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .
+docker build -f containers/jupyter/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .
 
 # Build AMD64 image locally:
-docker buildx build --platform linux/amd64 -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .
+docker buildx build --platform linux/amd64 -f containers/jupyter/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .
 ```
 
 ### Manual Build and Push
@@ -153,9 +153,9 @@ docker buildx build --platform linux/amd64 -f openshift/Dockerfile.amd64 -t alta
 # Create network first
 docker network create altastata-network
 
-# Build and push to GHCR (use ./push-to-ghcr.sh for automated push)
+# Build and push to GHCR (use ./containers/jupyter/push-to-ghcr.sh for automated push)
 source version.sh
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 ```
 
 ## Local Development
@@ -186,8 +186,8 @@ docker run -d \
   --name altastata-jupyter \
   -p 8888:8888 \
   --network altastata-network \
-  -v $(pwd)/pytorch-example:/home/jovyan/pytorch-example \
-  -v $(pwd)/tensorflow-example:/home/jovyan/tensorflow-example \
+  -v $(pwd)/examples/pytorch-example:/home/jovyan/pytorch-example \
+  -v $(pwd)/examples/tensorflow-example:/home/jovyan/tensorflow-example \
   -v $(pwd)/altastata:/home/jovyan/altastata-source \
   -e JUPYTER_ENABLE_LAB=yes \
   ghcr.io/sergevil/altastata/jupyter-datascience-arm64:latest   # or jupyter-datascience-amd64 on Intel/AMD
@@ -214,7 +214,7 @@ docker-compose logs -f altastata-jupyter
 
 ```bash
 # Set your GitHub Personal Access Token
-export YOUR_PAT=your_github_token_here          # see push-to-ghcr.sh
+export YOUR_PAT=your_github_token_here          # see containers/jupyter/push-to-ghcr.sh
 
 # Login to GitHub Container Registry
 echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
@@ -226,7 +226,7 @@ echo $YOUR_PAT | docker login ghcr.io -u your_username --password-stdin
 
 ```bash
 # Build and push architecture-specific images to GHCR
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 ```
 
 This builds and pushes both `jupyter-datascience-arm64` and `jupyter-datascience-amd64` with the version from `version.sh`.
@@ -236,7 +236,7 @@ This builds and pushes both `jupyter-datascience-arm64` and `jupyter-datascience
 ```bash
 # Login first
 export GITHUB_TOKEN=your_github_token_here
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 
 
 
@@ -291,7 +291,7 @@ Deploy Altastata in a secure, confidential computing environment on Google Cloud
 
 ```bash
 # Navigate to confidential GKE setup
-cd confidential-gke
+cd containers/confidential-gke
 
 # Deploy confidential cluster with AMD SEV security
 ./setup-cluster.sh
@@ -344,7 +344,7 @@ gcloud container clusters delete altastata-confidential-cluster --zone=us-centra
 | **Start Container** | `kubectl scale deployment altastata-jupyter-confidential --replicas=1` |
 | **Check Status** | `kubectl get pods -l app=altastata-jupyter` |
 
-See `confidential-gke/README.md` for detailed setup instructions.
+See `containers/confidential-gke/README.md` for detailed setup instructions.
 
 ## Volume Management
 
@@ -354,8 +354,8 @@ The Jupyter container uses several volume mounts for development:
 
 ```bash
 # Volume mounts
--v ./pytorch-example:/home/jovyan/pytorch-example      # PyTorch examples
--v ./tensorflow-example:/home/jovyan/tensorflow-example # TensorFlow examples
+-v ./examples/pytorch-example:/home/jovyan/pytorch-example      # PyTorch examples
+-v ./examples/tensorflow-example:/home/jovyan/tensorflow-example # TensorFlow examples
 -v ./altastata:/home/jovyan/altastata-source           # Source code
 -v jupyter-data:/home/jovyan/work                      # Persistent workspace
 ```
@@ -456,8 +456,8 @@ docker exec altastata-jupyter ls -la $(docker exec altastata-jupyter python -c "
 #### 5. Build Failures
 ```bash
 # Build with verbose output (use image matching your platform)
-docker build --no-cache --progress=plain -f openshift/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .   # ARM64
-docker buildx build --no-cache --progress=plain --platform linux/amd64 -f openshift/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .   # AMD64
+docker build --no-cache --progress=plain -f containers/jupyter/Dockerfile.arm64 -t altastata/jupyter-datascience-arm64:latest .   # ARM64
+docker buildx build --no-cache --progress=plain --platform linux/amd64 -f containers/jupyter/Dockerfile.amd64 -t altastata/jupyter-datascience-amd64:latest --load .   # AMD64
 
 # Check build context
 ls -la .
@@ -504,7 +504,7 @@ When deployed, the service is available at:
 
 ```bash
 # 1. Build image
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 
 # 2. Start development environment
 docker-compose up -d
@@ -520,10 +520,10 @@ docker-compose up -d altastata-jupyter
 
 ```bash
 # 1. Build and tag image
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 
 # 2. Push to GHCR
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 
 # 3. Deploy from GHCR
 docker-compose -f docker-compose-ghcr.yml up -d
@@ -543,8 +543,8 @@ open http://localhost:8888
 
 # 3. Edit Python files in mounted directories:
 #    - ./altastata/ (source code)
-#    - ./pytorch-example/ (PyTorch examples)
-#    - ./tensorflow-example/ (TensorFlow examples)
+#    - ./examples/pytorch-example/ (PyTorch examples)
+#    - ./examples/tensorflow-example/ (TensorFlow examples)
 
 # 4. Test changes in Jupyter notebooks
 
@@ -563,7 +563,7 @@ docker exec altastata-jupyter pip install -e /home/jovyan/altastata-source
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
 
 # Build and start Jupyter environment
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 docker-compose up -d
 
 # Access Jupyter Lab
@@ -586,12 +586,12 @@ open http://localhost:8888
 ```bash
 # Terminal 1: Start main Altastata project
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/mycloud
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 docker-compose up -d
 
 # Terminal 2: Start Python package
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
-./build-all-images.sh
+./containers/jupyter/build-all-images.sh
 docker-compose up -d
 
 # Access all services:
@@ -688,8 +688,8 @@ docker-compose up -d
 
 # Edit Python files directly on host:
 # - ./altastata/ → /home/jovyan/altastata-source
-# - ./pytorch-example/ → /home/jovyan/pytorch-example
-# - ./tensorflow-example/ → /home/jovyan/tensorflow-example
+# - ./examples/pytorch-example/ → /home/jovyan/pytorch-example
+# - ./examples/tensorflow-example/ → /home/jovyan/tensorflow-example
 
 # Reload package in Jupyter without restart
 docker exec altastata-jupyter pip install -e /home/jovyan/altastata-source

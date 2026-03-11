@@ -55,13 +55,13 @@ Use the comprehensive build script for easy deployment:
 
 ```bash
 # Complete build and upload process
-./build-and-upload.sh
+./containers/jupyter/build-and-upload.sh
 
 # Or run individual steps:
-python -m build                    # Build Python package
-twine upload dist/*               # Upload to PyPI
-./build-all-images.sh             # Build Docker images
-./push-to-ghcr.sh                # Push to GHCR
+python -m build                                    # Build Python package
+twine upload dist/*                               # Upload to PyPI
+./containers/jupyter/build-all-images.sh           # Build Docker images
+./containers/jupyter/push-to-ghcr.sh               # Push to GHCR
 ```
 ```## Docker Deployment
 
@@ -78,7 +78,7 @@ All build scripts automatically use the version from `version.sh`.
 
 The project builds **architecture-specific images** for AMD64 and ARM64.
 Each architecture has its own GHCR package. The s390x (IBM Z/LinuxONE) image
-is built separately using `openshift/Dockerfile.s390x`.
+is built separately using `containers/jupyter/Dockerfile.s390x`.
 
 - **AMD64 (x86_64)**: `jupyter-datascience-amd64` — Intel/AMD processors and GCP nodes
 - **ARM64**: `jupyter-datascience-arm64` — Apple Silicon Macs and ARM servers
@@ -87,7 +87,7 @@ is built separately using `openshift/Dockerfile.s390x`.
 ### Building and Pushing Images
 ```bash
 # Build and push architecture-specific images to GHCR
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 
 # This creates:
 # - ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}

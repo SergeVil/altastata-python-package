@@ -73,10 +73,10 @@ Thumbs.db
 gc.log*
 
 # Vertex AI runtime config
-rag-example/.vertex_config
-rag-example/setup_output*.log
+examples/rag-example/.vertex_config
+examples/rag-example/setup_output*.log
 setup_output*.log
 
 # RAG open_llm: generated index and chroma (do not ship in image or commit)
-rag-example/open_llm/local_index/
-rag-example/open_llm/chroma_data/
+examples/rag-example/open_llm/local_index/
+examples/rag-example/open_llm/chroma_data/

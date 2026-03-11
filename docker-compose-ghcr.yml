@@ -9,8 +9,8 @@ services:
     ports:
       - "8888:8888"
     volumes:
-      - ./pytorch-example:/home/jovyan/pytorch-example
-      - ./tensorflow-example:/home/jovyan/tensorflow-example
+      - ./examples/pytorch-example:/home/jovyan/pytorch-example
+      - ./examples/tensorflow-example:/home/jovyan/tensorflow-example
       - ./altastata:/home/jovyan/altastata-source
       - jupyter-data:/home/jovyan/work
     environment:
