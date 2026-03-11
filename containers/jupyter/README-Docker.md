@@ -2,6 +2,8 @@
 
 This comprehensive guide covers building, running, and deploying the Altastata Python Package Jupyter DataScience environment using Docker containers, including local development and GitHub Container Registry (GHCR) deployment.
 
+**Convention:** All paths and commands in this guide assume you are at the **repository root** (the `altastata-python-package` directory). Run `docker compose` and scripts from there.
+
 ## Table of Contents
 
 - [Prerequisites](#prerequisites)

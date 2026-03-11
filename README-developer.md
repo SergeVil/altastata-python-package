@@ -63,7 +63,10 @@ twine upload dist/*                               # Upload to PyPI
 ./containers/jupyter/build-all-images.sh           # Build Docker images
 ./containers/jupyter/push-to-ghcr.sh               # Push to GHCR
 ```
-```## Docker Deployment
+
+## Docker Deployment
+
+Full guide: [containers/jupyter/README-Docker.md](containers/jupyter/README-Docker.md)
 
 ### Version Management
 
@@ -112,7 +115,7 @@ docker compose -f containers/jupyter/docker-compose-ghcr.yml logs altastata-jupy
 # or
 docker exec altastata-jupyter jupyter server list
 ```
-Use the URL with `?token=...` from the output, or paste the token on the login page. If you still see an old fixed token, rebuild the image and recreate the container (see README-Docker.md).
+Use the URL with `?token=...` from the output, or paste the token on the login page. If you still see an old fixed token, rebuild the image and recreate the container (see containers/jupyter/README-Docker.md).
 
 **Option B: Single `docker run` with GHCR image**
 
