@@ -221,6 +221,7 @@ class OpenRAGIndexer:
 
 def main():
     import argparse
+    from simple_store import simple_store_exists
     p = argparse.ArgumentParser(description="Open RAG indexer (simple vector store + AltaStata)")
     p.add_argument("--once", type=str, default="", help="Index once from this AltaStata path (e.g. RAGDocs/policies) and exit")
     args = p.parse_args()
@@ -233,11 +234,12 @@ def main():
         if indexer.altastata:
             indexer.altastata.shutdown()
         return
-    # Bootstrap: index existing files under RAG_INDEX_PATH, then listen for new SHARE events
-    if RAG_INDEX_PATH and RAG_INDEX_PATH.strip():
+    # Default: index what we have (if no index yet), then listen for SHARE events
+    if not simple_store_exists(LOCAL_INDEX_PATH) and RAG_INDEX_PATH and RAG_INDEX_PATH.strip():
         print(f"📂 Indexing existing path: {RAG_INDEX_PATH}")
         indexer.index_path_once(RAG_INDEX_PATH.strip())
-        print("✅ Bootstrap index done. Starting event listener for new shared files.\n")
+        print("✅ Bootstrap index done.")
+    print("🎧 Starting event listener for new shared files.\n")
     indexer.run_listener()
 
 

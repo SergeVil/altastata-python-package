@@ -49,5 +49,11 @@ else
   fi
 fi
 
+# Start indexer in background: uses existing index or bootstraps if none, then listens for SHARE events
+if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
+  echo "[entrypoint] Starting indexer in background (index existing + listen for new shared docs)."
+  python -m indexer &
+fi
+
 echo "[entrypoint] Starting web server on port ${WEB_PORT:-8000}..."
 exec "$@"

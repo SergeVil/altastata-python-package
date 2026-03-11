@@ -20,6 +20,7 @@ from config import (
     ALTASTATA_ACCOUNT_ID,
     EMBEDDING_MODEL,
     LLM_PROVIDER,
+    LOCAL_INDEX_PATH,
     OLLAMA_BASE_URL,
     OLLAMA_MODEL,
     OLLAMA_NUM_PREDICT,
@@ -40,6 +41,7 @@ from indexer import get_vector_store as _get_vector_store_impl
 # Cache so we don't reload embedding model / vector store / LLM on every request
 _cached_embeddings = None
 _cached_vector_store = None
+_cached_vector_store_mtime = None  # invalidate when index is updated by background indexer
 _cached_llm = None
 
 
@@ -81,9 +83,15 @@ def _get_embeddings():
 
 
 def _get_vector_store():
-    global _cached_vector_store
+    global _cached_vector_store, _cached_vector_store_mtime
+    index_file = os.path.join(LOCAL_INDEX_PATH, "embeddings.npy")
+    if _cached_vector_store is not None and os.path.isfile(index_file):
+        mtime = os.path.getmtime(index_file)
+        if _cached_vector_store_mtime is not None and mtime > _cached_vector_store_mtime:
+            _cached_vector_store = None
     if _cached_vector_store is None:
         _cached_vector_store = _get_vector_store_impl(_get_embeddings())
+        _cached_vector_store_mtime = os.path.getmtime(index_file) if os.path.isfile(index_file) else None
     return _cached_vector_store
 
 

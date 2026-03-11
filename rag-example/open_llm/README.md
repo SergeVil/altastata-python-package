@@ -2,7 +2,7 @@
 
 This variant of the RAG example uses **no GCP**: open-source LLM (Ollama), a vector store (default: simple), and local embeddings (sentence-transformers), with **LangChain** for orchestration. Data can live in **AltaStata** (encrypted); the stack runs locally or in Docker.
 
-**Recent changes:** Default Transformers model is **SmolLM2-360M-Instruct** (faster than TinyLlama on CPU). Chunk reads from AltaStata are **parallelized** to reduce query latency. Mac build script (`openshift/rag/build-and-run-rag-mac.sh`) supports `LLM_PROVIDER=ollama` with Ollama on the host for much faster answers. Entrypoint and indexer emit clearer logs for AltaStata connection debugging.
+**Recent changes:** Default Transformers model is **SmolLM2-360M-Instruct** (faster than TinyLlama on CPU). Chunk reads from AltaStata are **parallelized** to reduce query latency. The web app **reloads the vector store** when the index file is updated (e.g. by the background indexer), so new documents appear on the next query without restarting. Mac build script (`openshift/rag/build-and-run-rag-mac.sh`) supports `LLM_PROVIDER=ollama` with Ollama on the host for much faster answers. Entrypoint and indexer emit clearer logs for AltaStata connection debugging.
 
 ## Simplest demo (ARM, x86 – no Docker)
 
@@ -98,7 +98,7 @@ Then open **http://localhost:8000**.
 python index_local.py
 ```
 
-This indexes `rag-example/sample_documents/` . **Restart the web app** after running so it picks up the new index, then ask e.g. “What are the password requirements?”.
+This indexes `rag-example/sample_documents/` . The web app picks up the new index on the next query (no restart needed). Then ask e.g. “What are the password requirements?”.
 
 **Index from AltaStata** (after uploading/sharing docs there), in a **third** terminal from `rag-example/open_llm/`:
 
