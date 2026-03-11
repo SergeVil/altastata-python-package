@@ -141,6 +141,8 @@ def _get_llm():
             import torch
             device = 0 if torch.cuda.is_available() else -1  # CPU on Mac/390, GPU if present
             model_to_use = HF_LLM_MODEL
+            # Avoid meta tensors: low_cpu_mem_usage can leave placeholders that cause "Tensor.item() cannot be called on meta tensors" during generation
+            model_kwargs = {"low_cpu_mem_usage": False}
             for attempt in range(2):
                 try:
                     pipe = pipeline(
@@ -150,6 +152,7 @@ def _get_llm():
                         temperature=0.1,
                         do_sample=True,
                         device=device,
+                        model_kwargs=model_kwargs,
                     )
                     # Use chat template if available (SmolLM2 and other instruction models generate better)
                     _cached_llm = _TransformersChatWrapper(pipe)
