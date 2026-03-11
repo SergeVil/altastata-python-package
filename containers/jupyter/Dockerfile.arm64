@@ -1,0 +1,62 @@
+# Build stage - arm64 for local testing of repo code on Mac
+# Base: Python data science with preinstalled Java and Spark
+# TARGETPLATFORM avoids "constant value" warning when building for arm64 (e.g. build-all-images.sh)
+ARG TARGETPLATFORM=linux/arm64
+FROM --platform=$TARGETPLATFORM quay.io/jupyter/pyspark-notebook:latest
+
+LABEL maintainer="Altastata Team"
+LABEL version="1.0.0"
+LABEL description="Altastata Jupyter DataScience (arm64 local test on Mac)"
+LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-python-package"
+
+USER root
+
+# Create /opt/app-root for consistency with AMD64 layout
+RUN mkdir -p /opt/app-root/src && \
+    chown -R ${NB_UID}:${NB_GID} /opt/app-root
+
+# Install only altastata and PyTorch
+# Use setuptools<75 for pkg_resources (conda setuptools 82 lacks it for Python 3.13)
+# Note: torchaudio 2.5.1 not available for Python 3.13/ARM64; using latest compatible versions
+RUN pip install --no-cache-dir "setuptools<75" && \
+    pip install --no-cache-dir altastata && \
+    pip install --no-cache-dir torch torchvision torchaudio
+
+# Copy pytorch-example for reference
+COPY --chown=${NB_UID}:${NB_GID} examples/pytorch-example /opt/app-root/src/pytorch-example/
+RUN chown -R ${NB_UID}:${NB_GID} /opt/app-root/src/pytorch-example && \
+    chmod -R g+rwX /opt/app-root/src/pytorch-example
+
+USER ${NB_UID}
+
+# Verify that altastata is installed and working
+RUN echo "Verifying altastata installation:" && \
+    python -c "import altastata; print('Module location:', altastata.__file__)" && \
+    python -c "from altastata import AltaStataFunctions; print('AltaStataFunctions imported successfully')" && \
+    echo "✅ AltaStata package is ready!"
+
+# Configure Jupyter (base image uses /home/jovyan)
+USER root
+RUN mkdir -p /home/jovyan/.jupyter && \
+    echo '{"ServerApp": {"allow_origin": "*", "allow_credentials": true}}' > /home/jovyan/.jupyter/jupyter_server_config.json && \
+    chown -R ${NB_UID}:${NB_GID} /home/jovyan/.jupyter
+USER ${NB_UID}
+
+# Expose Jupyter port (8888) and Spark UI (4040)
+EXPOSE 8888 4040
+
+# Set environment variables for Jupyter
+ENV JUPYTER_ENABLE_LAB=yes
+ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
+ENV LANG=en_US.UTF-8
+ENV LC_ALL=en_US.UTF-8
+
+# Set the image label
+LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
+LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
+LABEL org.opencontainers.image.version="latest"
+
+# Override base entrypoint and start Jupyter Lab
+# Fixed token for local development (arm64 Mac testing)
+ENTRYPOINT []
+CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/home/jovyan", "--ServerApp.token=altastata-dev-token"]

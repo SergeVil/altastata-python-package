@@ -38,17 +38,17 @@ python -m build
 python test_script.py
 
 # Test PyTorch example
-cd pytorch-example && python training_example.py
+cd examples/pytorch-example && python training_example.py
 
 # Test TensorFlow example 
-cd tensorflow-example && python training_example.py
+cd examples/tensorflow-example && python training_example.py
 ```
 
 ### Docker Development
 ```bash
 # Build container (use image matching your platform: arm64 or amd64)
-docker build -t altastata/jupyter-datascience-arm64:latest -f openshift/Dockerfile.arm64 .   # Apple Silicon
-# or: docker buildx build --platform linux/amd64 -t altastata/jupyter-datascience-amd64:latest -f openshift/Dockerfile.amd64 --load .
+docker build -t altastata/jupyter-datascience-arm64:latest -f containers/jupyter/Dockerfile.arm64 .   # Apple Silicon
+# or: docker buildx build --platform linux/amd64 -t altastata/jupyter-datascience-amd64:latest -f containers/jupyter/Dockerfile.amd64 --load .
 
 # Run with volume mounts
 docker run -d -p 8888:8888 \
@@ -58,13 +58,13 @@ docker run -d -p 8888:8888 \
 ```
 
 ### RAG Open LLM on IBM Z (s390x)
-- **Build on server:** `./openshift/rag/build-rag-s390x-on-server.sh` (syncs repo, builds image on LinuxONE; set `SSH_HOST`, `SSH_KEY` if needed).
-- **Push to ICR:** `./openshift/rag/push-rag-s390x-to-icr-from-server.sh` (after build). **Run:** `./openshift/rag/pull-and-run-rag-s390x-from-icr.sh`.
-- **Image:** `openshift/rag/Dockerfile.open_llm_s390x` (base: ibmz-accelerated-for-pytorch; deps layer cached when requirements.txt unchanged). See `rag-example/open_llm/README.md` for full s390x docs.
+- **Build on server:** `./containers/rag-example/build-rag-s390x-on-server.sh` (syncs repo, builds image on LinuxONE; set `SSH_HOST`, `SSH_KEY` if needed).
+- **Push to ICR:** `./containers/rag-example/push-rag-s390x-to-icr-from-server.sh` (after build). **Run:** `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh`.
+- **Image:** `containers/rag-example/Dockerfile.open_llm_s390x` (base: ibmz-accelerated-for-pytorch; deps layer cached when requirements.txt unchanged). See `examples/rag-example/open_llm/README.md` for full s390x docs.
 
 ### RAG Open LLM on Mac (same layout as s390x)
-- **Build and run:** `ALTASTATA_ACCOUNT_DIR=$HOME/.altastata/accounts/amazon.rsa.bob123 ./openshift/rag/build-and-run-rag-mac.sh` (AltaStata only, index at startup).
-- **Image:** `openshift/rag/Dockerfile.open_llm_mac` (python:3.11-slim; no sample_documents, same entrypoint as s390x).
+- **Build and run:** `ALTASTATA_ACCOUNT_DIR=$HOME/.altastata/accounts/amazon.rsa.bob123 ./containers/rag-example/build-and-run-rag-mac.sh` (AltaStata only, index at startup).
+- **Image:** `containers/rag-example/Dockerfile.open_llm_mac` (python:3.11-slim; no sample_documents, same entrypoint as s390x).
 - **Faster answers:** Run Ollama on the host (e.g. `ollama run smollm2:360m`), then `LLM_PROVIDER=ollama` with same script; script passes `OLLAMA_BASE_URL=http://host.docker.internal:11434`.
 - **Query path:** Chunk reads from AltaStata are parallelized (ThreadPoolExecutor). Default Transformers model is SmolLM2-360M-Instruct. Entrypoint logs account dir and indexer result for debugging.
 
@@ -116,9 +116,10 @@ dataset = AltaStataTensorFlowDataset(
 ## File Structure Guidelines
 
 - `altastata/`: Main package code
-- `pytorch-example/`: Complete PyTorch training example with CNN model
-- `tensorflow-example/`: Complete TensorFlow training example with custom layers
-- `openshift/`: Docker configuration and requirements
+- `examples/`: Runnable examples — `pytorch-example/`, `tensorflow-example/`, `fsspec-example/`, `event-listener-example/`, `rag-example/`
+- `containers/jupyter/`: Jupyter DataScience Dockerfiles (arm64, amd64, s390x) and build scripts (`build-all-images.sh`, `push-to-ghcr.sh`)
+- `containers/rag-example/`: RAG Open LLM Dockerfiles and scripts (Mac, s390x)
+- `containers/confidential-gke/`: GKE deployment (jupyter-deployment.yaml, setup-cluster.sh)
 - JAR files must be in `altastata/lib/` for Java gateway functionality
 
 ## Key Implementation Notes

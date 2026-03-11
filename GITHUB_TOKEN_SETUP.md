@@ -36,7 +36,7 @@ source ~/.bashrc
 echo $GITHUB_TOKEN | docker login ghcr.io -u sergevil --password-stdin
 
 # If successful, you can now push images
-./push-to-ghcr.sh
+./containers/jupyter/push-to-ghcr.sh
 ```
 
 ## Security Best Practices
@@ -86,7 +86,7 @@ brew install gh  # macOS
 gh auth login
 
 # Then use ghcr.io without explicit token
-# Note: Version is managed in version.sh - use ./push-to-ghcr.sh instead
+# Note: Version is managed in version.sh - use ./containers/jupyter/push-to-ghcr.sh instead
 source version.sh
-./push-to-ghcr.sh   # Pushes jupyter-datascience-arm64 and jupyter-datascience-amd64:${VERSION}
+./containers/jupyter/push-to-ghcr.sh   # Pushes jupyter-datascience-arm64 and jupyter-datascience-amd64:${VERSION}
 ``` 

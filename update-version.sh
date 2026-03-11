@@ -2,7 +2,7 @@
 # Script to update version in all configuration files
 # This script reads version.sh and updates:
 # - .env (for docker-compose: VERSION, ARCH)
-# - confidential-gke/jupyter-deployment.yaml (Kubernetes manifest, uses jupyter-datascience-amd64)
+# - containers/confidential-gke/jupyter-deployment.yaml (Kubernetes manifest, uses jupyter-datascience-amd64)
 
 # Load version configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,13 +33,13 @@ echo "ARCH=${ARCH}" >> .env
 echo "✅ Updated .env file (VERSION=${VERSION}, ARCH=${ARCH})"
 
 # Update Kubernetes deployment manifest (GKE runs AMD64)
-if [ -f "confidential-gke/jupyter-deployment.yaml" ]; then
+if [ -f "containers/confidential-gke/jupyter-deployment.yaml" ]; then
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
+        sed -i '' "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" containers/confidential-gke/jupyter-deployment.yaml
     else
-        sed -i "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" confidential-gke/jupyter-deployment.yaml
+        sed -i "s|ghcr.io/sergevil/altastata/jupyter-datascience[^:]*:[^[:space:]]*|ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION}|g" containers/confidential-gke/jupyter-deployment.yaml
     fi
-    echo "✅ Updated confidential-gke/jupyter-deployment.yaml (jupyter-datascience-amd64:${VERSION})"
+    echo "✅ Updated containers/confidential-gke/jupyter-deployment.yaml (jupyter-datascience-amd64:${VERSION})"
 fi
 
 echo ""

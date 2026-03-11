@@ -123,7 +123,7 @@ altastata.set_password("your_password")
 listener = altastata.add_event_listener(event_handler)
 
 # Events will now be delivered in real-time!
-# See event-listener-example/ for complete demos
+# See examples/event-listener-example/ for complete demos
 ```
 
 **Perfect for:**
@@ -131,7 +131,7 @@ listener = altastata.add_event_listener(event_handler)
 - Audit logging and compliance
 - Workflow automation
 
-See [`event-listener-example/`](event-listener-example/) for complete documentation and working examples.
+See [`examples/event-listener-example/`](examples/event-listener-example/) for complete documentation and working examples.
 
 ## LangChain Integration
 
