@@ -54,11 +54,16 @@ rsync -avz --delete \
   --exclude 'local_index' \
   "$REPO_ROOT/" "$SSH_HOST:$REMOTE_DIR/"
 
-# Copy HPCS user.properties from repo to LinuxONE server (container-ready: no hpcs-yaml-path / hpcs-priv-key-blob-path)
+# Copy HPCS user.properties from repo to server only if present (file is not in repo by default; put it in containers/rag-example/ if you want it synced)
 HPCS_ACCOUNT="amazon.rsa.hpcs.serge678"
 HPCS_PROPERTIES_FILE="altastata-myorgrsa444-serge678.user.properties"
-echo "Copying $HPCS_PROPERTIES_FILE to server..."
-ssh $SSH_OPTS "$SSH_HOST" "mkdir -p $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT && cp $REMOTE_DIR/containers/rag-example/$HPCS_PROPERTIES_FILE $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT/$HPCS_PROPERTIES_FILE && echo '  Done'"
+HPCS_PROPERTIES_SRC="$REPO_ROOT/containers/rag-example/$HPCS_PROPERTIES_FILE"
+if [ -f "$HPCS_PROPERTIES_SRC" ]; then
+  echo "Copying $HPCS_PROPERTIES_FILE to server..."
+  ssh $SSH_OPTS "$SSH_HOST" "mkdir -p $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT && cp $REMOTE_DIR/containers/rag-example/$HPCS_PROPERTIES_FILE $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT/$HPCS_PROPERTIES_FILE && echo '  Done'"
+else
+  echo "Skipping $HPCS_PROPERTIES_FILE (not in repo). Ensure it exists on server at $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT/ if using HPCS."
+fi
 
 # Use same VERSION as Jupyter (version.sh)
 source "$REPO_ROOT/version.sh"
