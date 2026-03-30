@@ -246,43 +246,24 @@ class AltaStataFunctions(BaseGateway):
             bytes: File content.
 
         Strategy:
-            ≤ 8 MB  — single ``getBufferAsBase64`` call (no temp file, no streaming).
-            ≤ 64 MB — streaming 8 MB Base64 chunks over Py4J.
-            > 64 MB — Java writes to temp file, Python reads and deletes it.
+            ≤ 64 MB — single ``getBufferAsBase64`` call.  Java downloads
+                       chunks in parallel, assembles the result, and returns
+                       the entire content as one Base64 String over Py4J.
+            > 64 MB — Java streams to temp file via ``streamToFile``,
+                       Python reads and deletes it.
         """
         if snapshotTime is None:
             snapshotTime = int(time.time() * 1000)
-        if size <= PLAIN_CHUNK_MAX_SIZE:
-            return base64.b64decode(
-                self.altastata_file_system.getBufferAsBase64(
-                    cloudFilePath, snapshotTime, startPosition,
-                    howManyChunksInParallel, size,
-                )
-            )
         if size > TEMP_FILE_THRESHOLD:
             return self._get_buffer_via_temp_file(
                 cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel,
             )
-        java_stream = self.altastata_file_system.getFileInputStream(
-            cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel,
+        return base64.b64decode(
+            self.altastata_file_system.getBufferAsBase64(
+                cloudFilePath, snapshotTime, startPosition,
+                howManyChunksInParallel, size,
+            )
         )
-        try:
-            buf = bytearray(size)
-            view = memoryview(buf)
-            offset = 0
-            while offset < size:
-                b64_str = self.altastata_file_system.readBufferFromInputStreamAsBase64(
-                    java_stream, min(PLAIN_CHUNK_MAX_SIZE, size - offset),
-                )
-                if b64_str is None:
-                    break
-                chunk = base64.b64decode(b64_str)
-                n = len(chunk)
-                view[offset:offset + n] = chunk
-                offset += n
-            return bytes(buf[:offset])
-        finally:
-            java_stream.close()
 
     def _get_buffer_via_temp_file(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel):
         """Download large file via temp file for performance.
