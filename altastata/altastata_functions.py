@@ -4,11 +4,17 @@ from typing import List, Any, Dict, Optional, Union, Callable
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters, CallbackServerParameters, java_import
 from py4j.java_collections import JavaList
 
+import base64
 import io
 import os
-import mmap
+import tempfile
+import time
 import threading
 import queue
+
+PLAIN_CHUNK_MAX_SIZE = 8 * 1024 * 1024  # 8MB - matches Java Constants.PLAIN_CHUNK_MAX_SIZE
+TEMP_FILE_THRESHOLD = 64 * 1024 * 1024  # 64MB — above this, use temp file for performance
+
 
 
 class AltaStataEventListener:
@@ -227,70 +233,82 @@ class AltaStataFunctions(BaseGateway):
         return self.altastata_file_system.listCloudFilesVersions(cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd)
 
     def get_buffer(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, size):
+        """Read file content from cloud storage as ``bytes``.
+
+        Args:
+            cloudFilePath: Cloud file path (may include ✹ version suffix).
+            snapshotTime: Version timestamp, or None for latest.
+            startPosition: Byte offset to start reading from.
+            howManyChunksInParallel: Number of chunks to download concurrently.
+            size: Expected file size in bytes.
+
+        Returns:
+            bytes: File content.
+
+        Strategy:
+            ≤ 64 MB — single ``getBufferAsBase64`` call.  Java downloads
+                       chunks in parallel, assembles the result, and returns
+                       the entire content as one Base64 String over Py4J.
+            > 64 MB — Java streams to temp file via ``streamToFile``,
+                       Python reads and deletes it.
         """
-        Calls the Java method to get a byte array buffer and returns it as a Python bytes object.
+        if snapshotTime is None:
+            snapshotTime = int(time.time() * 1000)
+        if size > TEMP_FILE_THRESHOLD:
+            return self._get_buffer_via_temp_file(
+                cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel,
+            )
+        return base64.b64decode(
+            self.altastata_file_system.getBufferAsBase64(
+                cloudFilePath, snapshotTime, startPosition,
+                howManyChunksInParallel, size,
+            )
+        )
+
+    def _get_buffer_via_temp_file(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel):
+        """Download large file via temp file for performance.
+
+        Java streams chunks directly to a temp file (no heap buffering),
+        Python reads the result and immediately deletes it.
         """
-        java_byte_array = self.altastata_file_system.getBuffer(cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, size)
-
-        # Convert Java byte array to Python bytes
-        python_bytes = bytes(java_byte_array)
-        return python_bytes
-
-    def get_buffer_via_mapped_file(self, mappedFilePath, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, size):
-        """
-        Calls the Java method to fill a mapped file.
-        """
-        self.altastata_file_system.fillMappedFile(mappedFilePath, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel,
-                                                  size)
-
-        # Open the file and create a memory map
-        with open(mappedFilePath, "r+b") as f:
-            mmapped_file = mmap.mmap(f.fileno(), 0)
-
-            # Access data in Python
-            contents = mmapped_file[:]
-
-            # Close the memory map
-            mmapped_file.close()
-
-            os.remove(mappedFilePath)
-
-            return contents
-
-        print("Temporary mapped file does not exist.")
+        fd, tmp_path = tempfile.mkstemp(prefix="altastata_")
+        os.close(fd)
+        try:
+            self.altastata_file_system.streamToFile(
+                tmp_path, cloudFilePath, snapshotTime, startPosition,
+                howManyChunksInParallel,
+            )
+            with open(tmp_path, 'rb') as f:
+                return f.read()
+        finally:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                pass
 
     def get_java_input_stream(self, cloud_file_path, snapshot_time, start_position, how_many_chunks_in_parallel):
+        """Open a Java InputStream for the given cloud file.
 
-        # Call the Java method to get the InputStream
-        java_input_stream = self.altastata_file_system.getFileInputStream(cloud_file_path, snapshot_time, start_position, how_many_chunks_in_parallel)
+        Returns a Py4J reference to a Java InputStream. The caller is
+        responsible for reading from and closing the stream.
 
-        # Return the reference to Java InputStream, that should be processed by
-        return java_input_stream
+        For most use cases, prefer ``get_buffer`` which handles streaming
+        and cleanup internally. Use this only when true chunk-by-chunk
+        streaming is needed without loading the full file into memory.
+        """
+        if snapshot_time is None:
+            snapshot_time = int(time.time() * 1000)
+        return self.altastata_file_system.getFileInputStream(
+            cloud_file_path, snapshot_time, start_position, how_many_chunks_in_parallel,
+        )
 
-    def get_buffer_from_input_stream(self, java_input_stream, buffer_size):
-
-        return self.altastata_file_system.readBufferFromInputStream(java_input_stream, buffer_size)
-    
-    def read_input_stream_position(self, java_input_stream, buffer_size):
-        """Read data from Java InputStream using the standard read() method."""
-        # Use standard Java InputStream read() method via py4j for better efficiency
-        if buffer_size == -1:
-            # Read all available data
-            return java_input_stream.read()
-        else:
-            # Read specified number of bytes
-            return java_input_stream.read(buffer_size)
-    
-    def mark_input_stream_position(self, java_input_stream, read_limit=1024):
-        """Mark current position in InputStream using mark() method."""
-        # Use standard Java InputStream mark() method via py4j
-        return java_input_stream.mark(read_limit)
-    
     def get_file_attribute(self, cloud_file_path, snapshot_time, name):
         """
         Get file attribute from Altastata file system.
         """
         try:
+            if snapshot_time is None:
+                snapshot_time = int(time.time() * 1000)
             result = self.altastata_file_system.getFileAttribute(cloud_file_path, snapshot_time, name)
             return str(result) if result is not None else None
         except Exception as e:

@@ -120,57 +120,80 @@ class AltaStataFileSystem(AbstractFileSystem):
 
 
 class AltaStataFile(io.IOBase):
-    """Simple file-like object for reading from AltaStata."""
-    
+    """File-like object for reading from AltaStata cloud storage.
+
+    Lazily loads the full file content into memory on first read via
+    ``get_buffer`` (which streams in 8 MB chunks for large files).
+    Subsequent reads and seeks operate on the in-memory buffer.
+
+    For true chunk-by-chunk streaming without full buffering, use
+    ``AltaStataFunctions.get_java_input_stream`` directly.
+    """
+
     def __init__(self, filesystem: AltaStataFileSystem, path: str, mode: str):
         self.filesystem = filesystem
         self.path = path
         self.mode = mode
-        
-        # Use current system time
-        import time
-        current_time = int(time.time() * 1000)
-        self._java_stream = self.filesystem.altastata_functions.get_java_input_stream(self.path, current_time, 0, 4)
-        self._position = 0  # Track position based on last operation
-    
+        self._position = 0
+        self._content = None  # lazily loaded by _ensure_content()
+
+    def _ensure_content(self):
+        """Fetch the full file content once (lazy).
+
+        Uses ``get_buffer`` which streams in 8 MB chunks for large files,
+        keeping Java heap bounded.
+        """
+        if self._content is None:
+            af = self.filesystem.altastata_functions
+            size_str = af.get_file_attribute(self.path, None, "size")
+            try:
+                size = int(size_str) if size_str else 0
+            except (ValueError, TypeError):
+                size = 0
+            self._content = af.get_buffer(self.path, None, 0, 4, size)
+
     def read(self, size: int = -1) -> Union[bytes, str]:
-        """Read data from file."""
-        # Use the buffer method instead of direct read
+        """Read data from file.
+
+        All reads go through the in-memory content buffer so that
+        ``seek`` / ``read`` sequences work correctly.
+        """
+        self._ensure_content()
+
         if size == -1:
-            # Read all available data
-            data = self.filesystem.altastata_functions.get_buffer_from_input_stream(self._java_stream, 1024)
+            data = self._content[self._position:]
         else:
-            # Read specified amount
-            data = self.filesystem.altastata_functions.get_buffer_from_input_stream(self._java_stream, size)
-        
-        # Update position based on bytes read
-        if data:
-            self._position += len(data)
-        
+            data = self._content[self._position:self._position + size]
+
+        self._position += len(data)
+
         if self.mode != "rb" and data:
             return data.decode('utf-8')
-        
         return data if data else (b"" if self.mode == "rb" else "")
-    
+
     def seek(self, offset: int, whence: int = 0) -> int:
         """Seek to position."""
-        # Mark position for reset capability
-        try:
-            self.filesystem.altastata_functions.mark_input_stream_position(self._java_stream, offset)
-        except Exception:
-            pass
-        
-        # Update position based on seek
-        self._position = offset
-        return offset
-    
-    def tell(self) -> int:
-        """Get current position based on last operation (read or seek)."""
+        if whence == 0:
+            self._position = offset
+        elif whence == 1:
+            self._position += offset
+        elif whence == 2:
+            self._ensure_content()
+            self._position = len(self._content) + offset
         return self._position
-    
+
+    def tell(self) -> int:
+        return self._position
+
+    def readable(self) -> bool:
+        return True
+
+    def seekable(self) -> bool:
+        return True
+
     def close(self):
-        """Close file."""
-        self._java_stream = None
+        self._content = None
+        super().close()
 
 
 def create_filesystem(altastata_functions, account_id: str = "default"):
