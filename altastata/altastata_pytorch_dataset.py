@@ -7,9 +7,9 @@ import io
 import os
 import sys
 import json
+import collections
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
-import tempfile
 import fnmatch
 
 # Global hashmap to store altastata function instances by ID for PyTorch
@@ -59,7 +59,7 @@ class AltaStataPyTorchDataset(Dataset):
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
-        self.file_content_cache = {}  # Cache for small files
+        self.file_content_cache = collections.OrderedDict()
         self.cache_size_limit = 1024 * 1024 * 1024  # 1GB limit
         self.current_cache_size = 0
         self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
@@ -184,96 +184,56 @@ class AltaStataPyTorchDataset(Dataset):
             with open(local_path, 'wb') as f:
                 f.write(data)
 
-    def _read_file(self, path: str) -> bytes:
-        """Read bytes from a file using either AltaStataFunctions or local file operations."""
-        
-        # Check if file is in cache
+    def _cache_put(self, path: str, data: bytes):
+        """Insert data into the LRU cache, evicting oldest entries if needed.
+
+        Skips caching if the data exceeds ``max_file_size_for_cache``.
+        Handles duplicate keys by removing the old entry first.
+        """
+        data_len = len(data)
+        if data_len > self.max_file_size_for_cache:
+            return
+
         if path in self.file_content_cache:
-            #print(f"Worker {os.getpid()} - Reading from cache: {path}")
+            self.current_cache_size -= len(self.file_content_cache.pop(path))
+
+        while self.current_cache_size + data_len > self.cache_size_limit and self.file_content_cache:
+            evicted_path, evicted_data = self.file_content_cache.popitem(last=False)
+            self.current_cache_size -= len(evicted_data)
+
+        self.file_content_cache[path] = data
+        self.current_cache_size += data_len
+
+    def _read_file(self, path: str) -> bytes:
+        """Read file bytes from cloud storage or local filesystem.
+
+        Checks the in-memory LRU cache first. On a cache miss, fetches
+        the file size via ``get_file_attribute`` then reads content via
+        ``get_buffer`` (which streams in 8 MB chunks for large files).
+        The result is cached for subsequent reads.
+
+        Falls back to local file I/O when no AltaStata connection is
+        registered for this account.
+        """
+        # LRU cache hit — promote to most-recently-used
+        if path in self.file_content_cache:
+            self.file_content_cache.move_to_end(path)
             return self.file_content_cache[path]
-        
+
         altastata_functions = _get_altastata_functions(self.account_id)
-        worker_pid = os.getpid()
-        
+
         if altastata_functions is not None:
-            # Use AltaStataFunctions to read file from the cloud
-            #print(f"Worker {worker_pid} - Reading from cloud file: {path}")
-
-            # Check if path has version suffix pattern
-            if '✹' in path:
-                # Split on '✹' first to get the version part
-                _, version_part = path.split('✹', 1)
-
-                # Then split on '_' and take the last part
-                version_timestamp = int(version_part.split('_')[-1])
-
-                #print(f"Worker {worker_pid} - Using latest version time: {version_timestamp}")
-            else:
-                version_timestamp = None
-
-            #print(f"Worker {worker_pid} - Getting file size for path: {path}, version: {version_timestamp}")
-
-            # Get specific size attribute and convert to integer
-            file_size_str = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-            
-            # Convert file size to integer with basic error handling
+            # Two Py4J calls: size first, then get_buffer (streams for >8 MB)
+            size_str = altastata_functions.get_file_attribute(path, None, "size")
             try:
-                file_size = int(file_size_str) if file_size_str else 0
+                size = int(size_str) if size_str else 0
             except (ValueError, TypeError):
-                file_size = 0
-            #print(f"Worker {worker_pid} - File size: {file_size}"o 
-            # Read the file using memory mapping with the latest version
-            temp_file = None  # Initialize temp_file
-            try:
-                
-                if file_size <= self.max_file_size_for_cache:
-                    # For small files, use get_buffer directly
-                    #print(f"Worker {worker_pid} - Reading small file {path} directly")
-                    data = altastata_functions.get_buffer(
-                        path,
-                        version_timestamp,  # Use appropriate version time
-                        0,     # start_position
-                        4,     # how_many_chunks_in_parallel
-                        file_size
-                    )
-                    # Update file_size with actual size
-                    file_size = len(data)
-                    #print(f"Worker {worker_pid} - Determined file size from actual read: {file_size} bytes")
-                    
-                    # Cache the file if it's small enough and we have space
-                    if self.current_cache_size + file_size <= self.cache_size_limit:
-                        self.file_content_cache[path] = data
-                        self.current_cache_size += file_size
-                        #print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
-                    else:
-                        #print(f"Worker {worker_pid} - Not enough space in cache for {path}")
-                        pass
-                else:
-                    # For larger files, use memory mapping
-                    # Create a temporary file for memory mapping
-                    temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-
-                    #print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
-
-                    data = altastata_functions.get_buffer_via_mapped_file(
-                        temp_file,
-                        path,
-                        version_timestamp,  # Use appropriate version time
-                        0,     # start_position
-                        4,     # how_many_chunks_in_parallel
-                        file_size
-                    )
-
-                #print(f"Worker {worker_pid} - Successfully read {len(data)} bytes from cloud")
-                return data
-            finally:
-                # Clean up the temporary file if it exists
-                if temp_file and os.path.exists(temp_file):
-                    os.remove(temp_file)
+                size = 0
+            data = altastata_functions.get_buffer(path, None, 0, 4, size)
+            self._cache_put(path, data)
+            return data
         else:
-            # Fall back to local file operations
             local_path = str(self.root_dir / path)
-            #print(f"Worker {worker_pid} - Reading from local file: {local_path}")
             with open(local_path, 'rb') as f:
                 return f.read()
 

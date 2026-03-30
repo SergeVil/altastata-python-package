@@ -38,16 +38,14 @@ input_stream = altastata_functions.get_java_input_stream('StoreTest/desktop.ini'
 
 print("Input Stream: ")
 
-# Read data
+# Read data using Java readBufferFromInputStream directly
 chunk_size = 32
 while True:
-    data = altastata_functions.get_buffer_from_input_stream(input_stream, chunk_size)
-    if len(data) == 0:  # End of stream
+    data = altastata_functions.altastata_file_system.readBufferFromInputStream(input_stream, chunk_size)
+    if data is None or len(data) == 0:
         break
-    # Process data
-    print(data.decode('utf-8'), end="")
+    print(bytes(data).decode('utf-8'), end="")
 
-# Always explicitly call the close() method on the wrapper when you're done with it to prevent resource leaks
 input_stream.close()
 
 result = altastata_functions.get_file_attribute('StoreTest/desktop.ini', file_create_time_id, "readers")

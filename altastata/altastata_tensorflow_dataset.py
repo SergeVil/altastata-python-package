@@ -1,3 +1,4 @@
+import collections
 import tensorflow as tf
 import numpy as np
 from pathlib import Path
@@ -7,7 +8,6 @@ import os
 import json
 from typing import Dict, Any, Optional, Callable, Tuple
 from altastata.altastata_functions import AltaStataFunctions
-import tempfile
 import fnmatch
 
 # Global hashmap to store altastata function instances by ID for TensorFlow
@@ -42,7 +42,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
-        self.file_content_cache = {}  # Cache for small files
+        self.file_content_cache = collections.OrderedDict()
         self.cache_size_limit = 1024 * 1024 * 1024  # 1GB limit
         self.current_cache_size = 0
         self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
@@ -110,103 +110,49 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         """Returns the list of input datasets."""
         return []
 
-    def _read_from_altastata(self, altastata_functions, path, version_timestamp, max_file_size_for_cache, worker_pid=None, should_cache=False):
-        """Read file content from AltaStata.
-        
-        Args:
-            altastata_functions: AltaStataFunctions instance
-            path: File path
-            version_timestamp: Version timestamp
-            max_file_size_for_cache: Maximum file size for direct reading
-            worker_pid: Optional worker process ID for logging
-            should_cache: Whether to cache the file content
-            
-        Returns:
-            bytes: File content
+    def _cache_put(self, path: str, data: bytes):
+        """Insert data into the LRU cache, evicting oldest entries if needed.
+
+        Skips caching if the data exceeds ``max_file_size_for_cache``.
+        Handles duplicate keys by removing the old entry first.
         """
-        # Get file size directly
-        file_size_str = altastata_functions.get_file_attribute(path, version_timestamp, "size")
-        file_size = int(file_size_str) if file_size_str else 0
-        file_path = path
+        data_len = len(data)
+        if data_len > self.max_file_size_for_cache:
+            return
 
-        if version_timestamp is None:
-            _, version_part = file_path.split('✹', 1)
-            version_timestamp = int(version_part.split('_')[-1])
+        if path in self.file_content_cache:
+            self.current_cache_size -= len(self.file_content_cache.pop(path))
 
-        # Read the file using memory mapping with the latest version
-        temp_file = None
+        while self.current_cache_size + data_len > self.cache_size_limit and self.file_content_cache:
+            evicted_path, evicted_data = self.file_content_cache.popitem(last=False)
+            self.current_cache_size -= len(evicted_data)
+
+        self.file_content_cache[path] = data
+        self.current_cache_size += data_len
+
+    def _read_from_altastata(self, altastata_functions, path):
+        """Read file bytes from AltaStata cloud storage.
+
+        Checks the in-memory LRU cache first. On a cache miss, fetches
+        the file size via ``get_file_attribute`` then reads content via
+        ``get_buffer`` (which streams in 8 MB chunks for large files).
+        The result is always cached for subsequent reads.
+        """
+        if path in self.file_content_cache:
+            self.file_content_cache.move_to_end(path)
+            return self.file_content_cache[path]
+
+        size_str = altastata_functions.get_file_attribute(path, None, "size")
         try:
-            if file_size <= max_file_size_for_cache:
-                #if worker_pid:
-                #    print(f"Worker {worker_pid} - Reading small file {path} directly")
-                data = altastata_functions.get_buffer(
-                    path,
-                    version_timestamp,
-                    0,
-                    4,
-                    file_size
-                )
-                if should_cache and self.current_cache_size + file_size <= self.cache_size_limit:
-                    self.file_content_cache[path] = data
-                    self.current_cache_size += file_size
-                    if worker_pid:
-                        print(f"Worker {worker_pid} - Cached file {path} ({file_size} bytes)")
-                elif should_cache and worker_pid:
-                    print(f"Worker {worker_pid} - Not enough space in cache for {path}")
-            else:
-                #if worker_pid:
-                #    print(f"Worker {worker_pid} - Reading large file {path} via memory mapping")
-                temp_file = os.path.join(tempfile.gettempdir(), f"altastata_temp_{os.urandom(8).hex()}")
-                data = altastata_functions.get_buffer_via_mapped_file(
-                    temp_file,
-                    path,
-                    version_timestamp,
-                    0,
-                    4,
-                    file_size
-                )
-
-            return data
-        finally:
-            if temp_file and os.path.exists(temp_file):
-                os.remove(temp_file)
+            size = int(size_str) if size_str else 0
+        except (ValueError, TypeError):
+            size = 0
+        data = altastata_functions.get_buffer(path, None, 0, 4, size)
+        self._cache_put(path, data)
+        return data
 
     def _load_and_preprocess(self, file_path, label):
         """Load and preprocess a single sample."""
-        def _read_file_py(path):
-            # Convert tensor to string if needed
-            if tf.is_tensor(path):
-                path = path.numpy().decode('utf-8')
-            
-            altastata_functions = _get_altastata_functions(self.account_id)
-            worker_pid = os.getpid()
-            
-            if altastata_functions is not None:
-                # Use AltaStataFunctions to read file from the cloud
-                #print(f"Worker {worker_pid} - Reading from cloud file: {path}")
-
-                # Check if path has version suffix pattern
-                if '✹' in path:
-                    _, version_part = path.split('✹', 1)
-                    version_timestamp = int(version_part.split('_')[-1])
-                else:
-                    version_timestamp = None
-
-                return self._read_from_altastata(
-                    altastata_functions, 
-                    path, 
-                    version_timestamp, 
-                    self.max_file_size_for_cache, 
-                    worker_pid,
-                    should_cache=False
-                )
-            else:
-                # Fall back to local file operations
-                local_path = os.path.join(self.root_dir, path)
-                #print(f"Worker {worker_pid} - Reading from local file: {local_path}")
-                with open(local_path, 'rb') as f:
-                    return f.read()
-
         def _process_file_py(path, content):
             """Process file and return both the processed data and file type."""
             # Convert tensor to string if needed
@@ -260,7 +206,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
 
         # Read file content using py_function
         file_content = tf.py_function(
-            _read_file_py,
+            self._read_file,
             [file_path],
             tf.string
         )
@@ -316,41 +262,21 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
                 f.write(data)
 
     def _read_file(self, path):
-        """Read bytes from a file using either AltaStataFunctions or local file operations."""
-        # Convert tensor to string if needed
+        """Read file bytes from cloud storage or local filesystem.
+
+        Converts TensorFlow tensor paths to strings. Routes to
+        ``_read_from_altastata`` (with caching) when a cloud connection
+        is available, otherwise reads from the local filesystem.
+        """
         if tf.is_tensor(path):
             path = path.numpy().decode('utf-8')
-        
-        # Check if file is in cache
-        if path in self.file_content_cache:
-            print(f"Worker {os.getpid()} - Reading from cache: {path}")
-            return self.file_content_cache[path]
-        
+
         altastata_functions = _get_altastata_functions(self.account_id)
-        worker_pid = os.getpid()
-        
+
         if altastata_functions is not None:
-            print(f"Worker {worker_pid} - Reading from cloud file: {path}")
-
-            # Check if path has version suffix pattern
-            if '✹' in path:
-                _, version_part = path.split('✹', 1)
-                version_timestamp = int(version_part.split('_')[-1])
-            else:
-                version_timestamp = None
-
-            return self._read_from_altastata(
-                altastata_functions, 
-                path, 
-                version_timestamp, 
-                self.max_file_size_for_cache, 
-                worker_pid,
-                should_cache=True
-            )
+            return self._read_from_altastata(altastata_functions, path)
         else:
-            # Fall back to local file operations
             local_path = os.path.join(self.root_dir, path)
-            print(f"Worker {worker_pid} - Reading from local file: {local_path}")
             with open(local_path, 'rb') as f:
                 return f.read()
 
