@@ -349,7 +349,7 @@ Set `SSH_HOST` and `SSH_KEY` if needed (see script defaults). The script uses `G
 
 **Run the container** (after build or pull):
 - After pushing to ICR, from your Mac run `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh` to pull and run on the server (or run `docker run` manually on the server).
-- Manually on the server: use the same `docker run` as in [examples/rag-example/open_llm/README.md](../../examples/rag-example/open_llm/README.md) (env `ALTASTATA_ACCOUNT_DIR`, `HF_LLM_MODEL`, volume mount for `$HOME/.altastata/accounts`). For HPCS accounts add `-e ALTASTATA_USE_HPCS=1`. Open `http://<host>:8000/`.
+- Manually on the server: use the same `docker run` as in [examples/rag-example/open_llm/README.md](../../examples/rag-example/open_llm/README.md) (env `ALTASTATA_ACCOUNT_DIR`, `HF_LLM_MODEL`, volume mount for `$HOME/.altastata/accounts`). For HPCS accounts add `-e ALTASTATA_USE_HPCS=1`, mount `/home/jovyan/hpcs:/home/jovyan/hpcs:ro`, and set `HPCS_PRIV_KEY_BLOB_PATH=/home/jovyan/hpcs/hpcs-privkey.blob`. Open `http://<host>:8000/`.
 
 On **8 GB VMs** use **gpt2** (`HF_LLM_MODEL=gpt2`); on 16+ GB use `HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0`. See [examples/rag-example/open_llm/README.md](../../examples/rag-example/open_llm/README.md) for full s390x options (watsonx, llama.cpp, etc.).
 

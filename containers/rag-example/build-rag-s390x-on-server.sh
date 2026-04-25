@@ -20,6 +20,7 @@ SSH_HOST="${SSH_HOST:-root@163.66.89.80}"
 SSH_OPTS="-i $SSH_KEY -o StrictHostKeyChecking=accept-new -o GSSAPIAuthentication=no -o PreferredAuthentications=publickey"
 REMOTE_DIR="${REMOTE_DIR:-/tmp/altastata-python-package}"
 REMOTE_ALTASTATA_ACCOUNTS="${REMOTE_ALTASTATA_ACCOUNTS:-/root/.altastata/accounts}"
+REMOTE_HPCS_DIR="${REMOTE_HPCS_DIR:-/home/jovyan/hpcs}"
 # Local AltaStata accounts to copy for testing (set ALTASTATA_ACCOUNTS="" to skip)
 ALTASTATA_ACCOUNTS="${ALTASTATA_ACCOUNTS:-$HOME/.altastata/accounts/amazon.rsa.bob123 $HOME/.altastata/accounts/amazon.rsa.hpcs.serge678}"
 
@@ -42,6 +43,12 @@ if [ -n "$ALTASTATA_ACCOUNTS" ]; then
   # On server: strip hpcs-yaml-path and hpcs-priv-key-blob-path from *.user.properties so container uses GREP11_YAML / HPCS_PRIV_KEY_BLOB_PATH from env
   echo "Stripping HPCS path lines from account *.user.properties on server..."
   ssh $SSH_OPTS "$SSH_HOST" "for f in $REMOTE_ALTASTATA_ACCOUNTS/*/*.user.properties; do [ -f \"\$f\" ] && sed -i '/^hpcs-yaml-path=/d' \"\$f\" && sed -i '/^hpcs-priv-key-blob-path=/d' \"\$f\" && echo \"  \$(basename \"\$f\")\"; done"
+  HPCS_BLOB_SRC="$HOME/.altastata/accounts/amazon.rsa.hpcs.serge678/hpcs-privkey.blob"
+  if [ -f "$HPCS_BLOB_SRC" ]; then
+    echo "Copying HPCS key blob to server ($REMOTE_HPCS_DIR/hpcs-privkey.blob)..."
+    ssh $SSH_OPTS "$SSH_HOST" "mkdir -p $REMOTE_HPCS_DIR"
+    rsync -avz -e "ssh $SSH_OPTS" "$HPCS_BLOB_SRC" "$SSH_HOST:$REMOTE_HPCS_DIR/hpcs-privkey.blob"
+  fi
 fi
 
 echo "Syncing repo to server..."

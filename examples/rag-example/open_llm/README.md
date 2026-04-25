@@ -428,7 +428,7 @@ Pre-built “model-in-a-container” images (e.g. Red Hat Granite on Docker Hub)
 2. **Push to ICR:** `./containers/rag-example/push-rag-s390x-to-icr-from-server.sh` (requires `ICR_TOKEN`).
 3. **Pull and run:** `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh` (pulls image on the server, runs container, runs a test query).
 
-**Server setup:** The server needs three files: `grep11client.yaml` (e.g. in `/etc/ep11client/`), and in the account directory (e.g. `/root/.altastata/accounts/amazon.rsa.hpcs.serge678/`) the files `hpcs-privkey.blob` and `*.user.properties` (container-ready: no `hpcs-yaml-path` or `hpcs-priv-key-blob-path` in the properties file). See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for details.
+**Server setup:** The server needs `grep11client.yaml` (default `/etc/ep11client/grep11client.yaml`), the HPCS key blob at `/home/jovyan/hpcs/hpcs-privkey.blob`, and the account `*.user.properties` file in the account directory (e.g. `/root/.altastata/accounts/amazon.rsa.hpcs.serge678/`). The properties file should be container-ready: no `hpcs-yaml-path` or `hpcs-priv-key-blob-path` entries. See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for details.
 
 **Build (on s390x host or from Mac via script):**
 ```bash

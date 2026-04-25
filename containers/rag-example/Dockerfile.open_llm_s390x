@@ -1,6 +1,8 @@
 # AltaStata RAG – Open LLM stack for IBM Z / LinuxONE (s390x)
 # Build from repo root: docker build -f containers/rag-example/Dockerfile.open_llm_s390x --platform linux/s390x .
-# Base: ibmz-accelerated-for-pytorch (optimized for PyTorch + zDNN). For compiled LLM inference see icr.io/ibmz/zdlc (ONNX); for Python+Transformers this is the right base. No ibmz image has both PyTorch and scikit-learn, so we build scikit-learn (cached). LLM via Transformers (TinyLlama) on CPU; use NNPA-capable host for better speed.
+# Base: ibmz-accelerated-for-pytorch (optimized for PyTorch + zDNN). LLM via llama.cpp + GGUF (much faster than Transformers on CPU)
+# with OpenBLAS-vectorized inference. Uses big-endian GGUFs from https://huggingface.co/collections/taronaeo/s390x-runnable-models.
+# Set LLM_PROVIDER=transformers to fall back to PyTorch (slower).
 
 FROM --platform=linux/s390x icr.io/ibmz/ibmz-accelerated-for-pytorch@sha256:b95591595e7ac0b9cc5219355fae61ec2a2766758f768d1d8e4937ae5d219430
 
@@ -10,8 +12,9 @@ LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-py
 
 USER root
 
-# Java and build deps for AltaStata and sentence-transformers (same pattern as Dockerfile.s390x)
+# Java for AltaStata; build deps for sentence-transformers and llama-cpp-python (cmake + OpenBLAS + git)
 RUN dnf install -y java-17-openjdk-headless gcc gcc-c++ gcc-gfortran make \
+    cmake openblas-devel git \
     libxml2-devel libxslt-devel \
     && dnf clean all
 
@@ -27,6 +30,10 @@ RUN python -m pip install --upgrade pip
 # Base image is PyTorch+zDNN only; pip builds scikit-learn here once, then cached.
 COPY examples/rag-example/open_llm/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
+
+# llama-cpp-python: native s390x build with OpenBLAS for CPU inference. Cached layer; rebuilds only when this RUN line or the base layers change.
+RUN CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" \
+    pip install --no-cache-dir llama-cpp-python huggingface_hub
 
 # Install AltaStata from repo copy only (do not also pip install altastata from PyPI – would conflict)
 COPY . /src/altastata-python-package
@@ -44,10 +51,13 @@ ENV WEB_HOST=0.0.0.0
 ENV WEB_PORT=8000
 ENV VECTOR_STORE=simple
 ENV LOCAL_INDEX_PATH=/app/open_llm/local_index
-# Force Transformers on s390x (no MLX; Ollama optional if built from source)
-ENV LLM_PROVIDER=transformers
+# Default LLM provider on s390x: llama.cpp + big-endian GGUF (much faster than Transformers on CPU).
+# Override at run time: -e LLM_PROVIDER=transformers (or watsonx) for the alternatives.
+ENV LLM_PROVIDER=llama-cpp
+ENV LLAMA_CPP_MODEL_DIR=/models
 
 VOLUME /app/open_llm/local_index
+VOLUME /models
 EXPOSE 8000
 
 WORKDIR /app/open_llm

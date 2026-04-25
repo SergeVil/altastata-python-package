@@ -57,6 +57,7 @@ fi
 # Ollama on host = much faster (Metal). Run: ollama run smollm2:360m  then use LLM_PROVIDER=ollama
 if [ "${LLM_PROVIDER:-}" = "ollama" ]; then
   RUN_OPTS+=(-e "OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}")
+  [ -n "${OLLAMA_MODEL:-}" ] && RUN_OPTS+=(-e "OLLAMA_MODEL=$OLLAMA_MODEL")
 fi
 [ -n "${HF_LLM_MODEL:-}" ] && RUN_OPTS+=(-e "HF_LLM_MODEL=$HF_LLM_MODEL")
 [ -n "${RAG_INDEX_PATH:-}" ] && RUN_OPTS+=(-e "RAG_INDEX_PATH=$RAG_INDEX_PATH")
