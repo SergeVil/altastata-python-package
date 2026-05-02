@@ -61,7 +61,7 @@ rsync -avz --delete \
 # Single source of truth: version.sh extracts ALTASTATA_PYPI_VERSION from setup.py
 # and forwards it to the s390x Dockerfile via --build-arg, so the s390x image
 # always pins the same altastata version as the Mac/AMD64 ones (no silent drift
-# to "latest from PyPI" if we publish 0.1.28 next week).
+# to "latest from PyPI" when we bump setup.py).
 source "$REPO_ROOT/version.sh"
 echo "Building image on server (tag: $VERSION, altastata==$ALTASTATA_PYPI_VERSION)..."
 ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build --build-arg ALTASTATA_VERSION=\$ALTASTATA_PYPI_VERSION -f containers/jupyter/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:latest -t altastata/jupyter-datascience-s390x:\$VERSION ."

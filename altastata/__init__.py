@@ -5,9 +5,9 @@ A powerful Python package for data processing and machine learning integration w
 
 # Derive __version__ from the installed package metadata (set by setup.py at
 # build time), so we have a single source of truth and never need to bump it
-# in two places. Previously hardcoded as "0.1.21" and silently drifted from
-# the real PyPI version (0.1.27 at this commit). importlib.metadata is stdlib
-# since Python 3.8.
+# in two places. Previously hardcoded as a literal here and silently drifted
+# from the real PyPI version across many releases. importlib.metadata is
+# stdlib since Python 3.8.
 from importlib.metadata import version as _pkg_version, PackageNotFoundError as _PkgNotFound
 
 try:
