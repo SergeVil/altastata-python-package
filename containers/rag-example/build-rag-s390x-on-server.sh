@@ -10,6 +10,12 @@
 # If SSH does not connect: check (1) you're on a network that can reach the server (VPN, firewall),
 # (2) SSH_HOST and SSH_KEY are correct, (3) server is up and sshd is running. Test with:
 #   ssh -i "$SSH_KEY" $SSH_HOST "echo ok"
+#
+# If your Mac reports exit 137 / "Killed: 9" on the ssh line: the *local* SSH client was
+# SIGKILL'd—often memory pressure on the Mac when another heavy Docker build runs in parallel,
+# or the IDE closing the session. Fix: run only this build (pause other local Docker work), or
+# SSH to LinuxONE and run the same `docker build ...` inside tmux so losing the Mac session
+# does not cancel the server-side build.
 
 set -e
 # Repo root = directory that contains containers/ and examples/rag-example/ (altastata-python-package)
