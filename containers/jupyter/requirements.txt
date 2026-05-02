@@ -6,8 +6,9 @@ ipywidgets
 notebook
 seaborn
 
-# AltaStata Python Package
-altastata==0.1.21
+# AltaStata Python Package — installed in its own RUN layer in Dockerfile.amd64 via
+# ARG ALTASTATA_VERSION (so a version bump invalidates only that layer). Don't add
+# altastata here or both layers fight over the version.
 
 # LangChain Ecosystem
 langchain

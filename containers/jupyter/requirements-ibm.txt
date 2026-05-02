@@ -1,8 +1,9 @@
 # Jupyter DataScience Environment
 jupyterlab
 
-# AltaStata Python Package
-altastata==0.1.23
+# AltaStata Python Package — installed in its own RUN layer in Dockerfile.s390x via
+# ARG ALTASTATA_VERSION (so a version bump invalidates only that layer). Don't add
+# altastata here or both layers fight over the version.
 
 # Additional ML/Data Science
 numpy

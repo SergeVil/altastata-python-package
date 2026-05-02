@@ -15,6 +15,10 @@ if [ -z "$VERSION" ]; then
     echo "Please ensure version.sh contains: VERSION=\"your_version\""
     exit 1
 fi
+if [ -z "$ALTASTATA_PYPI_VERSION" ]; then
+    echo "Error: ALTASTATA_PYPI_VERSION not extracted from setup.py (see version.sh)"
+    exit 1
+fi
 
 # Check if GitHub token is set
 if [ -z "$GITHUB_TOKEN" ]; then
@@ -40,14 +44,17 @@ echo ""
 cd "$REPO_ROOT"
 
 # Build and push jupyter-datascience-arm64
-echo "Building and pushing jupyter-datascience-arm64..."
-docker build -f containers/jupyter/Dockerfile.arm64 -t ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION} . && \
+echo "Building and pushing jupyter-datascience-arm64 (altastata ${ALTASTATA_PYPI_VERSION})..."
+docker build -f containers/jupyter/Dockerfile.arm64 \
+    --build-arg ALTASTATA_VERSION=${ALTASTATA_PYPI_VERSION} \
+    -t ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION} . && \
     docker push ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
 
 # Build and push jupyter-datascience-amd64
 echo ""
-echo "Building and pushing jupyter-datascience-amd64..."
+echo "Building and pushing jupyter-datascience-amd64 (altastata ${ALTASTATA_PYPI_VERSION})..."
 docker buildx build --platform linux/amd64 --file containers/jupyter/Dockerfile.amd64 \
+    --build-arg ALTASTATA_VERSION=${ALTASTATA_PYPI_VERSION} \
     --tag ghcr.io/sergevil/altastata/jupyter-datascience-amd64:${VERSION} \
     --push .
 
