@@ -47,7 +47,10 @@ LLM_PROVIDER = _default_llm_provider()
 # Ollama (when LLM_PROVIDER=ollama). Use small models for fast response: smollm2:360m, qwen2.5:0.5b, llama3.2:1b
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "smollm2:360m")
-OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "128"))
+# 512 (was 128): 128 cuts multi-item answers off mid-list (e.g. "The password
+# requirements are: " then truncated). 512 still finishes in seconds on
+# llama3.2:1b via host Ollama with Metal; safe upper bound for short RAG answers.
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "512"))
 
 # MLX (when LLM_PROVIDER=mlx). Fastest on Apple Silicon; Mac-only. Small 4-bit models: Llama-3.2-1B-Instruct-4bit, etc.
 MLX_MODEL = os.getenv("MLX_MODEL", "mlx-community/Llama-3.2-1B-Instruct-4bit")
