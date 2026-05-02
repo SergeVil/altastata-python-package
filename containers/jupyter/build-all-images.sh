@@ -9,14 +9,19 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/version.sh"
 
-# Validate version is set
-if [ -z "$VERSION" ]; then
-    echo "Error: VERSION is not set in version.sh"
-    echo "Please ensure version.sh contains: VERSION=\"your_version\""
+if [ -z "$JUPYTER_VERSION" ]; then
+    echo "Error: JUPYTER_VERSION not set in version.sh"
     exit 1
 fi
+if [ -z "$ALTASTATA_PYPI_VERSION" ]; then
+    echo "Error: ALTASTATA_PYPI_VERSION not extracted from setup.py (see version.sh)"
+    exit 1
+fi
+VERSION="$JUPYTER_VERSION"
 
 echo "🚀 Building Altastata Python Package Docker Images (ARM64 + AMD64)..."
+echo "   image tag:        ${VERSION}"
+echo "   altastata (PyPI): ${ALTASTATA_PYPI_VERSION}"
 
 # Create Docker network if it doesn't exist (shared with main altastata project)
 echo "Creating shared Docker network..."
@@ -31,6 +36,7 @@ echo ""
 echo "🏗️  Building jupyter-datascience-arm64..."
 cd "$REPO_ROOT"
 docker build -f containers/jupyter/Dockerfile.arm64 \
+    --build-arg ALTASTATA_VERSION=${ALTASTATA_PYPI_VERSION} \
     -t altastata/jupyter-datascience-arm64:latest \
     -t altastata/jupyter-datascience-arm64:${VERSION} \
     .
@@ -39,6 +45,7 @@ docker build -f containers/jupyter/Dockerfile.arm64 \
 echo ""
 echo "🏗️  Building jupyter-datascience-amd64..."
 docker buildx build --platform linux/amd64 -f containers/jupyter/Dockerfile.amd64 \
+    --build-arg ALTASTATA_VERSION=${ALTASTATA_PYPI_VERSION} \
     -t altastata/jupyter-datascience-amd64:latest \
     -t altastata/jupyter-datascience-amd64:${VERSION} \
     --load \

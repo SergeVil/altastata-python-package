@@ -364,6 +364,86 @@ Two main ways to run TinyLlama (or similar models) on s390x:
 
 **Building llama.cpp on s390x (optional):** To use a llama.cpp server instead of Transformers, build [llama.cpp on s390x](https://fossies.org/linux/llama.cpp/docs/build-s390x.md) on your host (upstream has s390x CI and big-endian GGUF notes). You can then point `OLLAMA_BASE_URL` at that server or compare latency with the in-container Transformers (TinyLlama) backend.
 
+#### NNPA / zDNN: gated behind `ENABLE_ZDNN` (default OFF)
+
+The [zDNN backend in llama.cpp only accelerates F32 / F16 / BF16 tensors](https://github.com/taronaeo/llama.cpp-s390x/blob/master/docs/backend/zDNN.md) — quantized GGUFs (`Q5_K_S`, `Q4_K_M`, …) never touch the NNPA. To get NNPA acceleration on z16 / z17 you need an **F16 big-endian GGUF**, which is not currently published on Hugging Face for Llama-3.2-1B (we self-convert one — see "Maintainer workflow" below).
+
+⚠️ **Currently disabled by default.** Activating zDNN on z17 was observed to regress query quality vs. the CPU/VXE2 fallback (cause under investigation — possibly an interaction between the zDNN backend and llama.cpp's sampler at our chunk sizes). All zDNN code paths are kept in the Dockerfile and entrypoint so we can re-enable for research without redoing the work, but `ENABLE_ZDNN` defaults to `0`. With the default:
+
+- llama-cpp-python is built with **`-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS`** only (no `-DGGML_ZDNN=ON`); IBM zDNN library build step is skipped (~2 min faster build).
+- F16 BE GGUF is **not** baked into `/opt/models/` (image stays ~4.5 GB instead of ~6.6 GB).
+- Entrypoint short-circuits to **`Q5_K_S`** on every s390x host regardless of `/proc/cpuinfo` NNPA presence.
+
+To re-enable for benchmarking or research:
+
+```bash
+ENABLE_ZDNN=1 ./containers/rag-example/build-rag-s390x-on-server.sh
+```
+
+That single flag flips back on: zDNN library build, `-DGGML_ZDNN=ON` in cmake, F16 BE GGUF staging + bake-in, and the entrypoint's NNPA-detection logic that prefers F16 over Q5_K_S when both are available.
+
+#### NNPA auto-selection of GGUF (only when `ENABLE_ZDNN=1`)
+
+When the image is built with `ENABLE_ZDNN=1`, the entrypoint picks the right model based on hardware:
+
+| Hardware | NNPA in `/proc/cpuinfo`? | F16 BE file reachable? (`/models` then `/opt/models`) | Selected GGUF |
+|---|---|---|---|
+| z15 | no | doesn't matter | `Q5_K_S` (CPU only — quantized is faster than F16 here) |
+| z16 / z17 | yes | baked-in `/opt/models/...f16.gguf` (always present with `ENABLE_ZDNN=1`) | `F16 BE` from `/opt/models/` (zDNN / NNPA) |
+| any | — | host-supplied via `-v <dir>:/models` (overrides baked) | `F16 BE` from `/models/` |
+
+User overrides win: any explicit `LLAMA_CPP_MODEL_FILE` / `LLAMA_CPP_MODEL_REPO` from `docker run -e ...` skips auto-detect entirely.
+
+The container logs which file it picked, e.g.
+
+- `[entrypoint] ENABLE_ZDNN=0 (image built without NNPA acceleration); using llama-3.2-1b-instruct-be.Q5_K_S.gguf on CPU/VXE2 regardless of /proc/cpuinfo.`  *(default builds)*
+- `[entrypoint] ENABLE_ZDNN=1 + NNPA hardware + F16 BE GGUF (baked-in /opt/models) -> selecting F16 BE for zDNN acceleration`  *(research builds on z16/z17)*
+- After model load (only with `ENABLE_ZDNN=1`), look for `ZDNN model buffer size = …` (or `register backend zdnn`) in `docker logs <container>` to confirm zDNN actually took the model.
+
+**Deployment for end users (including air-gapped / confidential envs):** plain `docker run` — no `scp`, no `/models` mount, no env tweaks needed.
+
+```bash
+docker run -d -p 8000:8000 \
+  -e ALTASTATA_ACCOUNT_DIR=/path/to/altastata-account \
+  -v /path/to/altastata-accounts:/path/to/altastata-accounts:ro \
+  icr.io/altastata/rag-open-llm-s390x:<VERSION>
+```
+
+**Maintainer workflow (us, when shipping a new image):**
+
+1. **One-time** on a Mac (~2 min, ~5 GB free disk) — only needed if you ever want to flip `ENABLE_ZDNN=1`. Produces the F16 BE GGUF the build script will stage:
+
+   ```bash
+   ./containers/rag-example/build-llama32-1b-f16-be-gguf.sh
+   # Internally: download unsloth/Llama-3.2-1B-Instruct-GGUF/Llama-3.2-1B-Instruct-F16.gguf,
+   # byte-swap to big-endian via `python -m gguf.scripts.gguf_convert_endian`, verify.
+   # Result: ~/llama_models/llama-3.2-1b-instruct-be.f16.gguf
+
+   scp ~/llama_models/llama-3.2-1b-instruct-be.f16.gguf root@<linuxone>:/root/llama_models/
+   ```
+
+2. **Every build** — by default (`ENABLE_ZDNN=0`) the build script stages a tiny placeholder (the Dockerfile deletes it from `/opt/models`) and skips the zDNN library / cmake flag, producing a ~4.5 GB CPU/VXE2 image:
+
+   ```bash
+   ./containers/rag-example/build-rag-s390x-on-server.sh
+   ICR_TOKEN=… ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
+   ```
+
+   For research builds with the F16 + zDNN path active (~6.6 GB image), set the flag:
+
+   ```bash
+   ENABLE_ZDNN=1 ./containers/rag-example/build-rag-s390x-on-server.sh
+   ```
+
+**Smoke-test F16 on z15** (only meaningful for `ENABLE_ZDNN=1` builds — the file loads on plain CPU, slower than Q5_K_S, but proves the bundled file isn't corrupt before handing the image to z16/z17 users):
+
+```bash
+LLAMA_CPP_MODEL_REPO= \
+  LLAMA_CPP_MODEL_FILE=llama-3.2-1b-instruct-be.f16.gguf \
+  LLAMA_CPP_MODEL_DIR=/opt/models \
+  ./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh
+```
+
 ### Simplest run on IBM Z (s390x) – no Docker build
 
 Run the RAG stack on 390 **without building any Docker images**: use Python on the s390x host and a **remote** LLM so you don’t need Ollama on 390.
@@ -428,7 +508,7 @@ Pre-built “model-in-a-container” images (e.g. Red Hat Granite on Docker Hub)
 2. **Push to ICR:** `./containers/rag-example/push-rag-s390x-to-icr-from-server.sh` (requires `ICR_TOKEN`).
 3. **Pull and run:** `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh` (pulls image on the server, runs container, runs a test query).
 
-**Server setup:** The server needs three files: `grep11client.yaml` (e.g. in `/etc/ep11client/`), and in the account directory (e.g. `/root/.altastata/accounts/amazon.rsa.hpcs.serge678/`) the files `hpcs-privkey.blob` and `*.user.properties` (container-ready: no `hpcs-yaml-path` or `hpcs-priv-key-blob-path` in the properties file). See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for details.
+**Server setup:** The server needs `grep11client.yaml` (default `/etc/ep11client/grep11client.yaml`), the HPCS key blob at `/home/jovyan/hpcs/hpcs-privkey.blob`, and the account `*.user.properties` file in the account directory (e.g. `/root/.altastata/accounts/amazon.rsa.hpcs.serge678/`). The properties file should be container-ready: no `hpcs-yaml-path` or `hpcs-priv-key-blob-path` entries. See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for details.
 
 **Build (on s390x host or from Mac via script):**
 ```bash

@@ -2,6 +2,12 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Git workflow (AI assistants)
+
+- Do **not** run `git commit` unless the user **explicitly** asks you to commit. Make code or doc edits as requested; leave commits to the user unless they say otherwise.
+- Do **not** `git push` branch updates to a remote unless the user **explicitly** asks. (Pushing Docker images to a registry is separate.)
+- Cursor: the same wording lives in `.cursor/rules/git-workflow-assistants.mdc` (**alwaysApply**); keep them in sync if you change either.
+
 ## Project Overview
 
 This is the Altastata Python package - a library for cloud-based data processing with machine learning integration. The package provides seamless integration with PyTorch and TensorFlow through custom datasets that can handle data from both local filesystems and AltaStata cloud storage.
@@ -58,8 +64,11 @@ docker run -d -p 8888:8888 \
 ```
 
 ### RAG Open LLM on IBM Z (s390x)
-- **Build on server:** `./containers/rag-example/build-rag-s390x-on-server.sh` (syncs repo, builds image on LinuxONE; set `SSH_HOST`, `SSH_KEY` if needed).
-- **Push to ICR:** `./containers/rag-example/push-rag-s390x-to-icr-from-server.sh` (after build). **Run:** `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh`.
+- **Canonical flow on LinuxONE:** (1) sync repo tree onto the VM (usually **`rsync` from Mac**—no `git` required on VM), (2) **build Jupyter + RAG Docker images ON LinuxONE**, (3) **run Jupyter and RAG as containers** (`docker run` / `containers/linuxone/run-jupyter-and-rag-on-server-for-browser.sh`). Do **not** run Jupyter or RAG as bare `python` on Z for deployment—containers carry the JDK, PyTorch/llama.cpp stack, and layout. Optionally push validated images to ICR.
+- **LinuxONE VM:** Assume **no `git` on the server**. Refreshes are typically **`rsync` from Mac** into `REMOTE_DIR` (see `build-rag-s390x-on-server.sh`, `build-jupyter-s390x-on-server.sh`, `containers/build-s390x-jupyter-and-rag-on-server.sh`). On the VM you only need a **synced directory tree** plus Docker. **Build on VM:** `./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh`. Cursor: `.cursor/rules/linuxone-deployment.mdc` (**alwaysApply**).
+- **Orchestration from Mac (optional):** `containers/build-s390x-jupyter-and-rag-on-server.sh` rsync+s then invokes the **`linuxone/`** runner on the server (detached builds). Do **not** run that orchestration script *on* the VM.
+- **Build one image via Mac SSH:** `./containers/rag-example/build-rag-s390x-on-server.sh`; `./containers/jupyter/build-jupyter-s390x-on-server.sh`.
+- **Push to ICR:** `./containers/rag-example/push-rag-s390x-to-icr-from-server.sh` / `./containers/jupyter/push-jupyter-s390x-to-icr-from-server.sh` (after builds). Pull prebuilt images and run containers: `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh`.
 - **Image:** `containers/rag-example/Dockerfile.open_llm_s390x` (base: ibmz-accelerated-for-pytorch; deps layer cached when requirements.txt unchanged). See `examples/rag-example/open_llm/README.md` for full s390x docs.
 
 ### RAG Open LLM on Mac (same layout as s390x)

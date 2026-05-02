@@ -37,6 +37,22 @@ RUN echo "Installing regular packages" && \
 RUN echo "Installing PyTorch CPU packages" && \
     pip install --no-cache-dir --upgrade-strategy only-if-needed -r pytorch-cpu.txt --index-url https://download.pytorch.org/whl/cpu
 
+# Install AltaStata in its own layer — pinned via build ARG so bumping the version
+# invalidates only this small layer (PyTorch / requirements layers above stay cached).
+# Single source of truth lives in setup.py: the build scripts
+# (containers/jupyter/build-all-images.sh, push-to-ghcr.sh) source version.sh
+# which auto-extracts ALTASTATA_PYPI_VERSION from setup.py and forwards it as
+# --build-arg ALTASTATA_VERSION. ARG default is intentionally empty: ad-hoc
+# `docker build .` then installs the latest from PyPI; the build script always
+# pins to setup.py's version, which is the canonical path.
+ARG ALTASTATA_VERSION=
+RUN if [ -n "${ALTASTATA_VERSION}" ]; then \
+        pip install --no-cache-dir "altastata==${ALTASTATA_VERSION}" ; \
+    else \
+        echo "WARN: ALTASTATA_VERSION not set (build script overrides this). Installing latest from PyPI." && \
+        pip install --no-cache-dir altastata ; \
+    fi
+
 # Copy pytorch-example for reference
 COPY --chown=1001:0 examples/pytorch-example /opt/app-root/src/pytorch-example/
 

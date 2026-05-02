@@ -57,6 +57,11 @@ fi
 # Ollama on host = much faster (Metal). Run: ollama run smollm2:360m  then use LLM_PROVIDER=ollama
 if [ "${LLM_PROVIDER:-}" = "ollama" ]; then
   RUN_OPTS+=(-e "OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}")
+  [ -n "${OLLAMA_MODEL:-}" ] && RUN_OPTS+=(-e "OLLAMA_MODEL=$OLLAMA_MODEL")
+  # Generation-length cap. config.py default is 512 (was 128 — 128 truncates
+  # multi-item answers like "What are the password requirements?" mid-list).
+  # Override per-run if needed: OLLAMA_NUM_PREDICT=1024 ./build-and-run-rag-mac.sh
+  [ -n "${OLLAMA_NUM_PREDICT:-}" ] && RUN_OPTS+=(-e "OLLAMA_NUM_PREDICT=$OLLAMA_NUM_PREDICT")
 fi
 [ -n "${HF_LLM_MODEL:-}" ] && RUN_OPTS+=(-e "HF_LLM_MODEL=$HF_LLM_MODEL")
 [ -n "${RAG_INDEX_PATH:-}" ] && RUN_OPTS+=(-e "RAG_INDEX_PATH=$RAG_INDEX_PATH")

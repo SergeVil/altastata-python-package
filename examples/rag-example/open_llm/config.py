@@ -24,7 +24,8 @@ LOCAL_INDEX_PATH = os.getenv("LOCAL_INDEX_PATH", os.path.join(os.path.dirname(__
 # Embeddings
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
-# LLM: "mlx" (fastest on M1/Mac), "ollama" (fast on Mac with Metal), "transformers" (Mac + IBM 390, slow on CPU), or "watsonx" (IBM Cloud / Granite API).
+# LLM: "mlx" (fastest on M1/Mac), "ollama" (fast on Mac with Metal), "llama-cpp" (fast on s390x via llama.cpp + GGUF),
+#      "transformers" (Mac + IBM 390, slow on CPU), or "watsonx" (IBM Cloud / Granite API).
 # If unset, use ollama when Ollama is reachable, else transformers.
 def _default_llm_provider():
     env_val = os.getenv("LLM_PROVIDER", "").strip().lower()
@@ -46,11 +47,30 @@ LLM_PROVIDER = _default_llm_provider()
 # Ollama (when LLM_PROVIDER=ollama). Use small models for fast response: smollm2:360m, qwen2.5:0.5b, llama3.2:1b
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "smollm2:360m")
-OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "128"))
+# 512 (was 128): 128 cuts multi-item answers off mid-list (e.g. "The password
+# requirements are: " then truncated). 512 still finishes in seconds on
+# llama3.2:1b via host Ollama with Metal; safe upper bound for short RAG answers.
+OLLAMA_NUM_PREDICT = int(os.getenv("OLLAMA_NUM_PREDICT", "512"))
 
 # MLX (when LLM_PROVIDER=mlx). Fastest on Apple Silicon; Mac-only. Small 4-bit models: Llama-3.2-1B-Instruct-4bit, etc.
 MLX_MODEL = os.getenv("MLX_MODEL", "mlx-community/Llama-3.2-1B-Instruct-4bit")
 MLX_MAX_TOKENS = int(os.getenv("MLX_MAX_TOKENS", "128"))
+
+# llama-cpp-python (when LLM_PROVIDER=llama-cpp). Local CPU inference via llama.cpp + GGUF quantization.
+# Same engine that powers Ollama; runs natively on s390x with OpenBLAS (must use big-endian GGUFs).
+# Verified s390x models: https://huggingface.co/collections/taronaeo/s390x-runnable-models
+LLAMA_CPP_MODEL_REPO = os.getenv("LLAMA_CPP_MODEL_REPO", "taronaeo/Llama-3.2-1B-Instruct-BE-GGUF")
+LLAMA_CPP_MODEL_FILE = os.getenv("LLAMA_CPP_MODEL_FILE", "llama-3.2-1b-instruct-be.Q5_K_S.gguf")
+# Cache dir for downloaded GGUFs (mount as a Docker volume to persist across runs)
+LLAMA_CPP_MODEL_DIR = os.getenv("LLAMA_CPP_MODEL_DIR", "/models")
+LLAMA_CPP_N_CTX = int(os.getenv("LLAMA_CPP_N_CTX", "2048"))
+# 0 means let llama.cpp pick based on CPU count
+LLAMA_CPP_N_THREADS = int(os.getenv("LLAMA_CPP_N_THREADS", "0"))
+LLAMA_CPP_MAX_TOKENS = int(os.getenv("LLAMA_CPP_MAX_TOKENS", "256"))
+# Note: we intentionally do NOT expose a separate "system" prompt for llama-cpp.
+# Sending a system role message to the big-endian Llama-3.2 GGUF on s390x segfaults
+# llama.cpp's chat-template handler. Any guidance must live in the user prompt itself
+# (see the prompt construction in query_rag.py).
 
 # Hugging Face Transformers (when LLM_PROVIDER=transformers). Same on Mac, Docker, and IBM 390.
 # SmolLM2-360M is faster than TinyLlama on CPU; for much faster responses on Mac use LLM_PROVIDER=ollama with Ollama on the host.

@@ -17,6 +17,11 @@ python-dotenv
 transformers
 accelerate
 
-# Optional: Ollama → pip install langchain-ollama
+# ---- LLM backend (Ollama: LLM_PROVIDER=ollama, e.g. Mac with host Ollama) ----
+# Bundled even when LLM_PROVIDER=transformers is the default — pulling it in adds
+# ~25 kB and avoids the `docker exec ... pip install langchain-ollama` workaround
+# every time someone switches to Ollama on Mac.
+langchain-ollama
+
 # Optional: watsonx → pip install langchain-ibm
 # Optional: MLX (Mac only) → pip install mlx mlx-lm

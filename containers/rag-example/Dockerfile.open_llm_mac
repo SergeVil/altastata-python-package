@@ -24,8 +24,12 @@ RUN python -m pip install --upgrade pip
 COPY examples/rag-example/open_llm/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Install AltaStata from repo copy only
-COPY . /src/altastata-python-package
+# Install AltaStata from repo copy only.
+# Narrowed from `COPY . /src/altastata-python-package` so the COPY (and the pip
+# install layer below) only invalidates when the actual altastata source
+# changes — not on unrelated edits to the repo (docs, sibling Dockerfiles, etc.).
+COPY setup.py pyproject.toml README.md /src/altastata-python-package/
+COPY altastata /src/altastata-python-package/altastata
 RUN pip install --no-cache-dir /src/altastata-python-package
 
 # App code (no sample_documents; documents come from AltaStata)

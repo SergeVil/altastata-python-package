@@ -8,12 +8,14 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/version.sh"
 
-# Validate version is set
-if [ -z "$VERSION" ]; then
-    echo "Error: VERSION is not set in version.sh"
-    echo "Please ensure version.sh contains: VERSION=\"your_version\""
+if [ -z "$JUPYTER_VERSION" ]; then
+    echo "Error: JUPYTER_VERSION not set in version.sh"
     exit 1
 fi
+# This script writes .env (docker-compose) and the GKE deployment manifest, both
+# of which deploy the Jupyter image (jupyter-datascience-amd64). RAG has no
+# docker-compose / k8s deployment yet, so we only forward JUPYTER_VERSION here.
+VERSION="$JUPYTER_VERSION"
 
 # Detect architecture for docker-compose
 ARCH=$(uname -m)

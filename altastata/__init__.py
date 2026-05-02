@@ -3,7 +3,19 @@ AltaStata Python Package
 A powerful Python package for data processing and machine learning integration with Altastata.
 """
 
-__version__ = "0.1.21"
+# Derive __version__ from the installed package metadata (set by setup.py at
+# build time), so we have a single source of truth and never need to bump it
+# in two places. Previously hardcoded as a literal here and silently drifted
+# from the real PyPI version across many releases. importlib.metadata is
+# stdlib since Python 3.8.
+from importlib.metadata import version as _pkg_version, PackageNotFoundError as _PkgNotFound
+
+try:
+    __version__ = _pkg_version("altastata")
+except _PkgNotFound:
+    # Importing from a source checkout without `pip install -e .` (or the
+    # package was renamed at install time) — fall back rather than crash.
+    __version__ = "0.0.0+unknown"
 
 from .altastata_functions import AltaStataFunctions
 
