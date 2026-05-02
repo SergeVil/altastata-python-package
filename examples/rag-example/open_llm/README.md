@@ -400,7 +400,7 @@ The container logs which file it picked, e.g.
 - `[entrypoint] ENABLE_ZDNN=1 + NNPA hardware + F16 BE GGUF (baked-in /opt/models) -> selecting F16 BE for zDNN acceleration`  *(research builds on z16/z17)*
 - After model load (only with `ENABLE_ZDNN=1`), look for `ZDNN model buffer size = …` (or `register backend zdnn`) in `docker logs <container>` to confirm zDNN actually took the model.
 
-**Deployment for end users (Nicolas-style, including air-gapped):** plain `docker run` — no `scp`, no `/models` mount, no env tweaks needed.
+**Deployment for end users (including air-gapped / confidential envs):** plain `docker run` — no `scp`, no `/models` mount, no env tweaks needed.
 
 ```bash
 docker run -d -p 8000:8000 \

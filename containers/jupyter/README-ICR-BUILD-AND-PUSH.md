@@ -52,7 +52,7 @@ docker tag altastata/jupyter-datascience-s390x:${VERSION} icr.io/altastata/jupyt
 We use IBM Container Registry (icr.io) only—no Docker Hub. Log in with your ICR API key (iamapikey), not a Docker ID:
 
 ```bash
-export ICR_TOKEN="PASTE_NICOLAS_TOKEN_HERE"
+export ICR_TOKEN="PASTE_YOUR_ICR_API_KEY_HERE"
 echo "$ICR_TOKEN" | docker login -u iamapikey --password-stdin icr.io
 ```
 
@@ -98,7 +98,7 @@ Uses the same **VERSION** as the Jupyter notebook image (from `version.sh`, curr
 
 **Push from server** (image was built with `build-rag-s390x-on-server.sh`):
 ```bash
-export ICR_TOKEN="PASTE_NICOLAS_TOKEN_HERE"
+export ICR_TOKEN="PASTE_YOUR_ICR_API_KEY_HERE"
 ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
 ```
 
