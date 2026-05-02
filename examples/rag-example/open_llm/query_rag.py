@@ -175,24 +175,46 @@ def _get_llm():
         elif LLM_PROVIDER in ("llama-cpp", "llama_cpp", "llamacpp"):
             try:
                 import llama_cpp
-                from huggingface_hub import hf_hub_download
             except ImportError as e:
                 raise ImportError(
-                    "LLM_PROVIDER=llama-cpp requires llama-cpp-python and huggingface_hub. "
+                    "LLM_PROVIDER=llama-cpp requires llama-cpp-python. "
                     "On s390x install with: "
                     "CMAKE_ARGS=\"-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS\" "
                     "pip install llama-cpp-python huggingface_hub"
                 ) from e
-            print(
-                f"[llama-cpp] Resolving GGUF {LLAMA_CPP_MODEL_REPO}/{LLAMA_CPP_MODEL_FILE} "
-                f"(cache_dir={LLAMA_CPP_MODEL_DIR})..."
-            )
-            os.makedirs(LLAMA_CPP_MODEL_DIR, exist_ok=True)
-            gguf_path = hf_hub_download(
-                repo_id=LLAMA_CPP_MODEL_REPO,
-                filename=LLAMA_CPP_MODEL_FILE,
-                cache_dir=LLAMA_CPP_MODEL_DIR,
-            )
+            # Two ways to point at a GGUF:
+            #   1. LLAMA_CPP_MODEL_REPO + LLAMA_CPP_MODEL_FILE -> hf_hub_download into LLAMA_CPP_MODEL_DIR.
+            #   2. LLAMA_CPP_MODEL_REPO empty -> load LLAMA_CPP_MODEL_DIR/LLAMA_CPP_MODEL_FILE directly.
+            #      Used by the s390x entrypoint when it auto-selects a self-converted F16 BE GGUF
+            #      (not published on Hugging Face) for the zDNN/NNPA path on z16/z17.
+            if LLAMA_CPP_MODEL_REPO and LLAMA_CPP_MODEL_REPO.strip():
+                try:
+                    from huggingface_hub import hf_hub_download
+                except ImportError as e:
+                    raise ImportError(
+                        "LLAMA_CPP_MODEL_REPO is set but huggingface_hub is not installed. "
+                        "Install: pip install huggingface_hub  (or unset LLAMA_CPP_MODEL_REPO and "
+                        "mount the GGUF at LLAMA_CPP_MODEL_DIR/LLAMA_CPP_MODEL_FILE)."
+                    ) from e
+                print(
+                    f"[llama-cpp] Resolving GGUF {LLAMA_CPP_MODEL_REPO}/{LLAMA_CPP_MODEL_FILE} "
+                    f"(cache_dir={LLAMA_CPP_MODEL_DIR})..."
+                )
+                os.makedirs(LLAMA_CPP_MODEL_DIR, exist_ok=True)
+                gguf_path = hf_hub_download(
+                    repo_id=LLAMA_CPP_MODEL_REPO,
+                    filename=LLAMA_CPP_MODEL_FILE,
+                    cache_dir=LLAMA_CPP_MODEL_DIR,
+                )
+            else:
+                gguf_path = os.path.join(LLAMA_CPP_MODEL_DIR, LLAMA_CPP_MODEL_FILE)
+                if not os.path.isfile(gguf_path):
+                    raise FileNotFoundError(
+                        f"LLAMA_CPP_MODEL_REPO is empty so the GGUF must already exist at {gguf_path}, "
+                        f"but no such file was found. Either set LLAMA_CPP_MODEL_REPO=<hf repo> or "
+                        f"mount a directory containing {LLAMA_CPP_MODEL_FILE!r} at {LLAMA_CPP_MODEL_DIR}."
+                    )
+                print(f"[llama-cpp] Using local GGUF {gguf_path} (LLAMA_CPP_MODEL_REPO is empty)...")
             print(f"[llama-cpp] Loading {gguf_path} (n_ctx={LLAMA_CPP_N_CTX})...")
             _llm_obj = llama_cpp.Llama(
                 model_path=gguf_path,
@@ -341,7 +363,13 @@ def query_rag(
             sources.append(src)
 
     context = "\n\n".join([f"[Excerpt {i+1}]:\n{t}" for i, t in enumerate(chunk_texts)])
-    prompt = f"""Answer the question in 2-4 short sentences using only the context below.
+    # Earlier prompt said "Answer in 2-4 short sentences" which fought list-style
+    # questions ("what are the password requirements?"): small models resolved the
+    # conflict by emitting just the lead-in ("The password requirements are as
+    # follows:") and stopping. Allowing bullets when the answer is naturally a
+    # list fixes the intermittent truncation; cap length so prose answers stay
+    # short.
+    prompt = f"""Answer the question using only the context below. Be concise (under 6 sentences). If the answer is naturally a list of items, return it as a bulleted list.
 
 Context:
 {context}
