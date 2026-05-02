@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pull the RAG s390x image from ICR and run it on the server (no local build).
-# Run from repo root on your Mac. Uses same VERSION as Jupyter (version.sh).
+# Run from repo root on your Mac. Default ICR tag is RAG_VERSION from version.sh (not JUPYTER_VERSION).
 #
 # Memory: We recommend 16 GB RAM for the default model (SmolLM2-360M). On 8 GB, set
 #   HF_LLM_MODEL=gpt2 to avoid OOM (weaker answers).

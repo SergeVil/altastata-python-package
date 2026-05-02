@@ -2,6 +2,7 @@
 # Push the RAG s390x image from the LinuxONE server to ICR.
 # Prereq: image built on server (./containers/rag-example/build-rag-s390x-on-server.sh). ICR_TOKEN on your Mac.
 # Run from repo root: ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
+# Research zDNN image on ICR: ENABLE_ZDNN=1 ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
