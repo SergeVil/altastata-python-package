@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
-# Optional: run from your Mac to rsync the repo to LinuxONE then start parallel
-# Docker builds *on the server* (still no Docker on Mac — only rsync + ssh).
+# Sync repo (+ accounts blob) from your Mac to LinuxONE, then start Jupyter+RAG s390x
+# Docker builds *on LinuxONE*.
 #
-# Prefer running everything on LinuxONE (no Mac workflows):
-#   ssh … "cd /path/to/altastata-python-package && git pull && ./containers/linuxone/build-jupyter-and-rag-in-parallel.sh"
+# **Default DETACHED=1:** starts builds under nohup and returns immediately so your Mac is
+# not tied to a hours-long SSH session — work on the Mac in parallel with builds on IBM Z.
 #
-# This script: one rsync prep, then Jupyter + RAG s390x builds IN PARALLEL on LinuxONE.
-# Avoids invoking build-jupyter + build-rag scripts together (their concurrent
-# rsync --delete races the same REMOTE_DIR and can corrupt context).
+# Blocking (stream logs until done): DETACHED=0 ./containers/build-s390x-jupyter-and-rag-on-server.sh
+#
+# Pure LinuxONE (no rsync): after git pull, run
+#   ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh
 #
 # Run from repo root:
-#   ./containers/build-s390x-jupyter-and-rag-parallel-on-server.sh
-# Optional same as rag script:
-#   ENABLE_ZDNN=1 SSH_HOST=...
+#   ./containers/build-s390x-jupyter-and-rag-on-server.sh
+# Optional:
+#   ENABLE_ZDNN=1 SSH_HOST=... REMOTE_BUILD_LOG=/tmp/foo.log DETACHED=0 ...
 #
-# Prerequisites: SSH to server, Docker on server, same REMOTE_DIR default as sibling scripts.
-
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -27,12 +26,13 @@ REMOTE_ALTASTATA_ACCOUNTS="${REMOTE_ALTASTATA_ACCOUNTS:-/root/.altastata/account
 REMOTE_HPCS_DIR="${REMOTE_HPCS_DIR:-/home/jovyan/hpcs}"
 ALTASTATA_ACCOUNTS="${ALTASTATA_ACCOUNTS:-$HOME/.altastata/accounts/amazon.rsa.bob123 $HOME/.altastata/accounts/amazon.rsa.hpcs.serge678}"
 ENABLE_ZDNN="${ENABLE_ZDNN:-0}"
+DETACHED="${DETACHED:-1}"
+REMOTE_BUILD_LOG="${REMOTE_BUILD_LOG:-/tmp/altastata-s390x-jupyter-rag-build.log}"
 
 echo "Repo root: $REPO_ROOT"
 echo "SSH: $SSH_HOST (key: $SSH_KEY)"
-echo "REMOTE_DIR=$REMOTE_DIR  ENABLE_ZDNN=$ENABLE_ZDNN"
+echo "REMOTE_DIR=$REMOTE_DIR ENABLE_ZDNN=$ENABLE_ZDNN DETACHED=$DETACHED log=$REMOTE_BUILD_LOG"
 
-# --- Same account + repo prep as build-rag-s390x-on-server.sh (covers Jupyter needs too) ---
 if [ -n "$ALTASTATA_ACCOUNTS" ]; then
   echo "Syncing AltaStata accounts..."
   ssh $SSH_OPTS "$SSH_HOST" "mkdir -p $REMOTE_ALTASTATA_ACCOUNTS"
@@ -55,7 +55,7 @@ if [ -n "$ALTASTATA_ACCOUNTS" ]; then
   fi
 fi
 
-echo "Syncing repo to server (single rsync — safe for parallel docker builds afterward)..."
+echo "Syncing repo to LinuxONE ..."
 rsync -avz --delete \
   -e "ssh $SSH_OPTS" \
   --exclude '.git' \
@@ -82,7 +82,7 @@ if [ "$ENABLE_ZDNN" = "1" ]; then
       echo 'ERROR: /root/llama_models/$F16_FILE missing on server.'
       exit 2
     fi
-    ln -f /root/llama_models/$F16_FILE $REMOTE_DIR/containers/rag-example/$F16_FILE 2>/dev/null \
+    ln -f /root/llama_models/$F16_FILE $REMOTE_DIR/containers/rag-example/$F16_FILE 2>/dev/null \\
       || cp -f /root/llama_models/$F16_FILE $REMOTE_DIR/containers/rag-example/$F16_FILE
     ls -la $REMOTE_DIR/containers/rag-example/$F16_FILE
   "
@@ -94,47 +94,34 @@ else
   "
 fi
 
-echo "Building Jupyter + RAG on server concurrently (same host — heavy CPU/mem; consider larger VM)."
-# stdin script runs on LinuxONE — vars via env(1) passed by ssh.
-
-# shellcheck disable=SC2086
-ssh $SSH_OPTS "$SSH_HOST" env "REMOTE_DIR=$REMOTE_DIR" "ENABLE_ZDNN=$ENABLE_ZDNN" bash -s <<'REMOTE'
-set -eo pipefail
-cd "$REMOTE_DIR"
-# shellcheck source=/dev/null
-source version.sh
-echo "parallel: Jupyter jupyter-datascience-s390x ..."
-docker build --build-arg ALTASTATA_VERSION="${ALTASTATA_PYPI_VERSION}" \
-  -f containers/jupyter/Dockerfile.s390x \
-  -t altastata/jupyter-datascience-s390x:latest \
-  -t "altastata/jupyter-datascience-s390x:${JUPYTER_VERSION}" . &
-PID_J="$!"
-
-echo "parallel: RAG rag-open-llm-s390x ..."
-if [ "$ENABLE_ZDNN" = "1" ]; then
-  RAG_TAGS="-t altastata/rag-open-llm-s390x:${RAG_VERSION}_zdnn"
+if [ "$DETACHED" = "1" ]; then
+  echo "Starting builds on LinuxONE under nohup (this SSH exits now; Jupyter then RAG sequentially on the server)."
+  ssh $SSH_OPTS "$SSH_HOST" bash -s -- "$REMOTE_DIR" "$REMOTE_BUILD_LOG" "$ENABLE_ZDNN" <<'EOS'
+set -euo pipefail
+REMOTE_DIR="$1"
+BUILD_LOG="$2"
+ENABLE_ZDNN="$3"
+RUNNER="$REMOTE_DIR/containers/linuxone/build-jupyter-and-rag-on-linuxone.sh"
+chmod +x "$RUNNER" 2>/dev/null || true
+touch "$BUILD_LOG"
+nohup env ENABLE_ZDNN="$ENABLE_ZDNN" bash -eo pipefail "$RUNNER" >>"$BUILD_LOG" 2>&1 </dev/null &
+echo "Detached PID=$!  log=$BUILD_LOG"
+EOS
+  echo ""
+  echo "Tail on LinuxONE (from any machine): ssh $SSH_HOST tail -f $REMOTE_BUILD_LOG"
 else
-  RAG_TAGS="-t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${RAG_VERSION}"
+  echo "Blocking mode: streaming build output from LinuxONE ..."
+  ssh $SSH_OPTS "$SSH_HOST" bash -s -- "$REMOTE_DIR" "$ENABLE_ZDNN" <<'EOS'
+set -euo pipefail
+REMOTE_DIR="$1"
+ENABLE_ZDNN="$2"
+RUNNER="$REMOTE_DIR/containers/linuxone/build-jupyter-and-rag-on-linuxone.sh"
+chmod +x "$RUNNER" 2>/dev/null || true
+exec env ENABLE_ZDNN="$ENABLE_ZDNN" bash -eo pipefail "$RUNNER"
+EOS
 fi
-# shellcheck disable=SC2086
-docker build --build-arg ENABLE_ZDNN="$ENABLE_ZDNN" \
-  -f containers/rag-example/Dockerfile.open_llm_s390x \
-  ${RAG_TAGS} . &
-PID_R="$!"
-
-ej=0
-er=0
-wait "$PID_J" || ej=$?
-wait "$PID_R" || er=$?
-if [ "$ej" -ne 0 ]; then echo "Jupyter docker build exited $ej"; fi
-if [ "$er" -ne 0 ]; then echo "RAG docker build exited $er"; fi
-exit $(( ej ? ej : er ? er : 0 ))
-REMOTE
 
 echo ""
-echo "Done. Tagged images on server:"
-echo "  altastata/jupyter-datascience-s390x:latest and :\$JUPYTER_VERSION"
-echo "  RAG default: altastata/rag-open-llm-s390x:latest and :\$RAG_VERSION ; zDNN: :\${RAG_VERSION}_zdnn"
-echo "(Use ../version.sh for exact strings.)"
+echo "When builds finish, images/tags follow version.sh (JUPYTER_VERSION, RAG_VERSION)."
 echo "Push Jupyter: ./containers/jupyter/push-jupyter-s390x-to-icr-from-server.sh"
 echo "Push RAG:     ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh"
