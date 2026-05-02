@@ -19,9 +19,20 @@ if [ -z "$ICR_TOKEN" ]; then
   exit 1
 fi
 
-echo "Pushing from server $SSH_HOST to icr.io/altastata/rag-open-llm-s390x:$VERSION"
+# Picks tag based on ENABLE_ZDNN (matches build-rag-s390x-on-server.sh):
+#   ENABLE_ZDNN=0 (default) -> push :latest -> :$RAG_VERSION (end-user image)
+#   ENABLE_ZDNN=1           -> push :${RAG_VERSION}_zdnn -> same (research image)
+if [ "${ENABLE_ZDNN:-0}" = "1" ]; then
+  SRC_TAG="altastata/rag-open-llm-s390x:${RAG_VERSION}_zdnn"
+  DST_TAG="icr.io/altastata/rag-open-llm-s390x:${RAG_VERSION}_zdnn"
+else
+  SRC_TAG="altastata/rag-open-llm-s390x:latest"
+  DST_TAG="icr.io/altastata/rag-open-llm-s390x:$RAG_VERSION"
+fi
+
+echo "Pushing from server $SSH_HOST to $DST_TAG (source: $SRC_TAG)"
 echo "Logging in to icr.io on server..."
 echo "$ICR_TOKEN" | ssh $SSH_OPTS "$SSH_HOST" "docker login -u iamapikey --password-stdin icr.io"
 echo "Tag and push..."
-ssh $SSH_OPTS "$SSH_HOST" "docker tag altastata/rag-open-llm-s390x:latest icr.io/altastata/rag-open-llm-s390x:$VERSION && docker push icr.io/altastata/rag-open-llm-s390x:$VERSION"
-echo "Done. Pull with: docker pull icr.io/altastata/rag-open-llm-s390x:$VERSION"
+ssh $SSH_OPTS "$SSH_HOST" "docker tag $SRC_TAG $DST_TAG && docker push $DST_TAG"
+echo "Done. Pull with: docker pull $DST_TAG"

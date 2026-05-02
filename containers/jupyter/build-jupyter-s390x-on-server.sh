@@ -63,16 +63,16 @@ rsync -avz --delete \
 # always pins the same altastata version as the Mac/AMD64 ones (no silent drift
 # to "latest from PyPI" when we bump setup.py).
 source "$REPO_ROOT/version.sh"
-echo "Building image on server (tag: $VERSION, altastata==$ALTASTATA_PYPI_VERSION)..."
-ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build --build-arg ALTASTATA_VERSION=\$ALTASTATA_PYPI_VERSION -f containers/jupyter/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:latest -t altastata/jupyter-datascience-s390x:\$VERSION ."
+echo "Building image on server (tag: $JUPYTER_VERSION, altastata==$ALTASTATA_PYPI_VERSION)..."
+ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build --build-arg ALTASTATA_VERSION=\$ALTASTATA_PYPI_VERSION -f containers/jupyter/Dockerfile.s390x -t altastata/jupyter-datascience-s390x:latest -t altastata/jupyter-datascience-s390x:\$JUPYTER_VERSION ."
 
 echo ""
-echo "Done. Image altastata/jupyter-datascience-s390x:$VERSION (and :latest) is on the server."
+echo "Done. Image altastata/jupyter-datascience-s390x:$JUPYTER_VERSION (and :latest) is on the server."
 echo "Accounts (if synced) are under $REMOTE_ALTASTATA_ACCOUNTS. Run with:"
 echo "  ssh -i $SSH_KEY $SSH_HOST 'docker run -d --name altastata-jupyter-s390x \\"
 echo "    -p 8888:8888 \\"
 echo "    -v $REMOTE_ALTASTATA_ACCOUNTS:/home/jovyan/.altastata/accounts:ro \\"
-echo "    altastata/jupyter-datascience-s390x:$VERSION'"
+echo "    altastata/jupyter-datascience-s390x:$JUPYTER_VERSION'"
 echo ""
 echo "Then get the token:"
 echo "  ssh -i $SSH_KEY $SSH_HOST 'docker exec altastata-jupyter-s390x jupyter server list'"

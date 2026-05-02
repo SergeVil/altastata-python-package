@@ -9,16 +9,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 source "${REPO_ROOT}/version.sh"
 
-# Validate version is set
-if [ -z "$VERSION" ]; then
-    echo "Error: VERSION is not set in version.sh"
-    echo "Please ensure version.sh contains: VERSION=\"your_version\""
+if [ -z "$JUPYTER_VERSION" ]; then
+    echo "Error: JUPYTER_VERSION not set in version.sh"
     exit 1
 fi
 if [ -z "$ALTASTATA_PYPI_VERSION" ]; then
     echo "Error: ALTASTATA_PYPI_VERSION not extracted from setup.py (see version.sh)"
     exit 1
 fi
+VERSION="$JUPYTER_VERSION"
 
 echo "🚀 Building Altastata Python Package Docker Images (ARM64 + AMD64)..."
 echo "   image tag:        ${VERSION}"

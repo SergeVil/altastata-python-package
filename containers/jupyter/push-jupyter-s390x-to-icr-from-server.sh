@@ -19,9 +19,9 @@ if [ -z "$ICR_TOKEN" ]; then
   exit 1
 fi
 
-echo "Pushing from server $SSH_HOST to icr.io/altastata/jupyter-datascience-s390x:$VERSION"
+echo "Pushing from server $SSH_HOST to icr.io/altastata/jupyter-datascience-s390x:$JUPYTER_VERSION"
 echo "Logging in to icr.io on server..."
 echo "$ICR_TOKEN" | ssh $SSH_OPTS "$SSH_HOST" "docker login -u iamapikey --password-stdin icr.io"
 echo "Tag and push..."
-ssh $SSH_OPTS "$SSH_HOST" "docker tag altastata/jupyter-datascience-s390x:latest icr.io/altastata/jupyter-datascience-s390x:$VERSION && docker push icr.io/altastata/jupyter-datascience-s390x:$VERSION"
-echo "Done. Pull with: docker pull icr.io/altastata/jupyter-datascience-s390x:$VERSION"
+ssh $SSH_OPTS "$SSH_HOST" "docker tag altastata/jupyter-datascience-s390x:latest icr.io/altastata/jupyter-datascience-s390x:$JUPYTER_VERSION && docker push icr.io/altastata/jupyter-datascience-s390x:$JUPYTER_VERSION"
+echo "Done. Pull with: docker pull icr.io/altastata/jupyter-datascience-s390x:$JUPYTER_VERSION"

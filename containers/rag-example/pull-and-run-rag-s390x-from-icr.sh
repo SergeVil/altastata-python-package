@@ -46,7 +46,7 @@ HF_LLM_MODEL="${HF_LLM_MODEL:-HuggingFaceTB/SmolLM2-360M-Instruct}"
 REMOTE_MODELS_DIR="${REMOTE_MODELS_DIR:-/root/llama_models}"
 # First query downloads ~700 MB GGUF and loads it; subsequent queries are fast
 QUERY_TIMEOUT="${QUERY_TIMEOUT:-400}"
-RAG_IMAGE="icr.io/altastata/rag-open-llm-s390x:$VERSION"
+RAG_IMAGE="${RAG_IMAGE:-icr.io/altastata/rag-open-llm-s390x:$RAG_VERSION}"
 
 echo "SSH: $SSH_HOST"
 echo "Pull and run: $RAG_IMAGE"
