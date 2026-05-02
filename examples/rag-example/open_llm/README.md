@@ -515,15 +515,16 @@ Pre-built “model-in-a-container” images (e.g. Red Hat Granite on Docker Hub)
 # From Mac – sync repo and build on the LinuxONE server (recommended)
 ./containers/rag-example/build-rag-s390x-on-server.sh
 
-# Or on the s390x server directly
-source ../../../version.sh 2>/dev/null || true
+# Or on the s390x server directly (from repo root; image tag = RAG_VERSION in version.sh)
+source ./version.sh
 docker build -f containers/rag-example/Dockerfile.open_llm_s390x --platform linux/s390x \
-  -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${VERSION:-2026b_latest} .
+  -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:${RAG_VERSION} .
 ```
 
-**Run (after build or pull from ICR):** Use the same version tag as the Jupyter image (from `version.sh`).
+**Run (after build or pull from ICR):** Use **`RAG_VERSION`** from **`version.sh`** for the image tag.
 ```bash
-source ../../../version.sh 2>/dev/null || true
+# From repository root
+source ./version.sh
 # Replace with your AltaStata account dir (must contain the account subdir, e.g. amazon.rsa.bob123)
 export ALTASTATA_ACCOUNT_DIR="$HOME/.altastata/accounts/amazon.rsa.bob123"
 
@@ -532,15 +533,16 @@ docker run -d -p 8000:8000 --name rag \
   -e ALTASTATA_ACCOUNT_DIR=$ALTASTATA_ACCOUNT_DIR \
   -e HF_LLM_MODEL=TinyLlama/TinyLlama-1.1B-Chat-v1.0 \
   -v "$(dirname $ALTASTATA_ACCOUNT_DIR)":/root/.altastata/accounts:ro \
-  altastata/rag-open-llm-s390x:${VERSION:-2026b_latest}
+  altastata/rag-open-llm-s390x:${RAG_VERSION}
 # Open http://<host>:8000/
 ```
 
-**Pull from IBM Container Registry (ICR):** See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for push; to run from a pre-pushed image (tag matches Jupyter image, e.g. 2026b_latest from `version.sh`):
+**Pull from IBM Container Registry (ICR):** See [containers/jupyter/README-ICR-BUILD-AND-PUSH.md](../../../containers/jupyter/README-ICR-BUILD-AND-PUSH.md) for push; to run from a pre-pushed image (tag **`RAG_VERSION`** in `version.sh`):
 ```bash
-source ../../../version.sh 2>/dev/null || true
-docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION:-2026b_latest}
-# Then run as above, using image icr.io/altastata/rag-open-llm-s390x:${VERSION}
+# From repository root
+source ./version.sh
+docker pull icr.io/altastata/rag-open-llm-s390x:${RAG_VERSION}
+# Then run as above, using image icr.io/altastata/rag-open-llm-s390x:${RAG_VERSION}
 ```
 
 **Pull and run from your Mac (script):** From repo root run `./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh`. It SSHs to the server, stops/removes any existing RAG container, pulls the image, runs the container, runs a test query, and leaves the container running. Set `ICR_TOKEN` on your Mac. **Accounts:** Default is **HPCS** (`amazon.rsa.hpcs.serge678`; no password; script passes `ALTASTATA_USE_HPCS=1`). For **bob123** (password-based): `ACCOUNT_NAME=amazon.rsa.bob123 ./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh`. Optional env: `SSH_HOST`, `SSH_KEY`, `HF_LLM_MODEL=gpt2` (8 GB VMs). Account dir must exist on the server at `$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME` (default `/root/.altastata/accounts/...`).

@@ -326,7 +326,7 @@ The **Open LLM RAG** app (simple vector store + Transformers + AltaStata) can be
 ```bash
 ./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh
 ```
-- SSHs to the server, **stops/removes** any existing `rag-s390x-test` container **before** pulling, pulls `icr.io/altastata/rag-open-llm-s390x:$VERSION`, runs the container, runs a test query, then **leaves the container running** (no stop/rm at the end).
+- SSHs to the server, **stops/removes** any existing `rag-s390x-test` container **before** pulling, pulls `icr.io/altastata/rag-open-llm-s390x:${RAG_VERSION}` (same as **`RAG_VERSION`** in repo **`version.sh`**), runs the container, runs a test query, then **leaves the container running** (no stop/rm at the end).
 - Set **`ICR_TOKEN`** on your Mac so the script can log in to icr.io on the server before pull.
 - **Account:** Default is **HPCS** (`amazon.rsa.hpcs.serge678`; no password). For **bob123** (password-based):
   ```bash
@@ -334,10 +334,10 @@ The **Open LLM RAG** app (simple vector store + Transformers + AltaStata) can be
   ```
 - Optional: `SSH_HOST`, `SSH_KEY`, `HF_LLM_MODEL=gpt2` (8 GB VMs). See [README-ICR-BUILD-AND-PUSH.md](README-ICR-BUILD-AND-PUSH.md) for full pull-and-run options.
 
-Or manually on the server:
+Or manually on the server (from repo root; RAG tag is **`RAG_VERSION`**, not Jupyter’s **`JUPYTER_VERSION`**):
 ```bash
-source version.sh 2>/dev/null || VERSION="2026c_latest"
-docker pull icr.io/altastata/rag-open-llm-s390x:${VERSION}
+source ./version.sh
+docker pull icr.io/altastata/rag-open-llm-s390x:${RAG_VERSION}
 # Then run with your account dir; see "Run the container" below.
 ```
 
