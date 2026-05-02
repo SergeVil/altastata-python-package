@@ -118,18 +118,17 @@ fi
 # default tag would get the heavier image with the known z17 quality regression.
 source "$REPO_ROOT/version.sh"
 if [ "$ENABLE_ZDNN" = "1" ]; then
-  # \${RAG_VERSION}_zdnn -> remote shell expands after `source version.sh`,
-  # then literally appends _zdnn (braces required so _zdnn isn't read as
-  # part of the variable name).
+  # Remote expands RAG_VERSION after sourcing version.sh; ${_zdnn} suffix is appended on the remote shell only.
+  # Use \${VAR} below so TAG_ARGS is built locally with a literal dollar for SSH to expand.
   TAG_ARGS="-t altastata/rag-open-llm-s390x:\${RAG_VERSION}_zdnn"
   TAG_REPORT="altastata/rag-open-llm-s390x:${RAG_VERSION}_zdnn"
 else
-  TAG_ARGS="-t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:\$RAG_VERSION"
-  TAG_REPORT="altastata/rag-open-llm-s390x:$RAG_VERSION (and :latest)"
+  TAG_ARGS="-t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:\${RAG_VERSION}"
+  TAG_REPORT="altastata/rag-open-llm-s390x:${RAG_VERSION} and :latest"
 fi
-echo "Building image on server (tags: $TAG_REPORT, ENABLE_ZDNN=$ENABLE_ZDNN)..."
+echo "Building image on server — tags=${TAG_REPORT} ENABLE_ZDNN=${ENABLE_ZDNN}"
 ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build --build-arg ENABLE_ZDNN=$ENABLE_ZDNN -f containers/rag-example/Dockerfile.open_llm_s390x $TAG_ARGS ."
 
 echo "Done. Image $TAG_REPORT is on the server."
-echo "Accounts (if synced) are under $REMOTE_ALTASTATA_ACCOUNTS. Run with:"
+echo "Accounts — if synced — are under $REMOTE_ALTASTATA_ACCOUNTS. Run with:"
 echo "  docker run -p 8000:8000 -e ALTASTATA_ACCOUNT_DIR=$REMOTE_ALTASTATA_ACCOUNTS/amazon.rsa.bob123 -v $REMOTE_ALTASTATA_ACCOUNTS:$REMOTE_ALTASTATA_ACCOUNTS:ro ... $TAG_REPORT"
