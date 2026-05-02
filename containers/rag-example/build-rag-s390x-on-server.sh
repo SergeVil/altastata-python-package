@@ -72,10 +72,43 @@ else
   echo "Skipping $HPCS_PROPERTIES_FILE (not in repo). Ensure it exists on server at $REMOTE_ALTASTATA_ACCOUNTS/$HPCS_ACCOUNT/ if using HPCS."
 fi
 
+# zDNN / NNPA hardware acceleration is OFF by default (ENABLE_ZDNN=0); see
+# Dockerfile.open_llm_s390x for the why. The Dockerfile still has a `COPY
+# containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf ...` line that runs
+# unconditionally, so we always need a file at that path in the build context.
+# When ENABLE_ZDNN=1 we stage the real ~2.5 GB F16 BE GGUF (Dockerfile keeps it,
+# entrypoint can pick it). When ENABLE_ZDNN=0 we stage a 1-byte placeholder
+# and the Dockerfile's next RUN deletes it from /opt/models.
+ENABLE_ZDNN="${ENABLE_ZDNN:-0}"
+F16_FILE="llama-3.2-1b-instruct-be.f16.gguf"
+if [ "$ENABLE_ZDNN" = "1" ]; then
+  echo "ENABLE_ZDNN=1: staging real $F16_FILE from /root/llama_models/ into build context..."
+  ssh $SSH_OPTS "$SSH_HOST" "
+    if [ ! -f /root/llama_models/$F16_FILE ]; then
+      echo 'ERROR: /root/llama_models/$F16_FILE missing on server.'
+      echo 'Build (once) on Mac and scp:'
+      echo '  ./containers/rag-example/build-llama32-1b-f16-be-gguf.sh'
+      echo '  scp ~/llama_models/$F16_FILE $SSH_HOST:/root/llama_models/'
+      exit 2
+    fi
+    # Hard-link if same filesystem (fast, no extra disk); else copy. The file
+    # is 2.5 GB so we want to avoid a full copy on every rebuild.
+    ln -f /root/llama_models/$F16_FILE $REMOTE_DIR/containers/rag-example/$F16_FILE 2>/dev/null \
+      || cp -f /root/llama_models/$F16_FILE $REMOTE_DIR/containers/rag-example/$F16_FILE
+    ls -la $REMOTE_DIR/containers/rag-example/$F16_FILE
+  "
+else
+  echo "ENABLE_ZDNN=0: staging tiny placeholder for $F16_FILE (Dockerfile will delete it from /opt/models)."
+  ssh $SSH_OPTS "$SSH_HOST" "
+    : > $REMOTE_DIR/containers/rag-example/$F16_FILE
+    ls -la $REMOTE_DIR/containers/rag-example/$F16_FILE
+  "
+fi
+
 # Use same VERSION as Jupyter (version.sh)
 source "$REPO_ROOT/version.sh"
-echo "Building image on server (tag: $VERSION)..."
-ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build -f containers/rag-example/Dockerfile.open_llm_s390x -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:\$VERSION ."
+echo "Building image on server (tag: $VERSION, ENABLE_ZDNN=$ENABLE_ZDNN)..."
+ssh $SSH_OPTS "$SSH_HOST" "cd $REMOTE_DIR && source version.sh && docker build --build-arg ENABLE_ZDNN=$ENABLE_ZDNN -f containers/rag-example/Dockerfile.open_llm_s390x -t altastata/rag-open-llm-s390x:latest -t altastata/rag-open-llm-s390x:\$VERSION ."
 
 echo "Done. Image altastata/rag-open-llm-s390x:$VERSION (and :latest) is on the server."
 echo "Accounts (if synced) are under $REMOTE_ALTASTATA_ACCOUNTS. Run with:"

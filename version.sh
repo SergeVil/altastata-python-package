@@ -7,7 +7,7 @@
 #                           Extracted dynamically from setup.py so we never need
 #                           to bump it in two places.
 
-VERSION="2026f_latest"
+VERSION="2026g_latest"
 
 # Resolve repo root from this script's location so callers can `source version.sh`
 # from any cwd. Falls back to the current dir if BASH_SOURCE isn't available.

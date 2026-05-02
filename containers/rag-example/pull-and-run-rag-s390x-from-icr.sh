@@ -78,6 +78,17 @@ case "$ACCOUNT_NAME" in *hpcs*)
   HPCS_MOUNTS="-v $REMOTE_GREP11_YAML:/etc/ep11client/grep11client.yaml:ro -v $REMOTE_HPCS_DIR:/home/jovyan/hpcs:ro"
   ;;
 esac
+# Optional passthrough of llama-cpp tuning vars: forwarded to docker run only when the user
+# sets them on the host. By default the in-container entrypoint auto-selects the right GGUF
+# based on /proc/cpuinfo (NNPA -> F16 BE for zDNN; otherwise Q5_K_S). Set
+# LLAMA_CPP_MODEL_FILE to force a specific file (and LLAMA_CPP_MODEL_REPO="" to load
+# from the mounted /models dir without hitting Hugging Face).
+LLAMA_OPTS=""
+[ -n "${LLAMA_CPP_MODEL_REPO+x}" ] && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_MODEL_REPO=$LLAMA_CPP_MODEL_REPO"
+[ -n "${LLAMA_CPP_MODEL_FILE:-}" ] && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_MODEL_FILE=$LLAMA_CPP_MODEL_FILE"
+[ -n "${LLAMA_CPP_N_CTX:-}" ]      && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_N_CTX=$LLAMA_CPP_N_CTX"
+[ -n "${LLAMA_CPP_MAX_TOKENS:-}" ] && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_MAX_TOKENS=$LLAMA_CPP_MAX_TOKENS"
+
 echo "Starting container $CONTAINER_NAME..."
 ssh $SSH_OPTS "$SSH_HOST" "docker run -d --name $CONTAINER_NAME -p 8000:8000 \
   -e ALTASTATA_ACCOUNT_DIR=$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME \
@@ -85,6 +96,7 @@ ssh $SSH_OPTS "$SSH_HOST" "docker run -d --name $CONTAINER_NAME -p 8000:8000 \
   -e LLM_PROVIDER=$LLM_PROVIDER \
   -e HF_LLM_MODEL=$HF_LLM_MODEL \
   -e QUERY_TIMEOUT=$QUERY_TIMEOUT \
+  $LLAMA_OPTS \
   -v $REMOTE_ALTASTATA_ACCOUNTS:$REMOTE_ALTASTATA_ACCOUNTS:ro \
   -v $REMOTE_MODELS_DIR:/models \
   $HPCS_MOUNTS \

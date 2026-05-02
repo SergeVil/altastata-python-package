@@ -55,5 +55,61 @@ if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
   python -m indexer &
 fi
 
+# Auto-select GGUF for llama-cpp based on s390x hardware capability:
+#   * z16 / z17 (Telum I/II) advertise the 'nnpa' facility in /proc/cpuinfo and
+#     can run llama.cpp's zDNN backend, which only accelerates F32/F16/BF16
+#     tensors. We prefer a self-converted F16 BE GGUF so zDNN actually
+#     accelerates work at runtime.
+#   * z15 and earlier (no NNPA) — or any host where no F16 file is reachable —
+#     fall back to the smaller Q5_K_S quantization, which runs faster on plain
+#     CPU/VXE2 than F16 would.
+# Two F16 sources are checked, in priority order:
+#   1. /models/<F16_FILE>  — user-supplied via -v <host_dir>:/models
+#   2. /opt/models/<F16_FILE> — baked into the image at build time (default;
+#      see Dockerfile.open_llm_s390x), so a plain `docker run` works in
+#      confidential / air-gapped envs with no host-side setup.
+# User overrides win: any explicit LLAMA_CPP_MODEL_FILE or LLAMA_CPP_MODEL_REPO
+# from `docker run -e ...` is left untouched.
+#
+# When the image is built with ENABLE_ZDNN=0 (current default — see
+# Dockerfile.open_llm_s390x for why), llama-cpp-python has no zDNN backend, the
+# F16 GGUF is not baked in, and even if a user mounts one over /models it would
+# run slower than Q5_K_S on plain CPU. So we short-circuit: always pick Q5_K_S.
+if [ "${LLM_PROVIDER:-llama-cpp}" = "llama-cpp" ] && [ -z "${LLAMA_CPP_MODEL_FILE:-}" ]; then
+  _F16_FILE="llama-3.2-1b-instruct-be.f16.gguf"
+  _Q5_FILE="llama-3.2-1b-instruct-be.Q5_K_S.gguf"
+  _USER_MODELS_DIR="${LLAMA_CPP_MODEL_DIR:-/models}"
+  _BAKED_MODELS_DIR="/opt/models"
+
+  if [ "${ENABLE_ZDNN:-0}" != "1" ]; then
+    export LLAMA_CPP_MODEL_FILE="$_Q5_FILE"
+    echo "[entrypoint] ENABLE_ZDNN=0 (image built without NNPA acceleration); using $_Q5_FILE on CPU/VXE2 regardless of /proc/cpuinfo."
+  else
+    _F16_PATH=""
+    if [ -f "$_USER_MODELS_DIR/$_F16_FILE" ]; then
+      _F16_PATH="$_USER_MODELS_DIR/$_F16_FILE"
+      _F16_SRC="user-supplied $_USER_MODELS_DIR"
+    elif [ -f "$_BAKED_MODELS_DIR/$_F16_FILE" ]; then
+      _F16_PATH="$_BAKED_MODELS_DIR/$_F16_FILE"
+      _F16_SRC="baked-in $_BAKED_MODELS_DIR"
+    fi
+
+    if grep -qE '^features[[:space:]]*:.*\bnnpa\b' /proc/cpuinfo 2>/dev/null \
+       && [ -n "$_F16_PATH" ]; then
+      export LLAMA_CPP_MODEL_FILE="$_F16_FILE"
+      export LLAMA_CPP_MODEL_REPO=""
+      export LLAMA_CPP_MODEL_DIR="$(dirname "$_F16_PATH")"
+      echo "[entrypoint] ENABLE_ZDNN=1 + NNPA hardware + F16 BE GGUF ($_F16_SRC) -> selecting F16 BE for zDNN acceleration"
+    else
+      export LLAMA_CPP_MODEL_FILE="$_Q5_FILE"
+      if grep -qE '^features[[:space:]]*:.*\bnnpa\b' /proc/cpuinfo 2>/dev/null; then
+        echo "[entrypoint] ENABLE_ZDNN=1 + NNPA hardware detected but no $_F16_FILE in $_USER_MODELS_DIR or $_BAKED_MODELS_DIR; using $_Q5_FILE (no zDNN acceleration)."
+      else
+        echo "[entrypoint] ENABLE_ZDNN=1 but no NNPA in /proc/cpuinfo; using $_Q5_FILE (CPU path)."
+      fi
+    fi
+  fi
+fi
+
 echo "[entrypoint] Starting web server on port ${WEB_PORT:-8000}..."
 exec "$@"

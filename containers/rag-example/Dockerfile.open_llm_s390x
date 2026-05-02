@@ -1,7 +1,9 @@
 # AltaStata RAG – Open LLM stack for IBM Z / LinuxONE (s390x)
 # Build from repo root: docker build -f containers/rag-example/Dockerfile.open_llm_s390x --platform linux/s390x .
 # Base: ibmz-accelerated-for-pytorch (optimized for PyTorch + zDNN). LLM via llama.cpp + GGUF (much faster than Transformers on CPU)
-# with OpenBLAS-vectorized inference. Uses big-endian GGUFs from https://huggingface.co/collections/taronaeo/s390x-runnable-models.
+# with OpenBLAS + VXE2 SIMD inference, plus the zDNN backend for IBM NNPA acceleration on z17 / LinuxONE 5+ (Telum II).
+# On z15/z16 hardware llama.cpp's zDNN backend reports unsupported and falls back to CPU automatically, so the same image
+# runs on every supported s390x system. Uses big-endian GGUFs from https://huggingface.co/collections/taronaeo/s390x-runnable-models.
 # Set LLM_PROVIDER=transformers to fall back to PyTorch (slower).
 
 FROM --platform=linux/s390x icr.io/ibmz/ibmz-accelerated-for-pytorch@sha256:b95591595e7ac0b9cc5219355fae61ec2a2766758f768d1d8e4937ae5d219430
@@ -12,14 +14,48 @@ LABEL org.opencontainers.image.source="https://github.com/altastata/altastata-py
 
 USER root
 
-# Java for AltaStata; build deps for sentence-transformers and llama-cpp-python (cmake + OpenBLAS + git)
+# Java for AltaStata; build deps for sentence-transformers, IBM zDNN (autotools), and llama-cpp-python (cmake + OpenBLAS + git)
 RUN dnf install -y java-17-openjdk-headless gcc gcc-c++ gcc-gfortran make \
     cmake openblas-devel git \
+    autoconf automake libtool \
     libxml2-devel libxslt-devel \
     && dnf clean all
 
 ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 ENV PATH="${PATH}:${JAVA_HOME}/bin"
+
+# zDNN / NNPA (z16/z17) hardware acceleration is currently *off by default* —
+# Nicolas reported that activating it via this image regresses query quality on
+# his z17 vs the CPU/VXE2 fallback (still under investigation). All zDNN-related
+# code paths remain in the Dockerfile / entrypoint, gated behind ENABLE_ZDNN so
+# we can re-enable for research with a single build-arg flip:
+#   ENABLE_ZDNN=1 ./containers/rag-example/build-rag-s390x-on-server.sh
+# Default 0 builds llama-cpp-python with CPU+VXE2 only, skips the zDNN library
+# build, and the entrypoint always picks Q5_K_S (faster than F16 on plain CPU).
+ARG ENABLE_ZDNN=0
+ENV ENABLE_ZDNN=${ENABLE_ZDNN}
+
+# Build IBM zDNN library from source so llama-cpp-python can link the zDNN backend
+# for IBM NNPA on z17 / LinuxONE 5+. Per upstream llama.cpp guidance
+# (https://github.com/ggml-org/llama.cpp/blob/master/docs/backend/zDNN.md) we build
+# from source rather than apt/yum (issue ggml-org/llama.cpp#15772). On older
+# hardware (z15/z16) the backend reports unsupported and llama.cpp falls back to
+# CPU/VXE2, so this image still runs everywhere on s390x. Cached layer.
+# Skipped when ENABLE_ZDNN=0 (saves ~2 min build time and ~50 MB layer).
+RUN if [ "$ENABLE_ZDNN" = "1" ]; then \
+        git clone --recurse-submodules https://github.com/IBM/zDNN /tmp/zDNN && \
+        cd /tmp/zDNN && \
+        autoreconf . && \
+        ./configure --prefix=/opt/zdnn-libs && \
+        make build && \
+        make install && \
+        rm -rf /tmp/zDNN && \
+        echo '/opt/zdnn-libs/lib' > /etc/ld.so.conf.d/zdnn.conf && \
+        ldconfig ; \
+    else \
+        echo "ENABLE_ZDNN=0; skipping IBM zDNN build (CPU/VXE2 path only)." ; \
+    fi
+ENV ZDNN_ROOT=/opt/zdnn-libs
 
 WORKDIR /app
 
@@ -31,12 +67,66 @@ RUN python -m pip install --upgrade pip
 COPY examples/rag-example/open_llm/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# llama-cpp-python: native s390x build with OpenBLAS for CPU inference. Cached layer; rebuilds only when this RUN line or the base layers change.
-RUN CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" \
-    pip install --no-cache-dir llama-cpp-python huggingface_hub
+# llama-cpp-python: native s390x build with OpenBLAS (CPU + VXE2 SIMD on z15+) AND
+# (when ENABLE_ZDNN=1) zDNN backend for IBM NNPA acceleration on z17 / LinuxONE 5+
+# (Telum II). On older hardware the zDNN ops are unavailable and llama.cpp falls back
+# to CPU automatically, so the zDNN-enabled image runs everywhere on s390x.
+# Default build is CPU/VXE2 only (no zDNN cmake flag) — re-enable for research:
+#   docker build --build-arg ENABLE_ZDNN=1 ...
+RUN if [ "$ENABLE_ZDNN" = "1" ]; then \
+        echo "Building llama-cpp-python with zDNN backend (NNPA on z16/z17)" ; \
+        CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS -DGGML_ZDNN=ON -DZDNN_ROOT=/opt/zdnn-libs" \
+            pip install --no-cache-dir llama-cpp-python huggingface_hub ; \
+    else \
+        echo "Building llama-cpp-python with CPU/VXE2 only (zDNN disabled)" ; \
+        CMAKE_ARGS="-DGGML_BLAS=ON -DGGML_BLAS_VENDOR=OpenBLAS" \
+            pip install --no-cache-dir llama-cpp-python huggingface_hub ; \
+    fi
 
-# Install AltaStata from repo copy only (do not also pip install altastata from PyPI – would conflict)
-COPY . /src/altastata-python-package
+# Fix-up: llama-cpp-python's wheel install only copies the backends it knows about
+# (cpu/blas/base) into llama_cpp/lib/, which is the only directory libllama.so
+# searches via RPATH=$ORIGIN. New backends (zDNN, plus llama-common/mtmd helpers)
+# get installed under .../site-packages/lib64/ and are missed at import time:
+#   OSError: libggml-zdnn.so.0: cannot open shared object file
+# Copy the orphaned shared libs into the loader's search path so llama_cpp imports
+# cleanly with the zDNN backend registered. Only relevant when ENABLE_ZDNN=1.
+RUN if [ "$ENABLE_ZDNN" = "1" ]; then \
+        PYLIB=$(python -c "import sys, os; print(next(p for p in sys.path if p.endswith('site-packages')))") && \
+        if [ -d "$PYLIB/lib64" ]; then \
+            cp -fv "$PYLIB"/lib64/libggml-zdnn* "$PYLIB"/llama_cpp/lib/ 2>/dev/null || true ; \
+            cp -fv "$PYLIB"/lib64/libllama-common* "$PYLIB"/llama_cpp/lib/ 2>/dev/null || true ; \
+            cp -fv "$PYLIB"/lib64/libmtmd* "$PYLIB"/llama_cpp/lib/ 2>/dev/null || true ; \
+        fi && \
+        ls -la "$PYLIB/llama_cpp/lib/" | grep -E '\.so' ; \
+    fi && \
+    python -c "import llama_cpp; print('llama-cpp-python', llama_cpp.__version__, 'imported OK')"
+
+# Bake the self-converted F16 big-endian Llama-3.2-1B GGUF into /opt/models so
+# the entrypoint can pick it up on z16 / z17 (NNPA -> zDNN acceleration) without
+# any host-side scp or runtime HF download. /opt/models is intentionally NOT
+# declared as a VOLUME below so the bundled file survives even when callers
+# mount their own host dir at /models. The entrypoint prefers /models (volume,
+# user-supplied F16 wins) and falls back to /opt/models.
+#
+# The file must be staged into the build context at
+# containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf
+# by build-rag-s390x-on-server.sh; it is .gitignore'd (~2.5 GB, never commit).
+# When ENABLE_ZDNN=0 (the default) the build script stages a tiny placeholder
+# at the same path so this COPY always succeeds; the next RUN deletes it so
+# /opt/models is empty and the entrypoint always falls back to Q5_K_S.
+COPY containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf /opt/models/llama-3.2-1b-instruct-be.f16.gguf
+RUN if [ "$ENABLE_ZDNN" != "1" ]; then \
+        echo "ENABLE_ZDNN=0; removing /opt/models/*.f16.gguf placeholder (F16 only useful with zDNN)." && \
+        rm -f /opt/models/*.f16.gguf ; \
+    else \
+        ls -la /opt/models/ ; \
+    fi
+
+# Install AltaStata from repo copy only (do not also pip install altastata from PyPI – would conflict).
+# Narrowed from `COPY . /src/altastata-python-package` so the 2.5 GB F16 GGUF
+# in the build context is not duplicated into a second layer.
+COPY setup.py pyproject.toml README.md /src/altastata-python-package/
+COPY altastata /src/altastata-python-package/altastata
 RUN pip install --no-cache-dir /src/altastata-python-package
 
 # App code (no sample_documents; documents come from AltaStata — run indexer to populate)
