@@ -84,3 +84,7 @@ examples/rag-example/open_llm/chroma_data/
 # RAG s390x: self-converted F16 BE GGUF staged into the docker build context
 # by build-rag-s390x-on-server.sh. ~2.5 GB, never commit.
 containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf
+
+# Local RAG dev: account props and Mac-side build transcripts (never commit)
+containers/rag-example/*.user.properties
+rag-zdnn-build.log

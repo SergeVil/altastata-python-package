@@ -1,0 +1,12 @@
+---
+description: LinuxONE / s390x — rsync sync, build images ON VM, run as containers (no bare python deploy).
+alwaysApply: true
+---
+
+# LinuxONE (s390x)
+
+- **Canonical flow:** Refresh tree (**`rsync` from Mac**, not `git` on VM unless you choose it) → **build Docker images on LinuxONE** (`containers/linuxone/build-jupyter-and-rag-on-linuxone.sh`) → **run Jupyter + RAG as `docker` containers** (e.g. `containers/linuxone/run-jupyter-and-rag-on-server-for-browser.sh` or manual `docker run`). Use containers for JDK + PyTorch/llama.cpp + layout—not ad-hoc venv installs on bare metal for deployments.
+- **Mac orchestration:** `containers/build-s390x-jupyter-and-rag-on-server.sh` (**workstation-only**) rsync+s then invokes the **`linuxone/`** builder on the server.
+- **`containers/linuxone/*.sh`** expect a **directory tree already on the VM** (copied/rsync'd).
+
+See **`CLAUDE.md`** (RAG Open LLM on IBM Z) for the mirrored detail.

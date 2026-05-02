@@ -1,0 +1,11 @@
+---
+description: Do not git commit or push unless the user explicitly asks (mirrors CLAUDE.md).
+alwaysApply: true
+---
+
+# Git workflow (AI assistants)
+
+- Do **not** run `git commit` unless the user **explicitly** asks you to commit. Make code or doc edits as requested; leave commits to the user unless they say otherwise.
+- Do **not** `git push` branch updates to a remote unless the user **explicitly** asks. (Pushing Docker images to a registry is separate.)
+
+This mirrors `CLAUDE.md` — keep both in sync if you edit one.

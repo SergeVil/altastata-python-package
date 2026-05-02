@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Push the RAG s390x image from the LinuxONE server to ICR.
-# Prereq: image built on server (./containers/rag-example/build-rag-s390x-on-server.sh). ICR_TOKEN on your Mac.
+# Prereq: image built on LinuxONE Docker (same host as SSH_HOST) as
+# altastata/rag-open-llm-s390x:latest + :${RAG_VERSION}, or ENABLE_ZDNN build as :${RAG_VERSION}_zdnn
+# (either ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh on VM, or rsync Mac build script).
 # Run from repo root: ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
 # Research zDNN image on ICR: ENABLE_ZDNN=1 ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh
 

@@ -1,4 +1,8 @@
 #!/usr/bin/env bash
+# Workstation/Mac only — rsync + SSH orchestration. Do NOT run this script ON LinuxONE.
+# On IBM Z/LinuxONE VM (after your tree is in place): only
+#   ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh
+#
 # Sync repo (+ accounts blob) from your Mac to LinuxONE, then start Jupyter+RAG s390x
 # Docker builds *on LinuxONE*.
 #
@@ -16,6 +20,14 @@
 #   ENABLE_ZDNN=1 SSH_HOST=... REMOTE_BUILD_LOG=/tmp/foo.log DETACHED=0 ...
 #
 set -euo pipefail
+
+if [ "${SKIP_S390X_WORKSTATION_CHECK:-}" != "1" ] && command -v uname >/dev/null 2>&1 && [ "$(uname -m)" = "s390x" ]; then
+    echo "$(basename "$0"): this script orchestrates SSH/rsync FROM a workstation; you are ON s390x." >&2
+    echo "On LinuxONE, from repo root run only:" >&2
+    echo "  ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh" >&2
+    echo "(Override: SKIP_S390X_WORKSTATION_CHECK=1)" >&2
+    exit 2
+fi
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 SSH_KEY="${SSH_KEY:-/Users/sergevilvovsky/Downloads/torontolinuxonesshkey_rsa.prv}"
@@ -122,6 +134,7 @@ EOS
 fi
 
 echo ""
-echo "When builds finish, images/tags follow version.sh (JUPYTER_VERSION, RAG_VERSION)."
+echo "When builds finish (see log), run Jupyter + RAG for browser testing before ICR push:"
+echo "  ./containers/linuxone/run-jupyter-and-rag-on-server-for-browser.sh"
 echo "Push Jupyter: ./containers/jupyter/push-jupyter-s390x-to-icr-from-server.sh"
 echo "Push RAG:     ICR_TOKEN=... ./containers/rag-example/push-rag-s390x-to-icr-from-server.sh"

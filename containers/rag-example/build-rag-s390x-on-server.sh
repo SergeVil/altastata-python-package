@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# Build the RAG open_llm s390x image ON the LinuxONE server.
-# Run from repo root on your Mac (with the SSH key and server reachable).
+# Build the RAG open_llm s390x image on LinuxONE by rsync + ssh from your **workstation** (Mac).
+# If you are already **on** the LinuxONE VM with the repo tree on disk, do NOT use this script —
+# run from repo root:
+#   ENABLE_ZDNN=1 ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh
+# (Optionally SKIP_JUPYTER=1 to build only RAG.)
 #
-# Usage:
+# Usage (from Mac):
 #   ./containers/rag-example/build-rag-s390x-on-server.sh
 # Or with custom host/key:
 #   SSH_KEY=~/.ssh/my.key SSH_HOST=user@10.0.0.1 ./containers/rag-example/build-rag-s390x-on-server.sh
@@ -18,6 +21,15 @@
 # does not cancel the server-side build.
 
 set -e
+
+if [ "${SKIP_S390X_WORKSTATION_CHECK:-}" != "1" ] && command -v uname >/dev/null 2>&1 && [ "$(uname -m)" = "s390x" ]; then
+  echo "$(basename "$0"): this script rsync + SSH FROM a workstation; you are ON s390x." >&2
+  echo "On LinuxONE, from repo root run:" >&2
+  echo "  ENABLE_ZDNN=1 ./containers/linuxone/build-jupyter-and-rag-on-linuxone.sh" >&2
+  echo "(Optional: SKIP_JUPYTER=1 for RAG only.) Override: SKIP_S390X_WORKSTATION_CHECK=1" >&2
+  exit 2
+fi
+
 # Repo root = directory that contains containers/ and examples/rag-example/ (altastata-python-package)
 REPO_ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SSH_KEY="${SSH_KEY:-/Users/sergevilvovsky/Downloads/torontolinuxonesshkey_rsa.prv}"
