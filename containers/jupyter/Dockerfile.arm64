@@ -15,31 +15,21 @@ USER root
 RUN mkdir -p /opt/app-root/src && \
     chown -R ${NB_UID}:${NB_GID} /opt/app-root
 
-# Install only altastata and PyTorch
+# Install PyTorch and the local altastata checkout
 # Use setuptools<75 for pkg_resources (conda setuptools 82 lacks it for Python 3.13)
 # Note: torchaudio 2.5.1 not available for Python 3.13/ARM64; using latest compatible versions
 #
 # Split into three RUN steps so a Docker layer-cache only invalidates from the
 # changed step downward. PyTorch is ~2 GB to download — keep it in its own
-# layer so an altastata version bump doesn't force a re-pull.
-#
-# altastata is pinned via a build ARG so the layer's pip command text changes
-# whenever the version is bumped — this invalidates the cache for that one layer
-# without --no-cache. Single source of truth lives in setup.py: the build scripts
-# (containers/jupyter/build-all-images.sh, push-to-ghcr.sh) source version.sh
-# which auto-extracts ALTASTATA_PYPI_VERSION from setup.py and forwards it as
-# --build-arg ALTASTATA_VERSION. ARG default is intentionally empty: ad-hoc
-# `docker build .` then installs the latest from PyPI; the build script always
-# pins to setup.py's version, which is the canonical path.
+# layer so local altastata source changes don't force a re-pull.
 RUN pip install --no-cache-dir "setuptools<75"
 RUN pip install --no-cache-dir torch torchvision torchaudio
-ARG ALTASTATA_VERSION=
-RUN if [ -n "${ALTASTATA_VERSION}" ]; then \
-        pip install --no-cache-dir "altastata==${ALTASTATA_VERSION}" ; \
-    else \
-        echo "WARN: ALTASTATA_VERSION not set (build script overrides this). Installing latest from PyPI." && \
-        pip install --no-cache-dir altastata ; \
-    fi
+
+# Install AltaStata from this repository so local changes are testable before
+# publishing a wheel to PyPI.
+COPY setup.py pyproject.toml README.md /src/altastata-python-package/
+COPY altastata /src/altastata-python-package/altastata
+RUN pip install --no-cache-dir /src/altastata-python-package
 
 # Copy pytorch-example for reference
 COPY --chown=${NB_UID}:${NB_GID} examples/pytorch-example /opt/app-root/src/pytorch-example/
