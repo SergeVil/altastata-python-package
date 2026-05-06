@@ -1,4 +1,3 @@
-import collections
 import tensorflow as tf
 import numpy as np
 from pathlib import Path
@@ -42,10 +41,6 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
-        self.file_content_cache = collections.OrderedDict()
-        self.cache_size_limit = 1024 * 1024 * 1024  # 1GB limit
-        self.current_cache_size = 0
-        self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
         self.preprocess_fn = preprocess_fn
 
         altastata_functions = _get_altastata_functions(account_id)
@@ -110,46 +105,19 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         """Returns the list of input datasets."""
         return []
 
-    def _cache_put(self, path: str, data: bytes):
-        """Insert data into the LRU cache, evicting oldest entries if needed.
-
-        Skips caching if the data exceeds ``max_file_size_for_cache``.
-        Handles duplicate keys by removing the old entry first.
-        """
-        data_len = len(data)
-        if data_len > self.max_file_size_for_cache:
-            return
-
-        if path in self.file_content_cache:
-            self.current_cache_size -= len(self.file_content_cache.pop(path))
-
-        while self.current_cache_size + data_len > self.cache_size_limit and self.file_content_cache:
-            evicted_path, evicted_data = self.file_content_cache.popitem(last=False)
-            self.current_cache_size -= len(evicted_data)
-
-        self.file_content_cache[path] = data
-        self.current_cache_size += data_len
-
     def _read_from_altastata(self, altastata_functions, path):
         """Read file bytes from AltaStata cloud storage.
 
-        Checks the in-memory LRU cache first. On a cache miss, fetches
-        the file size via ``get_file_attribute`` then reads content via
-        ``get_buffer`` (which streams in 8 MB chunks for large files).
-        The result is always cached for subsequent reads.
+        Java owns the reusable chunk cache. Python reads each requested file
+        through ``get_buffer`` without keeping a second whole-file cache in
+        the dataset worker.
         """
-        if path in self.file_content_cache:
-            self.file_content_cache.move_to_end(path)
-            return self.file_content_cache[path]
-
         size_str = altastata_functions.get_file_attribute(path, None, "size")
         try:
             size = int(size_str) if size_str else 0
         except (ValueError, TypeError):
             size = 0
-        data = altastata_functions.get_buffer(path, None, 0, 4, size)
-        self._cache_put(path, data)
-        return data
+        return altastata_functions.get_buffer(path, None, 0, 4, size)
 
     def _load_and_preprocess(self, file_path, label):
         """Load and preprocess a single sample."""
@@ -241,12 +209,6 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
 
     def _write_file(self, path: str, data: bytes) -> None:
         """Write bytes to a file using either AltaStataFunctions or local file operations."""
-        # Remove from cache if present
-        if path in self.file_content_cache:
-            self.current_cache_size -= len(self.file_content_cache[path])
-            del self.file_content_cache[path]
-            print(f"Worker {os.getpid()} - Removed {path} from cache")
-
         altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
@@ -265,7 +227,7 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         """Read file bytes from cloud storage or local filesystem.
 
         Converts TensorFlow tensor paths to strings. Routes to
-        ``_read_from_altastata`` (with caching) when a cloud connection
+        ``_read_from_altastata`` when a cloud connection
         is available, otherwise reads from the local filesystem.
         """
         if tf.is_tensor(path):

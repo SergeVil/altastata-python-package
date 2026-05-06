@@ -7,7 +7,6 @@ import io
 import os
 import sys
 import json
-import collections
 from typing import Dict, Any
 from altastata.altastata_functions import AltaStataFunctions
 import fnmatch
@@ -59,10 +58,6 @@ class AltaStataPyTorchDataset(Dataset):
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
-        self.file_content_cache = collections.OrderedDict()
-        self.cache_size_limit = 1024 * 1024 * 1024  # 1GB limit
-        self.current_cache_size = 0
-        self.max_file_size_for_cache = 16 * 1024 * 1024  # 16MB limit per file
 
         altastata_functions = _get_altastata_functions(account_id)
 
@@ -163,12 +158,6 @@ class AltaStataPyTorchDataset(Dataset):
     def _write_file(self, path: str, data: bytes) -> None:
         """Write bytes to a file using either AltaStataFunctions or local file operations."""
 
-        # Remove from cache if present
-        if path in self.file_content_cache:
-            self.current_cache_size -= len(self.file_content_cache[path])
-            del self.file_content_cache[path]
-            print(f"Worker {os.getpid()} - Removed {path} from cache")
-
         altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
@@ -184,42 +173,16 @@ class AltaStataPyTorchDataset(Dataset):
             with open(local_path, 'wb') as f:
                 f.write(data)
 
-    def _cache_put(self, path: str, data: bytes):
-        """Insert data into the LRU cache, evicting oldest entries if needed.
-
-        Skips caching if the data exceeds ``max_file_size_for_cache``.
-        Handles duplicate keys by removing the old entry first.
-        """
-        data_len = len(data)
-        if data_len > self.max_file_size_for_cache:
-            return
-
-        if path in self.file_content_cache:
-            self.current_cache_size -= len(self.file_content_cache.pop(path))
-
-        while self.current_cache_size + data_len > self.cache_size_limit and self.file_content_cache:
-            evicted_path, evicted_data = self.file_content_cache.popitem(last=False)
-            self.current_cache_size -= len(evicted_data)
-
-        self.file_content_cache[path] = data
-        self.current_cache_size += data_len
-
     def _read_file(self, path: str) -> bytes:
         """Read file bytes from cloud storage or local filesystem.
 
-        Checks the in-memory LRU cache first. On a cache miss, fetches
-        the file size via ``get_file_attribute`` then reads content via
-        ``get_buffer`` (which streams in 8 MB chunks for large files).
-        The result is cached for subsequent reads.
+        For cloud storage, Java owns the reusable chunk cache. Python reads
+        each requested file through ``get_buffer`` without keeping a second
+        whole-file cache in the dataset worker.
 
         Falls back to local file I/O when no AltaStata connection is
         registered for this account.
         """
-        # LRU cache hit — promote to most-recently-used
-        if path in self.file_content_cache:
-            self.file_content_cache.move_to_end(path)
-            return self.file_content_cache[path]
-
         altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
@@ -229,9 +192,7 @@ class AltaStataPyTorchDataset(Dataset):
                 size = int(size_str) if size_str else 0
             except (ValueError, TypeError):
                 size = 0
-            data = altastata_functions.get_buffer(path, None, 0, 4, size)
-            self._cache_put(path, data)
-            return data
+            return altastata_functions.get_buffer(path, None, 0, 4, size)
         else:
             local_path = str(self.root_dir / path)
             with open(local_path, 'rb') as f:
