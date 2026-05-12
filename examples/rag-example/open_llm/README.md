@@ -400,6 +400,34 @@ The container logs which file it picked, e.g.
 - `[entrypoint] ENABLE_ZDNN=1 + NNPA hardware + F16 BE GGUF (baked-in /opt/models) -> selecting F16 BE for zDNN acceleration`  *(research builds on z16/z17)*
 - After model load (only with `ENABLE_ZDNN=1`), look for `ZDNN model buffer size = …` (or `register backend zdnn`) in `docker logs <container>` to confirm zDNN actually took the model.
 
+#### Query latency instrumentation (`RAG_TIMING_LOG`)
+
+Set **`RAG_TIMING_LOG=1`** on the container (or in `.env` when running locally) to print a per-request breakdown after each **`POST /query`**:
+
+- **`[RAG timing] similarity_detail`** — `embed_query_ms` vs `vector_scan_ms` (inside **vector DB search**).
+- **`[RAG timing] llm_detail`** — streaming **TTFT** vs **decode** (llama-cpp only).
+- **`llama_perf_context_print`** — llama.cpp’s own prompt-eval vs decode totals when verbose logging is enabled for timing builds.
+- **`[RAG timing] total_ms=…`** — compact key=value line for scripts.
+- **`[RAG timing] phase_table_ms`** — fixed columns (**phase**, **ms**, **%** of end-to-end) using stakeholder labels: **`vector_db_search`**, **`fetch_chunks`**, **`llm_inference`**, etc.
+
+**Example** (one real query on LinuxONE **z15-class**, `LLM_PROVIDER=llama-cpp`, **`RAG_TIMING_LOG=1`**, small indexed corpus — numbers vary by hardware, model, prompt length, and cache warmth):
+
+| phase | ms | % of total |
+|-------|---:|-----------:|
+| load_vector_store_index | 0.04 | 0.0% |
+| llm_resolve (cached handle) | 0.00 | 0.0% |
+| vector_db_search (embed + similarity) | 31.19 | 0.1% |
+| altastata_connect | 0.00 | 0.0% |
+| fetch_chunks (parallel wall) | 620.61 | 1.7% |
+| build_prompt | 0.01 | 0.0% |
+| **llm_inference** | **35957.93** | **98.2%** |
+|   llama-cpp TTFT (~prefill+1st token) | 33047.76 | 90.3% |
+|   llama-cpp decode (streaming) | 2910.07 | 7.9% |
+| fetch_chunks_sum_threads (reference) | 1238.87 | 3.4% |
+| END_TO_END_total_ms | 36609.87 | 100.0% |
+
+On runs like this, **vector search + AltaStata chunk reads are negligible versus LLM wall time**; optimizing inference (hardware, smaller prompt/context, fewer output tokens) moves end-to-end latency far more than tightening cloud read paths alone.
+
 **Deployment for end users (including air-gapped / confidential envs):** plain `docker run` — no `scp`, no `/models` mount, no env tweaks needed.
 
 ```bash

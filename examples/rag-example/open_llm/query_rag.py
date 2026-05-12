@@ -9,6 +9,7 @@ Returns answer and source chunks for citations.
 
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,6 +43,7 @@ from config import (
     WATSONX_MODEL_ID,
     WATSONX_MAX_TOKENS,
     RAG_DEBUG_RESPONSE,
+    RAG_TIMING_LOG,
 )
 from indexer import get_vector_store as _get_vector_store_impl
 
@@ -216,29 +218,80 @@ def _get_llm():
                     )
                 print(f"[llama-cpp] Using local GGUF {gguf_path} (LLAMA_CPP_MODEL_REPO is empty)...")
             print(f"[llama-cpp] Loading {gguf_path} (n_ctx={LLAMA_CPP_N_CTX})...")
+            # When RAG_TIMING_LOG=1, enable llama.cpp's own verbose perf output so
+            # per-call `llama_perf_context_print` lines appear in the log
+            # (prompt eval time / eval time / total time — i.e. prefill vs decode,
+            # the canonical split for measuring NNPA / zDNN benefit).
             _llm_obj = llama_cpp.Llama(
                 model_path=gguf_path,
                 n_ctx=LLAMA_CPP_N_CTX,
                 n_threads=(LLAMA_CPP_N_THREADS or None),
-                verbose=False,
+                verbose=bool(RAG_TIMING_LOG),
             )
 
             class _LlamaCppChat:
                 def __init__(self, llm, max_tokens):
                     self._llm = llm
                     self._max_tokens = max_tokens
+                    self.last_ttft_ms = None
+                    self.last_decode_ms = None
 
                 def invoke(self, prompt):
                     # Note: we deliberately send only a `user` message (no `system` role).
                     # The big-endian Llama-3.2 GGUF chat template segfaults on s390x when
                     # given a separate system message, so any guidance must live inside
                     # the user prompt itself (see _query_rag in this file).
-                    out = self._llm.create_chat_completion(
-                        messages=[{"role": "user", "content": prompt}],
-                        max_tokens=self._max_tokens,
-                        temperature=0.1,
-                    )
-                    content = out["choices"][0]["message"]["content"]
+                    messages = [{"role": "user", "content": prompt}]
+                    self.last_ttft_ms = None
+                    self.last_decode_ms = None
+                    # Streaming path when timing is requested: measures TTFT (~= prefill cost)
+                    # and decode throughput (decode tokens / decode time) at the Python layer,
+                    # complementing llama.cpp's own llama_perf_context_print output.
+                    if RAG_TIMING_LOG:
+                        t_start = time.perf_counter()
+                        t_first = None
+                        chunks_text = []
+                        n_chunks = 0
+                        for chunk in self._llm.create_chat_completion(
+                            messages=messages,
+                            max_tokens=self._max_tokens,
+                            temperature=0.1,
+                            stream=True,
+                        ):
+                            delta = chunk["choices"][0].get("delta", {}) or {}
+                            piece = delta.get("content")
+                            if piece is None:
+                                continue
+                            if t_first is None:
+                                t_first = time.perf_counter()
+                            chunks_text.append(piece)
+                            n_chunks += 1
+                        t_end = time.perf_counter()
+                        ttft_ms = ((t_first - t_start) * 1000) if t_first is not None else (t_end - t_start) * 1000
+                        decode_ms = ((t_end - t_first) * 1000) if t_first is not None else 0.0
+                        decode_chunks_after_first = max(n_chunks - 1, 0)
+                        decode_cps = (
+                            decode_chunks_after_first / ((t_end - t_first))
+                            if (t_first is not None and decode_chunks_after_first > 0)
+                            else 0.0
+                        )
+                        print(
+                            "[RAG timing] llm_detail provider=llama-cpp"
+                            f" ttft_ms={round(ttft_ms, 2)}"
+                            f" decode_ms={round(decode_ms, 2)}"
+                            f" output_chunks={n_chunks}"
+                            f" decode_chunks_per_s={round(decode_cps, 2)}"
+                        )
+                        self.last_ttft_ms = round(ttft_ms, 2)
+                        self.last_decode_ms = round(decode_ms, 2)
+                        content = "".join(chunks_text)
+                    else:
+                        out = self._llm.create_chat_completion(
+                            messages=messages,
+                            max_tokens=self._max_tokens,
+                            temperature=0.1,
+                        )
+                        content = out["choices"][0]["message"]["content"]
                     return type("R", (), {"content": content})()
 
             _cached_llm = _LlamaCppChat(_llm_obj, LLAMA_CPP_MAX_TOKENS)
@@ -291,6 +344,40 @@ def _connect_altastata():
     return create_filesystem(af, ALTASTATA_ACCOUNT_ID), af
 
 
+def _print_rag_phase_table(total_wall_ms, main_rows, llm_cpp_subrows=None, info_rows=None):
+    """Human-readable phase breakdown when RAG_TIMING_LOG=1 (after each timed query)."""
+    if not RAG_TIMING_LOG:
+        return
+    denom = float(total_wall_ms) if total_wall_ms and total_wall_ms > 0 else 1.0
+    w = 46
+    print("[RAG timing] phase_table_ms")
+    print(f"  {'phase':<{w}} {'ms':>11} {'pct':>7}")
+    print(f"  {'-' * w} {'-' * 11} {'-' * 7}")
+    summed = 0.0
+    for label, ms in main_rows:
+        ms = float(ms)
+        summed += ms
+        pct = 100.0 * ms / denom
+        print(f"  {label:<{w}} {ms:>11.2f} {pct:>6.1f}%")
+    if llm_cpp_subrows:
+        for label, ms in llm_cpp_subrows:
+            ms = float(ms)
+            pct = 100.0 * ms / denom
+            print(f"  {label:<{w}} {ms:>11.2f} {pct:>6.1f}%")
+    if info_rows:
+        note = "(reference - fetch_chunks sum may exceed parallel wall)"
+        print(f"  {note:<{w}} {'':>11} {'':>7}")
+        for label, ms in info_rows:
+            ms = float(ms)
+            pct = 100.0 * ms / denom
+            print(f"  {label:<{w}} {ms:>11.2f} {pct:>6.1f}%")
+    ov = float(total_wall_ms) - summed
+    if ov > 0.5 or ov < -0.5:
+        pct_ov = 100.0 * ov / denom
+        print(f"  {'timing_residual_vs_total_ms':<{w}} {ov:>11.2f} {pct_ov:>6.1f}%")
+    print(f"  {'END_TO_END_total_ms':<{w}} {float(total_wall_ms):>11.2f} {'100.0':>6}%")
+
+
 def query_rag(
     query_text: str,
     k: int = 2,
@@ -303,15 +390,59 @@ def query_rag(
     Returns (answer: str, sources: list[dict]).
     If altastata_fs/altastata_af are None and ALTASTATA_ACCOUNT_DIR is set, they are created.
     """
+    t_req = time.perf_counter()
+
+    def _emit_timing(parts):
+        """parts: list of (key, value) — stable column order in logs."""
+        if not RAG_TIMING_LOG:
+            return
+        total_ms = round((time.perf_counter() - t_req) * 1000, 2)
+        extra = " ".join(f"{name}={value}" for name, value in parts)
+        print(f"[RAG timing] total_ms={total_ms} {extra}")
+
+    t0 = time.perf_counter()
     vector_store = _get_vector_store()
+    dt_vector_store = time.perf_counter() - t0
     if vector_store is None:
+        _emit_timing(
+            [
+                ("vector_store_ms", round(dt_vector_store * 1000, 2)),
+                ("note", "no_index"),
+            ]
+        )
+        _tw = round((time.perf_counter() - t_req) * 1000, 2)
+        _print_rag_phase_table(
+            _tw,
+            [("load_vector_store_index", round(dt_vector_store * 1000, 2))],
+        )
         return "No index found. Run the indexer to index documents from AltaStata (or index_local.py for a local directory).", []
 
+    t0 = time.perf_counter()
     llm = _get_llm()
+    dt_llm_resolve = time.perf_counter() - t0
 
-    # Similarity search
+    # Similarity search (includes embed_query + numpy scores in SimpleVectorStore)
+    t0 = time.perf_counter()
     results = vector_store.similarity_search_with_score(query_text, k=k)
+    dt_similarity = time.perf_counter() - t0
     if not results:
+        _emit_timing(
+            [
+                ("vector_store_ms", round(dt_vector_store * 1000, 2)),
+                ("llm_resolve_ms", round(dt_llm_resolve * 1000, 2)),
+                ("similarity_ms", round(dt_similarity * 1000, 2)),
+                ("note", "no_hits"),
+            ]
+        )
+        _tw = round((time.perf_counter() - t_req) * 1000, 2)
+        _print_rag_phase_table(
+            _tw,
+            [
+                ("load_vector_store_index", round(dt_vector_store * 1000, 2)),
+                ("llm_resolve (cached handle)", round(dt_llm_resolve * 1000, 2)),
+                ("vector_db_search (embed + similarity)", round(dt_similarity * 1000, 2)),
+            ],
+        )
         return "No relevant documents found.", []
 
     # Prefer lower distance (we use cosine; sort for consistency)
@@ -320,48 +451,68 @@ def query_rag(
 
     fs = altastata_fs
     _af = altastata_af  # keep reference so connection is not gc'd
+    t0 = time.perf_counter()
     if fs is None and ALTASTATA_ACCOUNT_DIR and os.path.isdir(ALTASTATA_ACCOUNT_DIR):
         fs, _af = _connect_altastata()
+    dt_altastata_connect = time.perf_counter() - t0
 
     def fetch_one(idx, doc, _score):
+        t_fetch = time.perf_counter()
         meta = doc.metadata
         chunk_path = meta.get("chunk_path") or meta.get("source")
+        label = chunk_path or "(inline_doc)"
         if not chunk_path:
-            return idx, doc.page_content, {"filename": meta.get("filename", "unknown"), "text": doc.page_content[:200]}
-        if fs:
+            text = doc.page_content
+            src = {"filename": meta.get("filename", "unknown"), "text": doc.page_content[:200]}
+        elif fs:
             try:
                 with fs.open(chunk_path, "r") as f:
                     text = f.read()
             except Exception as e:  # pylint: disable=broad-except
                 text = doc.page_content
                 print(f"⚠️  Could not read {chunk_path}: {e}")
+            src = {
+                "filename": meta.get("filename", os.path.basename(chunk_path)),
+                "chunk_path": chunk_path,
+                "text": text[:300],
+            }
         else:
             text = doc.page_content
-        return idx, text, {
-            "filename": meta.get("filename", os.path.basename(chunk_path)),
-            "chunk_path": chunk_path,
-            "text": text[:300],
-        }
+            src = {
+                "filename": meta.get("filename", os.path.basename(chunk_path)),
+                "chunk_path": chunk_path,
+                "text": text[:300],
+            }
+        fetch_ms = (time.perf_counter() - t_fetch) * 1000
+        return idx, text, src, label, fetch_ms
 
     sources = []
     chunk_texts = []
+    chunk_read_detail = []
+
+    t_chunks = time.perf_counter()
     if len(top) <= 1:
         for i, (doc, sc) in enumerate(top):
-            _, text, src = fetch_one(i, doc, sc)
+            _, text, src, label, fetch_ms = fetch_one(i, doc, sc)
             chunk_texts.append(text)
             sources.append(src)
+            chunk_read_detail.append((label, fetch_ms))
     else:
         results_by_idx = {}
         with ThreadPoolExecutor(max_workers=min(len(top), 8)) as executor:
             futures = {executor.submit(fetch_one, i, doc, sc): i for i, (doc, sc) in enumerate(top)}
             for fut in as_completed(futures):
-                idx, text, src = fut.result()
+                idx, text, src, label, fetch_ms = fut.result()
                 results_by_idx[idx] = (text, src)
+                chunk_read_detail.append((label, fetch_ms))
         for i in range(len(top)):
             text, src = results_by_idx[i]
             chunk_texts.append(text)
             sources.append(src)
+    dt_chunk_phase = time.perf_counter() - t_chunks
+    sum_chunk_ms = sum(ms for _lbl, ms in chunk_read_detail)
 
+    t0 = time.perf_counter()
     context = "\n\n".join([f"[Excerpt {i+1}]:\n{t}" for i, t in enumerate(chunk_texts)])
     # Earlier prompt said "Answer in 2-4 short sentences" which fought list-style
     # questions ("what are the password requirements?"): small models resolved the
@@ -378,6 +529,9 @@ Question: {query_text}
 
 Answer:"""
 
+    dt_prompt_build = time.perf_counter() - t0
+
+    t_llm = time.perf_counter()
     try:
         response = llm.invoke(prompt)
         # Handle different return types: ChatMessage .content, string, or raw pipeline list/dict
@@ -407,6 +561,50 @@ Answer:"""
             answer = "No text was generated. Try a shorter question, or increase HF_LLM_MAX_NEW_TOKENS (default 400) if you need longer answers."
     except Exception as e:  # pylint: disable=broad-except
         answer = f"LLM error: {e}"
+    dt_llm_invoke = time.perf_counter() - t_llm
+
+    reads_bits = []
+    for lbl, ms in chunk_read_detail:
+        short = lbl if lbl == "(inline_doc)" else os.path.basename(lbl)
+        reads_bits.append(f"{short}:{round(ms, 2)}ms")
+    reads_joined = ",".join(reads_bits)
+
+    _emit_timing(
+        [
+            ("vector_store_ms", round(dt_vector_store * 1000, 2)),
+            ("llm_resolve_ms", round(dt_llm_resolve * 1000, 2)),
+            ("similarity_ms", round(dt_similarity * 1000, 2)),
+            ("altastata_connect_ms", round(dt_altastata_connect * 1000, 2)),
+            ("chunk_phase_wall_ms", round(dt_chunk_phase * 1000, 2)),
+            ("chunk_fetch_sum_ms", round(sum_chunk_ms, 2)),
+            ("chunk_reads", reads_joined),
+            ("prompt_build_ms", round(dt_prompt_build * 1000, 2)),
+            ("llm_invoke_ms", round(dt_llm_invoke * 1000, 2)),
+            ("prompt_chars", len(prompt)),
+        ]
+    )
+
+    total_wall_ms = round((time.perf_counter() - t_req) * 1000, 2)
+    llm_sub = []
+    if getattr(llm, "last_ttft_ms", None) is not None:
+        llm_sub.append(("  llama-cpp TTFT (~prefill+1st token)", llm.last_ttft_ms))
+    if getattr(llm, "last_decode_ms", None) is not None:
+        llm_sub.append(("  llama-cpp decode (streaming)", llm.last_decode_ms))
+    _print_rag_phase_table(
+        total_wall_ms,
+        [
+            ("load_vector_store_index", round(dt_vector_store * 1000, 2)),
+            ("llm_resolve (cached handle)", round(dt_llm_resolve * 1000, 2)),
+            ("vector_db_search (embed + similarity)", round(dt_similarity * 1000, 2)),
+            ("altastata_connect", round(dt_altastata_connect * 1000, 2)),
+            ("fetch_chunks (parallel wall)", round(dt_chunk_phase * 1000, 2)),
+            ("build_prompt", round(dt_prompt_build * 1000, 2)),
+            ("llm_inference", round(dt_llm_invoke * 1000, 2)),
+        ],
+        llm_cpp_subrows=llm_sub or None,
+        info_rows=[("fetch_chunks_sum_threads (reference)", round(sum_chunk_ms, 2))],
+    )
+
     return answer.strip(), sources
 
 
