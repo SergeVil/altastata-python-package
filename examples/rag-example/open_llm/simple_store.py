@@ -2,8 +2,11 @@
 Pure-Python vector store (numpy only). No Chroma, no FAISS.
 Runs on any architecture (x86, ARM, s390x). Use for the demo.
 """
-from pathlib import Path
 import json
+import os
+import time
+from pathlib import Path
+
 import numpy as np
 from langchain_core.documents import Document
 
@@ -28,10 +31,12 @@ class SimpleVectorStore:
         assert len(self._docs) == len(self._embeddings), "docs and embeddings length mismatch"
 
     def similarity_search_with_score(self, query: str, k: int = 4):
-        from langchain_core.embeddings import Embeddings
         if not self._docs:
             return []
+        t0 = time.perf_counter()
         q = self._embedding_fn.embed_query(query)
+        embed_ms = (time.perf_counter() - t0) * 1000
+        t1 = time.perf_counter()
         q = np.asarray(q, dtype=np.float32).reshape(1, -1)
         q = _normalize(q)
         # Cosine similarity: (1, dim) @ (dim, n) -> (1, n)
@@ -39,6 +44,12 @@ class SimpleVectorStore:
         # Convert to distance: lower is better (1 - sim)
         distances = 1.0 - sims
         idx = np.argsort(distances)[: min(k, len(self._docs))]
+        scan_ms = (time.perf_counter() - t1) * 1000
+        if os.getenv("RAG_TIMING_LOG", "").strip().lower() in ("1", "true", "yes"):
+            print(
+                "[RAG timing] similarity_detail "
+                f"embed_query_ms={round(embed_ms, 2)} vector_scan_ms={round(scan_ms, 2)} index_docs={len(self._docs)}"
+            )
         out = []
         for i in idx:
             d = self._docs[i]
@@ -91,7 +102,6 @@ class SimpleVectorStore:
 
     @classmethod
     def from_documents(cls, documents: list, embedding_fn) -> "SimpleVectorStore":
-        from langchain_core.documents import Document
         texts = [d.page_content for d in documents]
         # Keep only JSON-serializable metadata
         meta = []
