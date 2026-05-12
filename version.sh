@@ -21,7 +21,7 @@
 # end-user confusion ("did Jupyter change between 2026e and 2026g?" — no).
 
 JUPYTER_VERSION="2026c_latest"
-RAG_VERSION="2026g_latest"
+RAG_VERSION="2026h_latest"
 
 # Resolve repo root from this script's location so callers can `source version.sh`
 # from any cwd. Falls back to the current dir if BASH_SOURCE isn't available.

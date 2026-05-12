@@ -44,6 +44,10 @@ REMOTE_JUP_WORK="${REMOTE_JUP_WORK:-/root/jupyter-web-work}"
 
 LLM_PROVIDER="${LLM_PROVIDER:-llama-cpp}"
 QUERY_TIMEOUT="${QUERY_TIMEOUT:-400}"
+# RAG_TIMING_LOG=1 turns on per-query phase timings in the RAG container logs
+# (vector store / similarity / AltaStata chunk reads / LLM TTFT / llama.cpp perf print).
+# Default ON for now so investigations always have data; set RAG_TIMING_LOG=0 to silence.
+RAG_TIMING_LOG="${RAG_TIMING_LOG:-1}"
 
 RUN_JUP="${RUN_JUP:-1}"
 RUN_RAG="${RUN_RAG:-1}"
@@ -92,6 +96,7 @@ if [ "$RUN_RAG" = "1" ]; then
     $HPCS_ENV \
     -e LLM_PROVIDER=$LLM_PROVIDER \
     -e QUERY_TIMEOUT=$QUERY_TIMEOUT \
+    -e RAG_TIMING_LOG=$RAG_TIMING_LOG \
     $LLAMA_OPTS \
     -v $REMOTE_ALTASTATA_ACCOUNTS:$REMOTE_ALTASTATA_ACCOUNTS:ro \
     -v $REMOTE_MODELS_DIR:/models \
