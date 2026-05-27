@@ -15,7 +15,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'altastata': ['lib/*.jar']
+        'altastata': ['lib/*.jar', 'v1/*.py'],
+        '': ['proto/**/*.proto']
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -26,6 +27,8 @@ setup(
     install_requires=[
         'py4j==0.10.9.5',
         'fsspec>=2023.1.0',
+        'grpcio>=1.69.0',
+        'protobuf>=4.28.3',
     ],
 )
 

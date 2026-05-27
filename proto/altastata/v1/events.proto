@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package altastata.v1;
+
+message SubscribeRequest {}
+
+message EventMessage {
+  string event_name = 1;
+  string data = 2;
+}
+
+service EventsService {
+  rpc Subscribe(SubscribeRequest) returns (stream EventMessage);
+}
