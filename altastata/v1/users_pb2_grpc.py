@@ -54,6 +54,21 @@ class UsersServiceStub(object):
                 request_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
                 response_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
                 _registered_method=True)
+        self.SetUserProperties = channel.unary_unary(
+                '/altastata.v1.UsersService/SetUserProperties',
+                request_serializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
+                _registered_method=True)
+        self.SetPrivateKey = channel.unary_unary(
+                '/altastata.v1.UsersService/SetPrivateKey',
+                request_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
+                _registered_method=True)
+        self.SetPasswordForUser = channel.unary_unary(
+                '/altastata.v1.UsersService/SetPasswordForUser',
+                request_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.FromString,
+                _registered_method=True)
 
 
 class UsersServiceServicer(object):
@@ -83,6 +98,24 @@ class UsersServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def SetUserProperties(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetPrivateKey(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def SetPasswordForUser(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_UsersServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -105,6 +138,21 @@ def add_UsersServiceServicer_to_server(servicer, server):
                     servicer.SetPassword,
                     request_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordRequest.FromString,
                     response_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordResponse.SerializeToString,
+            ),
+            'SetUserProperties': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetUserProperties,
+                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.SerializeToString,
+            ),
+            'SetPrivateKey': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetPrivateKey,
+                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.SerializeToString,
+            ),
+            'SetPasswordForUser': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetPasswordForUser,
+                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -215,6 +263,87 @@ class UsersService(object):
             '/altastata.v1.UsersService/SetPassword',
             altastata_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
             altastata_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetUserProperties(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.UsersService/SetUserProperties',
+            altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
+            altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetPrivateKey(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.UsersService/SetPrivateKey',
+            altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
+            altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def SetPasswordForUser(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.UsersService/SetPasswordForUser',
+            altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.SerializeToString,
+            altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.FromString,
             options,
             channel_credentials,
             insecure,

@@ -5,6 +5,11 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 import grpc
 import threading
+import os
+import re
+import socket
+import subprocess
+import time
 
 
 def _token_from_params(
@@ -74,6 +79,103 @@ class AltaStataGrpcClient:
         self._fileops_stub = fileops_pb2_grpc.FileOpsServiceStub(self._channel)
         self._events_stub = events_pb2_grpc.EventsServiceStub(self._channel)
         self._listener_threads: List[threading.Thread] = []
+        self._server_process = None
+
+    @classmethod
+    def from_account_dir(
+        cls,
+        account_dir_path: str,
+        *,
+        password: Optional[str] = None,
+        user_name: Optional[str] = None,
+        endpoint: GrpcEndpoint = GrpcEndpoint(),
+        setup_port: int = 9880,
+        auto_start_server: bool = True,
+        grpc_server_command: Optional[Sequence[str]] = None,
+        grpc_server_working_dir: Optional[str] = None,
+        start_timeout_s: int = 45,
+    ) -> "AltaStataGrpcClient":
+        """
+        Create a gRPC client from an AltaStata account directory.
+
+        This method mirrors the convenience of AltaStataFunctions.from_account_dir:
+        it reads account files and initializes the local gRPC service user context.
+        """
+        account_dir = os.path.abspath(account_dir_path)
+        if not os.path.isdir(account_dir):
+            raise FileNotFoundError(f"Account directory not found: {account_dir}")
+
+        user_properties_path = _find_user_properties_file(account_dir)
+        private_key_path = os.path.join(account_dir, "private.key")
+        if not os.path.exists(private_key_path):
+            raise FileNotFoundError(f"private.key not found in account directory: {account_dir}")
+
+        with open(user_properties_path, "r", encoding="utf-8") as f:
+            user_properties = f.read()
+        with open(private_key_path, "r", encoding="utf-8") as f:
+            private_key = f.read()
+
+        resolved_user_name = user_name or _infer_user_name(account_dir, user_properties_path)
+
+        started_process = None
+        if not _is_port_open(endpoint.host, endpoint.port) and auto_start_server:
+            started_process = _start_local_grpc_service(
+                grpc_server_command=grpc_server_command,
+                working_dir=grpc_server_working_dir,
+            )
+            _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
+        _bootstrap_via_grpc(
+            endpoint=endpoint,
+            user_name=resolved_user_name,
+            user_properties=user_properties,
+            private_key_encrypted=private_key,
+            password=password,
+        )
+
+        client = cls(endpoint=endpoint, local_user=resolved_user_name)
+        client._server_process = started_process
+        return client
+
+    @classmethod
+    def from_credentials(
+        cls,
+        user_properties: str,
+        private_key_encrypted: str,
+        *,
+        password: Optional[str] = None,
+        user_name: Optional[str] = None,
+        endpoint: GrpcEndpoint = GrpcEndpoint(),
+        setup_port: int = 9880,
+        auto_start_server: bool = True,
+        grpc_server_command: Optional[Sequence[str]] = None,
+        grpc_server_working_dir: Optional[str] = None,
+        start_timeout_s: int = 45,
+    ) -> "AltaStataGrpcClient":
+        """
+        Create a gRPC client directly from credentials payloads.
+
+        Mirrors AltaStataFunctions.from_credentials(...) convenience.
+        """
+        resolved_user_name = user_name or _infer_user_name_from_properties_text(user_properties)
+
+        started_process = None
+        if not _is_port_open(endpoint.host, endpoint.port) and auto_start_server:
+            started_process = _start_local_grpc_service(
+                grpc_server_command=grpc_server_command,
+                working_dir=grpc_server_working_dir,
+            )
+            _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
+        _bootstrap_via_grpc(
+            endpoint=endpoint,
+            user_name=resolved_user_name,
+            user_properties=user_properties,
+            private_key_encrypted=private_key_encrypted,
+            password=password,
+        )
+
+        client = cls(endpoint=endpoint, local_user=resolved_user_name)
+        client._server_process = started_process
+        return client
 
     @staticmethod
     def _create_channel(endpoint: GrpcEndpoint) -> grpc.Channel:
@@ -88,6 +190,12 @@ class AltaStataGrpcClient:
 
     def close(self) -> None:
         self._channel.close()
+        if self._server_process is not None:
+            try:
+                self._server_process.terminate()
+                self._server_process.wait(timeout=5)
+            except Exception:
+                pass
 
     # ---------------- Users ----------------
 
@@ -435,3 +543,128 @@ class AltaStataGrpcClient:
             # best-effort no-op; handles returned by add_event_listener own stop flags
             _ = t
         self._listener_threads.clear()
+
+
+def _find_user_properties_file(account_dir: str) -> str:
+    candidates = [
+        os.path.join(account_dir, name)
+        for name in os.listdir(account_dir)
+        if name.endswith(".user.properties")
+    ]
+    if not candidates:
+        raise FileNotFoundError(f"No *.user.properties file found in: {account_dir}")
+    if len(candidates) > 1:
+        candidates.sort()
+    return candidates[0]
+
+
+def _infer_user_name(account_dir: str, user_properties_path: str) -> str:
+    file_name = os.path.basename(user_properties_path)
+    m = re.match(r".+-(?P<user>[^-]+)\.user\.properties$", file_name)
+    if m:
+        return m.group("user")
+
+    dir_name = os.path.basename(account_dir)
+    if "." in dir_name:
+        maybe_user = dir_name.split(".")[-1]
+        if maybe_user:
+            return maybe_user
+    if dir_name:
+        return dir_name
+    raise ValueError("Unable to infer user name from account directory")
+
+
+def _bootstrap_via_grpc(
+    endpoint: GrpcEndpoint,
+    user_name: str,
+    user_properties: str,
+    private_key_encrypted: str,
+    password: Optional[str],
+) -> None:
+    try:
+        from .v1 import users_pb2, users_pb2_grpc
+    except Exception as exc:
+        raise ImportError(
+            "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"
+        ) from exc
+
+    channel = AltaStataGrpcClient._create_channel(endpoint)
+    try:
+        users = users_pb2_grpc.UsersServiceStub(channel)
+        users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
+            user_name=user_name,
+            user_properties=user_properties,
+        ))
+        users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
+            user_name=user_name,
+            private_key_encrypted=private_key_encrypted,
+        ))
+        if password is not None:
+            users.SetPasswordForUser(users_pb2.SetPasswordForUserRequest(
+                user_name=user_name,
+                account_password=password,
+            ))
+    finally:
+        channel.close()
+
+
+def _infer_user_name_from_properties_text(user_properties: str) -> str:
+    for raw_line in user_properties.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if "=" not in line:
+            continue
+        k, v = line.split("=", 1)
+        key = k.strip().lower()
+        val = v.strip()
+        if key in ("myuser", "user", "username") and val:
+            return val
+    raise ValueError("Unable to infer user_name from user_properties; pass user_name explicitly.")
+
+
+def _is_port_open(host: str, port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.settimeout(0.5)
+        return sock.connect_ex((host, port)) == 0
+
+
+def _wait_for_port(host: str, port: int, timeout_s: int = 45) -> None:
+    started = time.time()
+    while time.time() - started < timeout_s:
+        if _is_port_open(host, port):
+            return
+        time.sleep(0.5)
+    raise TimeoutError(f"Timed out waiting for {host}:{port}")
+
+
+def _start_local_grpc_service(
+    grpc_server_command: Optional[Sequence[str]] = None,
+    working_dir: Optional[str] = None,
+):
+    if grpc_server_command is None:
+        grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
+
+    wd = working_dir or _default_mycloud_dir()
+    if wd is None:
+        raise RuntimeError(
+            "Unable to determine mycloud directory to start gRPC server. "
+            "Pass grpc_server_command/grpc_server_working_dir or set ALTASTATA_MYCLOUD_DIR."
+        )
+    return subprocess.Popen(
+        list(grpc_server_command),
+        cwd=wd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+
+def _default_mycloud_dir() -> Optional[str]:
+    env_dir = os.environ.get("ALTASTATA_MYCLOUD_DIR")
+    if env_dir and os.path.isdir(env_dir):
+        return env_dir
+
+    repo_candidate = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "mycloud"))
+    if os.path.isdir(repo_candidate):
+        return repo_candidate
+    return None

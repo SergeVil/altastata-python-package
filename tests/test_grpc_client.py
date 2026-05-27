@@ -2,6 +2,8 @@ import sys
 import types
 import unittest
 from unittest.mock import patch
+import tempfile
+import os
 
 
 class DummyUsersStub:
@@ -81,6 +83,91 @@ class GrpcClientTests(unittest.TestCase):
             local_user="alice",
         )
         self.assertEqual([("authorization", "Bearer local-alice")], client._metadata)
+
+    def test_infer_user_name_from_properties_filename(self):
+        from altastata.grpc_client import _infer_user_name
+        user = _infer_user_name(
+            "/tmp/amazon.rsa.bob123",
+            "/tmp/amazon.rsa.bob123/altastata-myorgrsa444-bob123.user.properties",
+        )
+        self.assertEqual("bob123", user)
+
+    def test_infer_user_name_from_properties_text(self):
+        from altastata.grpc_client import _infer_user_name_from_properties_text
+        props = """
+        # comment
+        region=us-east-1
+        myuser=bob123
+        accounttype=amazon-s3-secure
+        """
+        self.assertEqual("bob123", _infer_user_name_from_properties_text(props))
+
+    @patch("altastata.grpc_client.grpc.insecure_channel")
+    @patch("altastata.grpc_client._bootstrap_via_grpc")
+    @patch("altastata.grpc_client._wait_for_port")
+    @patch("altastata.grpc_client._start_local_grpc_service")
+    @patch("altastata.grpc_client._is_port_open")
+    def test_from_account_dir_starts_server_when_ports_down(
+        self,
+        mock_is_port_open,
+        mock_start_server,
+        _mock_wait_for_port,
+        _mock_bootstrap,
+        mock_insecure_channel,
+    ):
+        mock_insecure_channel.return_value = object()
+        mock_is_port_open.return_value = False
+        mock_start_server.return_value = object()
+
+        with tempfile.TemporaryDirectory() as td:
+            up = os.path.join(td, "altastata-org-bob123.user.properties")
+            pk = os.path.join(td, "private.key")
+            with open(up, "w", encoding="utf-8") as f:
+                f.write("user.properties")
+            with open(pk, "w", encoding="utf-8") as f:
+                f.write("private.key")
+
+            from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
+            AltaStataGrpcClient.from_account_dir(
+                td,
+                password="123",
+                endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+                setup_port=9880,
+                auto_start_server=True,
+                grpc_server_command=["echo", "start"],
+                grpc_server_working_dir=td,
+            )
+            mock_start_server.assert_called_once()
+
+    @patch("altastata.grpc_client.grpc.insecure_channel")
+    @patch("altastata.grpc_client._bootstrap_via_grpc")
+    @patch("altastata.grpc_client._wait_for_port")
+    @patch("altastata.grpc_client._start_local_grpc_service")
+    @patch("altastata.grpc_client._is_port_open")
+    def test_from_credentials_starts_server_when_ports_down(
+        self,
+        mock_is_port_open,
+        mock_start_server,
+        _mock_wait_for_port,
+        _mock_bootstrap,
+        mock_insecure_channel,
+    ):
+        mock_insecure_channel.return_value = object()
+        mock_is_port_open.return_value = False
+        mock_start_server.return_value = object()
+
+        from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
+        AltaStataGrpcClient.from_credentials(
+            user_properties="myuser=bob123\nregion=us-east-1\n",
+            private_key_encrypted="-----BEGIN RSA PRIVATE KEY-----\n...\n",
+            password="123",
+            endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+            setup_port=9880,
+            auto_start_server=True,
+            grpc_server_command=["echo", "start"],
+            grpc_server_working_dir="/tmp",
+        )
+        mock_start_server.assert_called_once()
 
 
 if __name__ == "__main__":
