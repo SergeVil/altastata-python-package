@@ -11,6 +11,7 @@ import socket
 import subprocess
 import time
 import pkg_resources
+import platform
 
 
 def _token_from_params(
@@ -647,12 +648,25 @@ def _start_local_grpc_service(
         grpc_server_command=grpc_server_command,
         working_dir=working_dir,
     )
-    return subprocess.Popen(
+    print(
+        "Starting gRPC server command:",
+        " ".join(resolved_command),
+        f"(cwd={resolved_working_dir or os.getcwd()})",
+    )
+
+    stream_logs = os.environ.get("ALTASTATA_GRPC_LOG_STREAM", "").strip().lower() in {
+        "1", "true", "yes", "on"
+    }
+    process = subprocess.Popen(
         list(resolved_command),
         cwd=resolved_working_dir,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=subprocess.PIPE if stream_logs else subprocess.DEVNULL,
+        stderr=subprocess.PIPE if stream_logs else subprocess.DEVNULL,
     )
+    if stream_logs:
+        _start_stream_thread(process.stdout, "grpc-stdout")
+        _start_stream_thread(process.stderr, "grpc-stderr")
+    return process
 
 
 def _resolve_local_grpc_startup_command(
@@ -663,7 +677,8 @@ def _resolve_local_grpc_startup_command(
     if grpc_server_command is None:
         bundled_uber_jar = _find_bundled_grpc_uber_jar()
         if bundled_uber_jar is not None:
-            grpc_server_command = ["java", "-cp", bundled_uber_jar, "com.altastata.grpc.GrpcApplication"]
+            classpath = _build_bundled_grpc_classpath(bundled_uber_jar)
+            grpc_server_command = ["java", "-cp", classpath, "com.altastata.grpc.GrpcApplication"]
             if resolved_working_dir is None:
                 resolved_working_dir = os.path.dirname(bundled_uber_jar)
         else:
@@ -707,3 +722,41 @@ def _find_bundled_grpc_uber_jar() -> Optional[str]:
     if not candidates:
         return None
     return candidates[-1]
+
+
+def _build_bundled_grpc_classpath(bundled_uber_jar: str) -> str:
+    """
+    Build classpath for packaged gRPC server.
+
+    Uses all jars under altastata/lib so we can support the Hadoop-style build
+    where Bouncy Castle remains in separate signed jars (excluded from uber).
+    """
+    jar_dir = os.path.dirname(os.path.abspath(bundled_uber_jar))
+    jars = sorted(
+        os.path.join(jar_dir, f)
+        for f in os.listdir(jar_dir)
+        if f.endswith(".jar")
+    )
+    # Prefer signed BC jars before uber if both are present.
+    bc_jars = [p for p in jars if os.path.basename(p).startswith(("bcprov", "bcpkix", "bcutil"))]
+    others = [p for p in jars if p not in bc_jars and p != bundled_uber_jar]
+    ordered = bc_jars + others + [bundled_uber_jar]
+    return (";" if platform.system() == "Windows" else ":").join(ordered)
+
+
+def _start_stream_thread(pipe, label: str) -> None:
+    if pipe is None:
+        return
+
+    def _reader():
+        try:
+            with pipe:
+                for line in iter(pipe.readline, b""):
+                    txt = line.decode("utf-8", errors="replace").rstrip()
+                    if txt:
+                        print(f"[{label}] {txt}")
+        except Exception:
+            # Keep startup robust even if output streaming fails.
+            pass
+
+    threading.Thread(target=_reader, daemon=True).start()

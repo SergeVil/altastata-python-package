@@ -171,19 +171,22 @@ class GrpcClientTests(unittest.TestCase):
 
     @patch("altastata.grpc_client.subprocess.Popen")
     @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
+    @patch("altastata.grpc_client._build_bundled_grpc_classpath")
     def test_start_local_grpc_service_prefers_bundled_uber_jar(
         self,
+        mock_build_cp,
         mock_find_uber,
         mock_popen,
     ):
         mock_find_uber.return_value = "/tmp/altastata-grpc-1.0.0-uber.jar"
+        mock_build_cp.return_value = "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar"
         mock_popen.return_value = MagicMock()
 
         from altastata.grpc_client import _start_local_grpc_service
         _start_local_grpc_service()
 
         mock_popen.assert_called_once_with(
-            ["java", "-cp", "/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
+            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
             cwd="/tmp",
             stdout=unittest.mock.ANY,
             stderr=unittest.mock.ANY,
