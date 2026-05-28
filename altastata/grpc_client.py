@@ -53,6 +53,7 @@ class AltaStataGrpcClient:
         access_key: Optional[str] = None,
     ):
         self.endpoint = endpoint
+        self._local_user = local_user
         self._token = _token_from_params(bearer_token, local_user, access_key)
         self._metadata: List[Tuple[str, str]] = [("authorization", f"Bearer {self._token}")]
         self._channel = self._create_channel(endpoint)
@@ -432,6 +433,18 @@ class AltaStataGrpcClient:
     # ----- Py4J-compat aliases -----
 
     def set_password(self, account_password: str):
+        # For the local-user flow, setting the password also initializes the
+        # server-side AltaStataFileSystem (mirrors Py4J, where setPassword
+        # unlocks the account). SetPasswordForUser is the bootstrap RPC that
+        # creates the filesystem and sets the password in one step; the
+        # authenticated SetPassword RPC requires an already-initialized account.
+        if self._local_user:
+            req = self._users_pb2.SetPasswordForUserRequest(
+                user_name=self._local_user,
+                account_password=account_password,
+            )
+            resp = self._users_stub.SetPasswordForUser(req)
+            return bool(resp.success)
         req = self._users_pb2.SetPasswordRequest(account_password=account_password)
         resp = self._users_stub.SetPassword(req, metadata=self._metadata)
         return bool(resp.success)
