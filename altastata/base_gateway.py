@@ -74,6 +74,20 @@ class BaseGateway:
 
         # List all JAR files in the directory
         jar_files = [os.path.join(jar_dir, f) for f in os.listdir(jar_dir) if f.endswith('.jar')]
+        jar_names = [os.path.basename(p) for p in jar_files]
+
+        has_py4j_jar = any(name.startswith('py4j') and name.endswith('.jar') for name in jar_names)
+        has_altastata_runtime = any(
+            name == 'altastata-hadoop-all.jar' or
+            (name.startswith('altastata-grpc-') and name.endswith('-uber.jar'))
+            for name in jar_names
+        )
+        if not has_py4j_jar or not has_altastata_runtime:
+            raise RuntimeError(
+                "Missing required Java runtime jars in altastata/lib. "
+                "Expected py4j*.jar and either altastata-grpc-*-uber.jar (preferred) "
+                "or altastata-hadoop-all.jar."
+            )
 
         # Determine classpath format based on the OS
         if platform.system() == "Windows":

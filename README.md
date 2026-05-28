@@ -48,6 +48,30 @@ altastata_functions = AltaStataFunctions.from_credentials(user_properties, priva
 altastata_functions.set_password("my_password")
 ```
 
+### gRPC transport (recommended for Python + browser integration)
+
+```python
+from altastata import AltaStataFunctions
+
+f = AltaStataFunctions.from_account_dir(
+    "/path/to/account",
+    transport="grpc",
+    password="123",
+)
+```
+
+`transport="grpc"` auto-starts `altastata-grpc` if needed. It first looks
+for a bundled `altastata-grpc-*-uber.jar` under `altastata/lib` and starts it
+with `java -cp ... com.altastata.grpc.GrpcApplication`, and then falls back to
+local dev startup (`./gradlew :altastata-grpc:run`) when a `mycloud` checkout
+is available.
+
+To run the gRPC server explicitly (for browser JS or local testing), use:
+
+```bash
+altastata-grpc-server
+```
+
 ## PyTorch & TensorFlow Integration
 
 ```python

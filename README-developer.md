@@ -9,16 +9,13 @@
    cp /c/Users/serge/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0/LocalCache/local-packages/share/py4j/py4j0.10.9.8.jar altastata/lib/
    ```
 
-2. Build and copy the AltaStata Hadoop JAR:
+2. Build and copy the AltaStata JARs:
    ```bash
-   # Go to altastata-hadoop directory
-   # gradle clean build shadowJar -PexcludeBouncyCastle=true copyDeps
-   # Note: -PnoGCP=true is no longer needed as the increased the size for altastata package
-   gradle clean build shadowJar -PexcludeBouncyCastle=true -PminimalBuild=true copyDeps
-   
-   # Copy the built JARs
-   cp ../mycloud/altastata-hadoop/build/libs/altastata-hadoop-all.jar altastata/lib/
-   cp ../mycloud/altastata-hadoop/build/libs_dependency/bc*-jdk18on-*.jar altastata/lib/
+   # Build gRPC artifact used by Python runtime
+   ./gradlew :altastata-grpc:shadowJar
+
+   # Copy shared runtime jar (used by both Py4J classpath and gRPC auto-start)
+   cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-uber.jar altastata/lib/
    ```
 
 3. Verify JAR integrity:
@@ -30,10 +27,15 @@
    wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar -O altastata/lib/py4j0.10.9.5.jar
    ```
 
+4. Run server from Python package (no Gradle needed):
+   ```bash
+   altastata-grpc-server
+   ```
+
 ### Logging Configuration
 - To customize logging, copy and modify the logback configuration:
   ```bash
-  cp ../mycloud/altastata-hadoop/src/main/resources/logback.xml altastata/lib/
+  # Optional: provide your own logback.xml in altastata/lib/
   ```
 
 ## Local Development

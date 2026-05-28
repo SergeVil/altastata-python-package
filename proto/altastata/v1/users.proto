@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package altastata.v1;
+
+option java_multiple_files = true;
+option java_package = "com.altastata.grpc.proto";
+option java_outer_classname = "UsersProto";
+
+message Empty {}
+
+message UserSummary {
+  string user_name = 1;
+  bool initialized = 2;
+}
+
+message User {
+  string user_name = 1;
+  bool initialized = 2;
+  string access_key = 3;
+}
+
+message GetUserRequest {
+  string user_name = 1;
+}
+
+message GetMyAccountRequest {}
+
+message SetPasswordRequest {
+  string account_password = 1;
+}
+
+message SetPasswordResponse {
+  bool success = 1;
+}
+
+message SetUserPropertiesRequest {
+  string user_name = 1;
+  string user_properties = 2;
+}
+
+message SetUserPropertiesResponse {
+  bool success = 1;
+}
+
+message SetPrivateKeyRequest {
+  string user_name = 1;
+  string private_key_encrypted = 2;
+}
+
+message SetPrivateKeyResponse {
+  bool success = 1;
+}
+
+message SetPasswordForUserRequest {
+  string user_name = 1;
+  string account_password = 2;
+}
+
+message SetPasswordForUserResponse {
+  bool success = 1;
+  string access_key = 2;
+  string secret_key = 3;
+}
+
+service UsersService {
+  rpc ListUsers(Empty) returns (stream UserSummary);
+  rpc GetUser(GetUserRequest) returns (User);
+  rpc GetMyAccount(GetMyAccountRequest) returns (User);
+  rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
+  rpc SetUserProperties(SetUserPropertiesRequest) returns (SetUserPropertiesResponse);
+  rpc SetPrivateKey(SetPrivateKeyRequest) returns (SetPrivateKeyResponse);
+  rpc SetPasswordForUser(SetPasswordForUserRequest) returns (SetPasswordForUserResponse);
+}
