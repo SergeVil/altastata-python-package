@@ -18,6 +18,7 @@ except _PkgNotFound:
     __version__ = "0.0.0+unknown"
 
 from .altastata_functions import AltaStataFunctions
+from .grpc_client import AltaStataGrpcClient, GrpcEndpoint
 
 # Lazy import for PyTorch
 def _import_pytorch_dataset():
@@ -59,6 +60,8 @@ except ImportError:
 
 __all__ = [
     'AltaStataFunctions',
+    'AltaStataGrpcClient',
+    'GrpcEndpoint',
     'AltaStataPyTorchDataset',
     'AltaStataTensorFlowDataset'
 ]

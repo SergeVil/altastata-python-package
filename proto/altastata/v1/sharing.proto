@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package altastata.v1;
+
+option java_multiple_files = true;
+option java_package = "com.altastata.grpc.proto";
+option java_outer_classname = "SharingProto";
+
+message ShareRequest {
+  repeated string file_paths = 1;
+  repeated string readers = 2;
+}
+
+message RevokeRequest {
+  repeated string file_paths = 1;
+  repeated string readers = 2;
+}
+
+message ShareByQueryRequest {
+  string cloud_path_prefix = 1;
+  bool including_subdirectories = 2;
+  string time_interval_start = 3;
+  string time_interval_end = 4;
+  repeated string readers = 5;
+}
+
+message RevokeByQueryRequest {
+  string cloud_path_prefix = 1;
+  bool including_subdirectories = 2;
+  string time_interval_start = 3;
+  string time_interval_end = 4;
+  repeated string readers = 5;
+}
+
+message FileStatus {
+  string file_path = 1;
+  string operation_state = 2;
+  string error = 3;
+}
+
+message ShareResult {
+  repeated FileStatus statuses = 1;
+}
+
+message RevokeResult {
+  repeated FileStatus statuses = 1;
+}
+
+service SharingService {
+  rpc Share(ShareRequest) returns (ShareResult);
+  rpc Revoke(RevokeRequest) returns (RevokeResult);
+  rpc ShareByQuery(ShareByQueryRequest) returns (ShareResult);
+  rpc RevokeByQuery(RevokeByQueryRequest) returns (RevokeResult);
+}

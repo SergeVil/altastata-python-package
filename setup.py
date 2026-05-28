@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='altastata',
-    version='0.1.28',
+    version='0.1.30',
     author='Serge Vilvovsky',
     author_email='serge.vilvovsky@altastata.com',
     description='A Python package for Altastata data processing and machine learning integration',
@@ -15,7 +15,8 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        'altastata': ['lib/*.jar']
+        'altastata': ['lib/*.jar', 'v1/*.py'],
+        '': ['proto/**/*.proto']
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -26,6 +27,13 @@ setup(
     install_requires=[
         'py4j==0.10.9.5',
         'fsspec>=2023.1.0',
+        'grpcio>=1.69.0',
+        'protobuf>=4.28.3',
     ],
+    entry_points={
+        'console_scripts': [
+            'altastata-grpc-server=altastata.grpc_server:main',
+        ],
+    },
 )
 

@@ -1,0 +1,119 @@
+syntax = "proto3";
+
+package altastata.v1;
+
+option java_multiple_files = true;
+option java_package = "com.altastata.grpc.proto";
+option java_outer_classname = "FileOpsProto";
+
+import "altastata/v1/sharing.proto";
+
+message CreateFileRequest {
+  string file_path = 1;
+  bytes content = 2;
+}
+
+message CreateFileResponse {
+  FileStatus status = 1;
+}
+
+message GetBufferRequest {
+  string file_path = 1;
+  int64 snapshot_time = 2;
+  int64 start_position = 3;
+  int32 parallel_chunks = 4;
+  int32 size = 5;
+}
+
+message GetBufferResponse {
+  bytes data = 1;
+}
+
+message DeleteRequest {
+  string cloud_path_prefix = 1;
+  bool including_subdirectories = 2;
+  string time_interval_start = 3;
+  string time_interval_end = 4;
+}
+
+message DeleteResponse {
+  repeated FileStatus statuses = 1;
+}
+
+message ListVersionsRequest {
+  string cloud_path_prefix = 1;
+  bool including_subdirectories = 2;
+  string time_interval_start = 3;
+  string time_interval_end = 4;
+}
+
+message VersionEntry {
+  repeated string versions = 1;
+}
+
+message AppendBufferToFileRequest {
+  string file_path = 1;
+  int64 snapshot_time = 2;
+  bytes content = 3;
+}
+
+message AppendBufferToFileResponse {
+  bool success = 1;
+}
+
+message StoreRequest {
+  repeated string local_files_or_directories = 1;
+  string local_fs_prefix = 2;
+  string cloud_path_prefix = 3;
+  bool wait_until_done = 4;
+}
+
+message StoreResponse {
+  repeated FileStatus statuses = 1;
+}
+
+message RetrieveRequest {
+  string output_dir = 1;
+  string cloud_path_prefix = 2;
+  bool including_subdirectories = 3;
+  int64 snapshot_time = 4;
+  bool is_streaming = 5;
+  bool wait_until_done = 6;
+}
+
+message RetrieveResponse {
+  repeated FileStatus statuses = 1;
+}
+
+message CopyFileRequest {
+  string from_cloud_file_path = 1;
+  string to_cloud_file_path = 2;
+}
+
+message CopyFileResponse {
+  FileStatus status = 1;
+}
+
+message ReadStreamRequest {
+  string file_path = 1;
+  int64 snapshot_time = 2;
+  int64 start_position = 3;
+  int32 parallel_chunks = 4;
+  int32 chunk_size = 5;
+}
+
+message ReadStreamChunk {
+  bytes data = 1;
+}
+
+service FileOpsService {
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc GetBuffer(GetBufferRequest) returns (GetBufferResponse);
+  rpc Delete(DeleteRequest) returns (DeleteResponse);
+  rpc ListVersions(ListVersionsRequest) returns (stream VersionEntry);
+  rpc AppendBufferToFile(AppendBufferToFileRequest) returns (AppendBufferToFileResponse);
+  rpc Store(StoreRequest) returns (StoreResponse);
+  rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
+  rpc CopyFile(CopyFileRequest) returns (CopyFileResponse);
+  rpc ReadStream(ReadStreamRequest) returns (stream ReadStreamChunk);
+}

@@ -1,4 +1,5 @@
 from .base_gateway import BaseGateway
+from .grpc_client import AltaStataGrpcClient, GrpcEndpoint
 
 from typing import List, Any, Dict, Optional, Union, Callable
 from py4j.java_gateway import JavaGateway, JavaObject, GatewayParameters, CallbackServerParameters, java_import
@@ -62,7 +63,15 @@ class AltaStataEventListener:
         implements = ["com.altastata.api.AltaStataEventListener"]
 
 class AltaStataFunctions(BaseGateway):
-    def __init__(self, port=25333, enable_callback_server=True, callback_server_port=None):
+    def __init__(
+        self,
+        port=25333,
+        enable_callback_server=True,
+        callback_server_port=None,
+        *,
+        transport: str = "py4j",
+        grpc_client: Optional[AltaStataGrpcClient] = None,
+    ):
         """
         Base initialization. This should not be called directly.
         Use from_account_dir or from_credentials instead.
@@ -72,11 +81,33 @@ class AltaStataFunctions(BaseGateway):
             enable_callback_server (bool): Enable callback server for event listeners
             callback_server_port (int, optional): Custom port for callback server. None = auto-select
         """
-        super().__init__(port, enable_callback_server, callback_server_port)
+        self.transport = transport.lower()
+        if self.transport == "py4j":
+            super().__init__(port, enable_callback_server, callback_server_port)
+        elif self.transport == "grpc":
+            self.gateway = None
+            self.altastata_file_system = None
+        else:
+            raise ValueError("transport must be 'py4j' or 'grpc'")
+
+        self.grpc_client = grpc_client
         self._event_listeners = []  # Track registered listeners
 
     @classmethod
-    def from_account_dir(cls, account_dir_path, port=25333, enable_callback_server=True, callback_server_port=None):
+    def from_account_dir(
+        cls,
+        account_dir_path,
+        port=25333,
+        enable_callback_server=True,
+        callback_server_port=None,
+        *,
+        transport: str = "py4j",
+        password: Optional[str] = None,
+        user_name: Optional[str] = None,
+        grpc_endpoint: Optional[GrpcEndpoint] = None,
+        grpc_setup_port: int = 9880,
+        grpc_auto_start_server: bool = True,
+    ):
         """
         Create an instance using account directory path.
         
@@ -89,12 +120,49 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             AltaStataFunctions: New instance initialized with account directory
         """
-        instance = cls(port, enable_callback_server, callback_server_port)
+        if transport.lower() == "grpc":
+            endpoint = grpc_endpoint or GrpcEndpoint()
+            client = AltaStataGrpcClient.from_account_dir(
+                account_dir_path=account_dir_path,
+                password=password,
+                user_name=user_name,
+                endpoint=endpoint,
+                setup_port=grpc_setup_port,
+                auto_start_server=grpc_auto_start_server,
+            )
+            return cls(
+                port=port,
+                enable_callback_server=enable_callback_server,
+                callback_server_port=callback_server_port,
+                transport="grpc",
+                grpc_client=client,
+            )
+
+        instance = cls(
+            port=port,
+            enable_callback_server=enable_callback_server,
+            callback_server_port=callback_server_port,
+            transport="py4j",
+        )
         instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
         return instance
 
     @classmethod
-    def from_credentials(cls, user_properties, private_key_encrypted, port=25333, enable_callback_server=True, callback_server_port=None):
+    def from_credentials(
+        cls,
+        user_properties,
+        private_key_encrypted,
+        port=25333,
+        enable_callback_server=True,
+        callback_server_port=None,
+        *,
+        transport: str = "py4j",
+        password: Optional[str] = None,
+        user_name: Optional[str] = None,
+        grpc_endpoint: Optional[GrpcEndpoint] = None,
+        grpc_setup_port: int = 9880,
+        grpc_auto_start_server: bool = True,
+    ):
         """
         Create an instance using user properties and private key.
         
@@ -108,11 +176,37 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             AltaStataFunctions: New instance initialized with credentials
         """
-        instance = cls(port, enable_callback_server, callback_server_port)
+        if transport.lower() == "grpc":
+            endpoint = grpc_endpoint or GrpcEndpoint()
+            client = AltaStataGrpcClient.from_credentials(
+                user_properties=user_properties,
+                private_key_encrypted=private_key_encrypted,
+                password=password,
+                user_name=user_name,
+                endpoint=endpoint,
+                setup_port=grpc_setup_port,
+                auto_start_server=grpc_auto_start_server,
+            )
+            return cls(
+                port=port,
+                enable_callback_server=enable_callback_server,
+                callback_server_port=callback_server_port,
+                transport="grpc",
+                grpc_client=client,
+            )
+
+        instance = cls(
+            port=port,
+            enable_callback_server=enable_callback_server,
+            callback_server_port=callback_server_port,
+            transport="py4j",
+        )
         instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
         return instance
 
     def convert_java_list_to_python(self, java_list):
+        if self.transport == "grpc":
+            return list(java_list) if java_list is not None else []
         # Ensure the input is a JavaList
         if not isinstance(java_list, JavaList):
             raise TypeError("Expected a JavaList but got something else.")
@@ -123,6 +217,8 @@ class AltaStataFunctions(BaseGateway):
         return python_list
 
     def python_list_to_java_arraylist(self, python_list: list) -> 'JavaObject':
+        if self.transport == "grpc":
+            return list(python_list)
         # Create a Java ArrayList instance
         java_arraylist = self.gateway.jvm.java.util.ArrayList()
 
@@ -133,6 +229,8 @@ class AltaStataFunctions(BaseGateway):
         return java_arraylist
 
     def python_list_to_java_array(self, python_list: list) -> JavaObject:
+        if self.transport == "grpc":
+            return list(python_list)
         string_class = self.gateway.jvm.java.lang.String
 
         java_array = self.gateway.new_array(string_class, len(python_list))
@@ -142,6 +240,8 @@ class AltaStataFunctions(BaseGateway):
         return java_array
 
     def set_password(self, account_password: str):
+        if self.transport == "grpc":
+            return self.grpc_client.set_password(account_password)
         result = self.altastata_file_system.setPassword(account_password)
 
         # Process the result
@@ -161,7 +261,9 @@ class AltaStataFunctions(BaseGateway):
         """
         if buffer is None:
             buffer = bytes()
-            
+        if self.transport == "grpc":
+            return self.grpc_client.create_file(cloud_file_path, buffer)
+
         return self.altastata_file_system.createFile(cloud_file_path, buffer)
 
     def append_buffer_to_file(self, cloud_file_path, buffer, snapshot_time=None):
@@ -176,9 +278,13 @@ class AltaStataFunctions(BaseGateway):
         Raises:
             IOException: If there is an error during the append operation
         """
+        if self.transport == "grpc":
+            return self.grpc_client.append_buffer_to_file(cloud_file_path, buffer, snapshot_time=snapshot_time)
         self.altastata_file_system.appendBufferToFile(cloud_file_path, snapshot_time, buffer)
 
     def store(self, localFilesOrDirectories: List[str], localFSPrefix: str, cloudPathPrefix: str, waitUntilDone: bool):
+        if self.transport == "grpc":
+            return self.grpc_client.store(localFilesOrDirectories, localFSPrefix, cloudPathPrefix, waitUntilDone)
         # Call the Java method
         java_list = self.altastata_file_system.store(self.python_list_to_java_arraylist(localFilesOrDirectories), localFSPrefix, cloudPathPrefix, waitUntilDone)
 
@@ -186,6 +292,10 @@ class AltaStataFunctions(BaseGateway):
         return self.convert_java_list_to_python(java_list)
 
     def retrieve_files(self, output_dir, cloud_path_prefix, including_subdirectories, snapshot_time, is_streaming, wait_until_done):
+        if self.transport == "grpc":
+            return self.grpc_client.retrieve_files(
+                output_dir, cloud_path_prefix, including_subdirectories, snapshot_time, is_streaming, wait_until_done
+            )
         # Call the Java method
         java_list = self.altastata_file_system.retrieve(output_dir, cloud_path_prefix, including_subdirectories, snapshot_time, is_streaming, wait_until_done)
 
@@ -193,6 +303,13 @@ class AltaStataFunctions(BaseGateway):
         return self.convert_java_list_to_python(java_list)
 
     def delete_files(self, cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end):
+        if self.transport == "grpc":
+            return self.grpc_client.delete_files(
+                cloud_path_prefix,
+                including_subdirectories=including_subdirectories,
+                time_interval_start=time_interval_start,
+                time_interval_end=time_interval_end,
+            )
         # Call the Java method
         java_list = self.altastata_file_system.delete(cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end)
 
@@ -200,6 +317,10 @@ class AltaStataFunctions(BaseGateway):
         return self.convert_java_list_to_python(java_list)
 
     def share_files(self, cloud_path_prefix: str, including_subdirectories: bool, time_interval_start: str, time_interval_end: str, users: list) -> list:
+        if self.transport == "grpc":
+            return self.grpc_client.share_files(
+                cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end, users
+            )
         # Call the Java method
         # Note: time_interval_start/end can be None (null in Java) or string
         java_list = self.altastata_file_system.share(cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end, self.python_list_to_java_array(users))
@@ -222,6 +343,10 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             List of CloudFileOperationStatus for each revoked file version.
         """
+        if self.transport == "grpc":
+            return self.grpc_client.revoke_reader_access(
+                cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end, readers_to_revoke
+            )
         java_list = self.altastata_file_system.revokeReaderAccess(
             cloud_path_prefix, including_subdirectories, time_interval_start, time_interval_end,
             self.python_list_to_java_array(readers_to_revoke)
@@ -229,6 +354,13 @@ class AltaStataFunctions(BaseGateway):
         return self.convert_java_list_to_python(java_list)
 
     def list_cloud_files_versions(self, cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd):
+        if self.transport == "grpc":
+            return self.grpc_client.list_cloud_files_versions(
+                cloudPathPrefix,
+                including_subdirectories=includingSubdirectories,
+                time_interval_start=timeIntervalStart,
+                time_interval_end=timeIntervalEnd,
+            )
         # Call the Java method and return the iterator
         return self.altastata_file_system.listCloudFilesVersions(cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd)
 
@@ -252,6 +384,14 @@ class AltaStataFunctions(BaseGateway):
             > 64 MB — Java streams to temp file via ``streamToFile``,
                        Python reads and deletes it.
         """
+        if self.transport == "grpc":
+            return self.grpc_client.get_buffer(
+                cloudFilePath,
+                size=size,
+                snapshot_time=0 if snapshotTime is None else snapshotTime,
+                start_position=startPosition,
+                parallel_chunks=howManyChunksInParallel,
+            )
         if snapshotTime is None:
             snapshotTime = int(time.time() * 1000)
         if size > TEMP_FILE_THRESHOLD:
@@ -296,6 +436,10 @@ class AltaStataFunctions(BaseGateway):
         and cleanup internally. Use this only when true chunk-by-chunk
         streaming is needed without loading the full file into memory.
         """
+        if self.transport == "grpc":
+            return self.grpc_client.get_java_input_stream(
+                cloud_file_path, snapshot_time, start_position, how_many_chunks_in_parallel
+            )
         if snapshot_time is None:
             snapshot_time = int(time.time() * 1000)
         return self.altastata_file_system.getFileInputStream(
@@ -306,6 +450,8 @@ class AltaStataFunctions(BaseGateway):
         """
         Get file attribute from Altastata file system.
         """
+        if self.transport == "grpc":
+            return self.grpc_client.get_file_attribute(cloud_file_path, snapshot_time, name)
         try:
             if snapshot_time is None:
                 snapshot_time = int(time.time() * 1000)
@@ -326,6 +472,8 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             CloudFileOperationStatus: Status of the copy operation
         """
+        if self.transport == "grpc":
+            return self.grpc_client.copy_file(from_cloud_file_path, to_cloud_file_path)
         return self.altastata_file_system.copyFile(from_cloud_file_path, to_cloud_file_path)
 
     def add_event_listener(self, callback: Callable[[str, Any], None]) -> AltaStataEventListener:
@@ -353,6 +501,8 @@ class AltaStataFunctions(BaseGateway):
             # ... do work ...
             altastata.remove_event_listener(listener)
         """
+        if self.transport == "grpc":
+            return self.grpc_client.add_event_listener(callback)
         listener = AltaStataEventListener(callback)
         self.altastata_file_system.addAltaStataEventListener(listener)
         self._event_listeners.append(listener)
@@ -365,6 +515,8 @@ class AltaStataFunctions(BaseGateway):
         Args:
             listener: The listener object returned by add_event_listener()
         """
+        if self.transport == "grpc":
+            return self.grpc_client.remove_event_listener(listener)
         try:
             self.altastata_file_system.removeAltaStataEventListener(listener)
             if listener in self._event_listeners:
@@ -376,8 +528,17 @@ class AltaStataFunctions(BaseGateway):
         """
         Remove all registered event listeners.
         """
+        if self.transport == "grpc":
+            return self.grpc_client.remove_all_event_listeners()
         for listener in self._event_listeners[:]:  # Copy list to avoid modification during iteration
             self.remove_event_listener(listener)
+
+    def shutdown(self):
+        if self.transport == "grpc":
+            if self.grpc_client is not None:
+                self.grpc_client.close()
+            return
+        super().shutdown()
 
 
 
