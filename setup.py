@@ -30,5 +30,10 @@ setup(
         'grpcio>=1.69.0',
         'protobuf>=4.28.3',
     ],
+    entry_points={
+        'console_scripts': [
+            'altastata-grpc-server=altastata.grpc_server:main',
+        ],
+    },
 )
 

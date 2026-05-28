@@ -1,9 +1,9 @@
+import os
 import sys
+import tempfile
 import types
 import unittest
-from unittest.mock import patch
-import tempfile
-import os
+from unittest.mock import MagicMock, patch
 
 
 class DummyUsersStub:
@@ -168,6 +168,78 @@ class GrpcClientTests(unittest.TestCase):
             grpc_server_working_dir="/tmp",
         )
         mock_start_server.assert_called_once()
+
+    @patch("altastata.grpc_client.subprocess.Popen")
+    @patch("altastata.grpc_client._find_bundled_grpc_runner_jar")
+    @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
+    def test_start_local_grpc_service_prefers_bundled_uber_jar(
+        self,
+        mock_find_uber,
+        mock_find_runner,
+        mock_popen,
+    ):
+        mock_find_uber.return_value = "/tmp/altastata-grpc-1.0.0-uber.jar"
+        mock_find_runner.return_value = "/tmp/altastata-grpc-1.0.0-runner.jar"
+        mock_popen.return_value = MagicMock()
+
+        from altastata.grpc_client import _start_local_grpc_service
+        _start_local_grpc_service()
+
+        mock_popen.assert_called_once_with(
+            ["java", "-cp", "/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
+            cwd="/tmp",
+            stdout=unittest.mock.ANY,
+            stderr=unittest.mock.ANY,
+        )
+
+    @patch("altastata.grpc_client.subprocess.Popen")
+    @patch("altastata.grpc_client._find_bundled_grpc_runner_jar")
+    @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
+    def test_start_local_grpc_service_uses_runner_when_uber_missing(
+        self,
+        mock_find_uber,
+        mock_find_runner,
+        mock_popen,
+    ):
+        mock_find_uber.return_value = None
+        mock_find_runner.return_value = "/tmp/altastata-grpc-1.0.0-runner.jar"
+        mock_popen.return_value = MagicMock()
+
+        from altastata.grpc_client import _start_local_grpc_service
+        _start_local_grpc_service()
+
+        mock_popen.assert_called_once_with(
+            ["java", "-jar", "/tmp/altastata-grpc-1.0.0-runner.jar"],
+            cwd="/tmp",
+            stdout=unittest.mock.ANY,
+            stderr=unittest.mock.ANY,
+        )
+
+    @patch("altastata.grpc_client.subprocess.Popen")
+    @patch("altastata.grpc_client._default_mycloud_dir")
+    @patch("altastata.grpc_client._find_bundled_grpc_runner_jar")
+    @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
+    def test_start_local_grpc_service_falls_back_to_gradle(
+        self,
+        mock_find_uber,
+        mock_find_runner,
+        mock_default_mycloud_dir,
+        mock_popen,
+    ):
+        mock_find_uber.return_value = None
+        mock_find_runner.return_value = None
+        mock_default_mycloud_dir.return_value = "/work/mycloud"
+        mock_popen.return_value = MagicMock()
+
+        from altastata.grpc_client import _start_local_grpc_service
+        _start_local_grpc_service()
+
+        mock_popen.assert_called_once_with(
+            ["./gradlew", ":altastata-grpc:run"],
+            cwd="/work/mycloud",
+            stdout=unittest.mock.ANY,
+            stderr=unittest.mock.ANY,
+        )
 
 
 if __name__ == "__main__":

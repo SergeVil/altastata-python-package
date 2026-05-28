@@ -1,0 +1,38 @@
+import argparse
+import shlex
+import subprocess
+import sys
+
+from .grpc_client import _resolve_local_grpc_startup_command
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Start AltaStata gRPC server from Python package runtime."
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the resolved startup command and exit.",
+    )
+    args = parser.parse_args()
+
+    command, working_dir = _resolve_local_grpc_startup_command()
+    if args.dry_run:
+        print("cwd:", working_dir or ".")
+        print("command:", shlex.join(command))
+        return 0
+
+    process = subprocess.Popen(command, cwd=working_dir)
+    try:
+        return process.wait()
+    except KeyboardInterrupt:
+        process.terminate()
+        try:
+            return process.wait(timeout=5)
+        except Exception:
+            return 130
+
+
+if __name__ == "__main__":
+    sys.exit(main())

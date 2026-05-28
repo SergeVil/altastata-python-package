@@ -10,6 +10,7 @@ import re
 import socket
 import subprocess
 import time
+import pkg_resources
 
 
 def _token_from_params(
@@ -642,21 +643,48 @@ def _start_local_grpc_service(
     grpc_server_command: Optional[Sequence[str]] = None,
     working_dir: Optional[str] = None,
 ):
-    if grpc_server_command is None:
-        grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
-
-    wd = working_dir or _default_mycloud_dir()
-    if wd is None:
-        raise RuntimeError(
-            "Unable to determine mycloud directory to start gRPC server. "
-            "Pass grpc_server_command/grpc_server_working_dir or set ALTASTATA_MYCLOUD_DIR."
-        )
+    resolved_command, resolved_working_dir = _resolve_local_grpc_startup_command(
+        grpc_server_command=grpc_server_command,
+        working_dir=working_dir,
+    )
     return subprocess.Popen(
-        list(grpc_server_command),
-        cwd=wd,
+        list(resolved_command),
+        cwd=resolved_working_dir,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
+
+
+def _resolve_local_grpc_startup_command(
+    grpc_server_command: Optional[Sequence[str]] = None,
+    working_dir: Optional[str] = None,
+) -> Tuple[Sequence[str], Optional[str]]:
+    resolved_working_dir = working_dir
+    if grpc_server_command is None:
+        bundled_uber_jar = _find_bundled_grpc_uber_jar()
+        if bundled_uber_jar is not None:
+            grpc_server_command = ["java", "-cp", bundled_uber_jar, "com.altastata.grpc.GrpcApplication"]
+            if resolved_working_dir is None:
+                resolved_working_dir = os.path.dirname(bundled_uber_jar)
+        else:
+            bundled_runner_jar = _find_bundled_grpc_runner_jar()
+            if bundled_runner_jar is not None:
+                grpc_server_command = ["java", "-jar", bundled_runner_jar]
+                if resolved_working_dir is None:
+                    resolved_working_dir = os.path.dirname(bundled_runner_jar)
+            else:
+                grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
+                if resolved_working_dir is None:
+                    resolved_working_dir = _default_mycloud_dir()
+
+    if resolved_working_dir is None and grpc_server_command[:2] == ["./gradlew", ":altastata-grpc:run"]:
+        raise RuntimeError(
+            "Unable to locate bundled altastata-grpc runtime jar and unable to determine mycloud "
+            "directory for Gradle fallback. Package altastata-grpc-*-uber.jar (preferred) or "
+            "altastata-grpc-*-runner.jar under altastata/lib, "
+            "or pass grpc_server_command/grpc_server_working_dir, or set ALTASTATA_MYCLOUD_DIR."
+        )
+    return list(grpc_server_command), resolved_working_dir
 
 
 def _default_mycloud_dir() -> Optional[str]:
@@ -668,3 +696,39 @@ def _default_mycloud_dir() -> Optional[str]:
     if os.path.isdir(repo_candidate):
         return repo_candidate
     return None
+
+
+def _find_bundled_grpc_runner_jar() -> Optional[str]:
+    try:
+        jar_dir = pkg_resources.resource_filename("altastata", "lib")
+    except Exception:
+        return None
+    if not os.path.isdir(jar_dir):
+        return None
+
+    candidates = sorted(
+        os.path.join(jar_dir, f)
+        for f in os.listdir(jar_dir)
+        if f.startswith("altastata-grpc-") and f.endswith("-runner.jar")
+    )
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
+def _find_bundled_grpc_uber_jar() -> Optional[str]:
+    try:
+        jar_dir = pkg_resources.resource_filename("altastata", "lib")
+    except Exception:
+        return None
+    if not os.path.isdir(jar_dir):
+        return None
+
+    candidates = sorted(
+        os.path.join(jar_dir, f)
+        for f in os.listdir(jar_dir)
+        if f.startswith("altastata-grpc-") and f.endswith("-uber.jar")
+    )
+    if not candidates:
+        return None
+    return candidates[-1]
