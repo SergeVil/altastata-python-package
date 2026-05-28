@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Note: proto/ files are the canonical AltaStata gRPC contracts and must stay
+# byte-identical with mycloud/altastata-grpc/src/main/proto/. Sync that
+# directory before regenerating stubs so server and client never drift.
 import subprocess
 import sys
 from pathlib import Path
