@@ -667,21 +667,14 @@ def _resolve_local_grpc_startup_command(
             if resolved_working_dir is None:
                 resolved_working_dir = os.path.dirname(bundled_uber_jar)
         else:
-            bundled_runner_jar = _find_bundled_grpc_runner_jar()
-            if bundled_runner_jar is not None:
-                grpc_server_command = ["java", "-jar", bundled_runner_jar]
-                if resolved_working_dir is None:
-                    resolved_working_dir = os.path.dirname(bundled_runner_jar)
-            else:
-                grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
-                if resolved_working_dir is None:
-                    resolved_working_dir = _default_mycloud_dir()
+            grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
+            if resolved_working_dir is None:
+                resolved_working_dir = _default_mycloud_dir()
 
     if resolved_working_dir is None and grpc_server_command[:2] == ["./gradlew", ":altastata-grpc:run"]:
         raise RuntimeError(
             "Unable to locate bundled altastata-grpc runtime jar and unable to determine mycloud "
-            "directory for Gradle fallback. Package altastata-grpc-*-uber.jar (preferred) or "
-            "altastata-grpc-*-runner.jar under altastata/lib, "
+            "directory for Gradle fallback. Package altastata-grpc-*-uber.jar under altastata/lib, "
             "or pass grpc_server_command/grpc_server_working_dir, or set ALTASTATA_MYCLOUD_DIR."
         )
     return list(grpc_server_command), resolved_working_dir
@@ -696,24 +689,6 @@ def _default_mycloud_dir() -> Optional[str]:
     if os.path.isdir(repo_candidate):
         return repo_candidate
     return None
-
-
-def _find_bundled_grpc_runner_jar() -> Optional[str]:
-    try:
-        jar_dir = pkg_resources.resource_filename("altastata", "lib")
-    except Exception:
-        return None
-    if not os.path.isdir(jar_dir):
-        return None
-
-    candidates = sorted(
-        os.path.join(jar_dir, f)
-        for f in os.listdir(jar_dir)
-        if f.startswith("altastata-grpc-") and f.endswith("-runner.jar")
-    )
-    if not candidates:
-        return None
-    return candidates[-1]
 
 
 def _find_bundled_grpc_uber_jar() -> Optional[str]:

@@ -11,15 +11,11 @@
 
 2. Build and copy the AltaStata JARs:
    ```bash
-   # Build gRPC artifacts
+   # Build gRPC artifact used by Python runtime
    ./gradlew :altastata-grpc:shadowJar
-   ./gradlew :altastata-grpc:runnerJar
 
    # Copy shared runtime jar (used by both Py4J classpath and gRPC auto-start)
    cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-uber.jar altastata/lib/
-
-   # Optional fallback gRPC startup jar
-   cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-runner.jar altastata/lib/
    ```
 
 3. Verify JAR integrity:
