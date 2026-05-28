@@ -24,14 +24,14 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19\x61ltastata/v1/events.proto\x12\x0c\x61ltastata.v1\"\x12\n\x10SubscribeRequest\"0\n\x0c\x45ventMessage\x12\x12\n\nevent_name\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t2Z\n\rEventsService\x12I\n\tSubscribe\x12\x1e.altastata.v1.SubscribeRequest\x1a\x1a.altastata.v1.EventMessage0\x01\x42\x33\n\"com.altastata.s3gateway.grpc.protoB\x0b\x45ventsProtoP\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19\x61ltastata/v1/events.proto\x12\x0c\x61ltastata.v1\"\x12\n\x10SubscribeRequest\"0\n\x0c\x45ventMessage\x12\x12\n\nevent_name\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t2Z\n\rEventsService\x12I\n\tSubscribe\x12\x1e.altastata.v1.SubscribeRequest\x1a\x1a.altastata.v1.EventMessage0\x01\x42)\n\x18\x63om.altastata.grpc.protoB\x0b\x45ventsProtoP\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'altastata.v1.events_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'\n\"com.altastata.s3gateway.grpc.protoB\013EventsProtoP\001'
+  _globals['DESCRIPTOR']._serialized_options = b'\n\030com.altastata.grpc.protoB\013EventsProtoP\001'
   _globals['_SUBSCRIBEREQUEST']._serialized_start=43
   _globals['_SUBSCRIBEREQUEST']._serialized_end=61
   _globals['_EVENTMESSAGE']._serialized_start=63

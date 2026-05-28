@@ -3,7 +3,7 @@ syntax = "proto3";
 package altastata.v1;
 
 option java_multiple_files = true;
-option java_package = "com.altastata.s3gateway.grpc.proto";
+option java_package = "com.altastata.grpc.proto";
 option java_outer_classname = "EventsProto";
 
 message SubscribeRequest {}
