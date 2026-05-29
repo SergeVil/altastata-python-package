@@ -42,7 +42,7 @@ def _get_altastata_functions(account_id: str) -> AltaStataFunctions:
     return functions
 
 class AltaStataPyTorchDataset(Dataset):
-    def __init__(self, account_id, root_dir, file_pattern=None, transform=None, require_files=True):
+    def __init__(self, account_id, root_dir, file_pattern=None, transform=None, require_files=True, trust_cached_size=True):
         """
         A PyTorch Dataset for loading various file types (images, CSV, NumPy) from a directory.
 
@@ -53,11 +53,18 @@ class AltaStataPyTorchDataset(Dataset):
             transform (callable, optional): Transform to be applied on image samples.
                 For non-image files, basic tensor conversion is applied.
             require_files (bool): Whether to require files matching the pattern (default: True)
+            trust_cached_size (bool): Trust the cached ``size`` and skip the per-item
+                cloud GET of the size attribute, which speeds up repeated epochs
+                significantly. Defaults to True because ML datasets are read-many
+                over write-once files. Set to False only if the underlying files may
+                be appended/changed during the dataset's lifetime. Cloud transport
+                only; ignored for local filesystem reads.
         """
         
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
+        self.trust_cached_size = trust_cached_size
 
         altastata_functions = _get_altastata_functions(account_id)
 
@@ -186,6 +193,10 @@ class AltaStataPyTorchDataset(Dataset):
         altastata_functions = _get_altastata_functions(self.account_id)
 
         if altastata_functions is not None:
+            if self.trust_cached_size:
+                # Immutable file: skip the separate size GET. get_buffer's stream
+                # trusts the cached size (size=-1 reads the whole file).
+                return altastata_functions.get_buffer(path, None, 0, 4, -1, trust_cached_size=True)
             # Two Py4J calls: size first, then get_buffer (streams for >8 MB)
             size_str = altastata_functions.get_file_attribute(path, None, "size")
             try:

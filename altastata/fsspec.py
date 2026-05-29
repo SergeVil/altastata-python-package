@@ -22,13 +22,18 @@ class AltaStataFileSystem(AbstractFileSystem):
     
     protocol = "altastata"
     
-    def __init__(self, altastata_functions, account_id: str = "default", **kwargs):
+    def __init__(self, altastata_functions, account_id: str = "default", trust_cached_size: bool = True, **kwargs):
         """
         Initialize fsspec filesystem with AltaStata connection.
         
         Args:
             altastata_functions: AltaStataFunctions instance
             account_id: Account identifier
+            trust_cached_size: Trust the cached ``size`` and skip the per-read cloud
+                GET of the size attribute. Defaults to True because this adapter is
+                used for read-many access (e.g. LangChain/RAG document loading) over
+                write-once files. Set to False if the underlying files may be
+                appended/changed during the filesystem's lifetime.
         """
         if not FSSPEC_AVAILABLE:
             raise ImportError("fsspec is required. Install with: pip install fsspec")
@@ -36,6 +41,7 @@ class AltaStataFileSystem(AbstractFileSystem):
         super().__init__(**kwargs)
         self.altastata_functions = altastata_functions
         self.account_id = account_id
+        self.trust_cached_size = trust_cached_size
     
     def _strip_protocol(self, path: str) -> str:
         """Remove protocol from path."""
@@ -145,6 +151,11 @@ class AltaStataFile(io.IOBase):
         """
         if self._content is None:
             af = self.filesystem.altastata_functions
+            if getattr(self.filesystem, "trust_cached_size", False):
+                # Immutable files: skip the separate size GET; the stream trusts the
+                # cached size (size=-1 reads the whole file).
+                self._content = af.get_buffer(self.path, None, 0, 4, -1, trust_cached_size=True)
+                return
             size_str = af.get_file_attribute(self.path, None, "size")
             try:
                 size = int(size_str) if size_str else 0

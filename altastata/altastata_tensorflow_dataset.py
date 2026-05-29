@@ -26,7 +26,8 @@ def _get_altastata_functions(account_id: str) -> AltaStataFunctions:
 
 class AltaStataTensorFlowDataset(tf.data.Dataset):
     def __init__(self, account_id: str, root_dir: str, file_pattern: Optional[str] = None,
-                 preprocess_fn: Optional[Callable] = None, require_files: bool = True):
+                 preprocess_fn: Optional[Callable] = None, require_files: bool = True,
+                 trust_cached_size: bool = True):
         """
         A TensorFlow Dataset for loading various file types (images, CSV, NumPy) from a directory.
 
@@ -37,11 +38,18 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
             preprocess_fn (callable, optional): Function to preprocess samples.
                 For non-image files, basic tensor conversion is applied.
             require_files (bool): Whether to require files matching the pattern (default: True)
+            trust_cached_size (bool): Trust the cached ``size`` and skip the per-item
+                cloud GET of the size attribute, which speeds up repeated epochs
+                significantly. Defaults to True because ML datasets are read-many
+                over write-once files. Set to False only if the underlying files may
+                be appended/changed during the dataset's lifetime. Cloud transport
+                only; ignored for local filesystem reads.
         """
         print(f"account_id: {account_id}")
         
         self.account_id = account_id
         self.preprocess_fn = preprocess_fn
+        self.trust_cached_size = trust_cached_size
 
         altastata_functions = _get_altastata_functions(account_id)
 
@@ -112,6 +120,10 @@ class AltaStataTensorFlowDataset(tf.data.Dataset):
         through ``get_buffer`` without keeping a second whole-file cache in
         the dataset worker.
         """
+        if self.trust_cached_size:
+            # Immutable file: skip the separate size GET. get_buffer's stream
+            # trusts the cached size (size=-1 reads the whole file).
+            return altastata_functions.get_buffer(path, None, 0, 4, -1, trust_cached_size=True)
         size_str = altastata_functions.get_file_attribute(path, None, "size")
         try:
             size = int(size_str) if size_str else 0

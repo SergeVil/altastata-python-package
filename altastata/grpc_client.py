@@ -309,6 +309,7 @@ class AltaStataGrpcClient:
         snapshot_time: int = 0,
         start_position: int = 0,
         parallel_chunks: int = 4,
+        trust_cached_size: bool = False,
     ) -> bytes:
         req = self._fileops_pb2.GetBufferRequest(
             file_path=file_path,
@@ -316,6 +317,7 @@ class AltaStataGrpcClient:
             start_position=start_position,
             parallel_chunks=parallel_chunks,
             size=size,
+            trust_cached_size=trust_cached_size,
         )
         resp = self._fileops_stub.GetBuffer(req, metadata=self._metadata)
         return bytes(resp.data)
@@ -419,6 +421,7 @@ class AltaStataGrpcClient:
         start_position: int = 0,
         parallel_chunks: int = 4,
         chunk_size: int = 8 * 1024 * 1024,
+        trust_cached_size: bool = False,
     ):
         req = self._fileops_pb2.ReadStreamRequest(
             file_path=cloud_file_path,
@@ -426,6 +429,7 @@ class AltaStataGrpcClient:
             start_position=start_position,
             parallel_chunks=parallel_chunks,
             chunk_size=chunk_size,
+            trust_cached_size=trust_cached_size,
         )
         for chunk in self._fileops_stub.ReadStream(req, metadata=self._metadata):
             yield bytes(chunk.data)
