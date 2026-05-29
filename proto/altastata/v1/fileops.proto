@@ -23,6 +23,9 @@ message GetBufferRequest {
   int64 start_position = 3;
   int32 parallel_chunks = 4;
   int32 size = 5;
+  // When true, the file content is declared immutable (write-once): trust the cached `size`
+  // and skip the per-read fresh cloud GET of the size attribute. Default false (always fresh).
+  bool trust_cached_size = 6;
 }
 
 message GetBufferResponse {
@@ -100,6 +103,8 @@ message ReadStreamRequest {
   int64 start_position = 3;
   int32 parallel_chunks = 4;
   int32 chunk_size = 5;
+  // See GetBufferRequest.trust_cached_size. Default false (always fresh).
+  bool trust_cached_size = 6;
 }
 
 message ReadStreamChunk {

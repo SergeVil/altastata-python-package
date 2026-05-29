@@ -364,7 +364,7 @@ class AltaStataFunctions(BaseGateway):
         # Call the Java method and return the iterator
         return self.altastata_file_system.listCloudFilesVersions(cloudPathPrefix, includingSubdirectories, timeIntervalStart, timeIntervalEnd)
 
-    def get_buffer(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, size):
+    def get_buffer(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, size, trust_cached_size=False):
         """Read file content from cloud storage as ``bytes``.
 
         Args:
@@ -373,6 +373,12 @@ class AltaStataFunctions(BaseGateway):
             startPosition: Byte offset to start reading from.
             howManyChunksInParallel: Number of chunks to download concurrently.
             size: Expected file size in bytes.
+            trust_cached_size: When True, declare this file's content immutable
+                (write-once) so the per-open fresh cloud GET of the ``size``
+                attribute is skipped and the cached value is trusted. Big win
+                for read-many workloads (ML dataset epochs); leave False (the
+                default) for mutable files. Honored on both the py4j and gRPC
+                transports.
 
         Returns:
             bytes: File content.
@@ -391,21 +397,23 @@ class AltaStataFunctions(BaseGateway):
                 snapshot_time=0 if snapshotTime is None else snapshotTime,
                 start_position=startPosition,
                 parallel_chunks=howManyChunksInParallel,
+                trust_cached_size=trust_cached_size,
             )
         if snapshotTime is None:
             snapshotTime = int(time.time() * 1000)
         if size > TEMP_FILE_THRESHOLD:
             return self._get_buffer_via_temp_file(
                 cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel,
+                trust_cached_size,
             )
         return base64.b64decode(
             self.altastata_file_system.getBufferAsBase64(
                 cloudFilePath, snapshotTime, startPosition,
-                howManyChunksInParallel, size,
+                howManyChunksInParallel, size, trust_cached_size,
             )
         )
 
-    def _get_buffer_via_temp_file(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel):
+    def _get_buffer_via_temp_file(self, cloudFilePath, snapshotTime, startPosition, howManyChunksInParallel, trust_cached_size=False):
         """Download large file via temp file for performance.
 
         Java streams chunks directly to a temp file (no heap buffering),
@@ -416,7 +424,7 @@ class AltaStataFunctions(BaseGateway):
         try:
             self.altastata_file_system.streamToFile(
                 tmp_path, cloudFilePath, snapshotTime, startPosition,
-                howManyChunksInParallel,
+                howManyChunksInParallel, trust_cached_size,
             )
             with open(tmp_path, 'rb') as f:
                 return f.read()
