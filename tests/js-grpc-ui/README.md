@@ -1,34 +1,37 @@
-# JS gRPC one-page test
+# JS gRPC playground
 
-This folder contains a standalone browser page that:
+This folder contains a standalone browser page for testing all gRPC-Web APIs from one place.
 
-- bootstraps a local gRPC user (`setUserProperties`, `setPrivateKey`, `setPassword`)
-- calls `UsersService/ListUsers` over gRPC-Web and renders returned users
-- uses hardcoded config in `app.js` (minimal UI)
+## What it covers
+
+- UsersService: bootstrap, list users, get account/user, set password
+- FileOpsService: upload/create, get buffer, append, copy, delete, list versions, read stream
+- AttributesService: set/get/delete metadata
+- SharingService: share/revoke (by list and by query)
+- EventsService: subscribe/stop stream
+
+The page uses hardcoded config in `app.js` (`CONFIG`) and logs every request/response in the in-page Logs panel.
 
 ## Files
 
-- `index.html` - the page UI
-- `app.js` - gRPC-Web request/response logic
+- `index.html` - full playground UI
+- `app.js` - gRPC-Web logic
+- `protobuf.min.js` - local protobuf runtime (no CDN dependency)
 
 ## Run
 
-1. Make sure `altastata-grpc` is running.
-2. Use a simple local web server from this directory:
+1. Ensure local gRPC server is running on `127.0.0.1:9877`.
+2. Serve this directory:
 
 ```bash
 cd tests/js-grpc-ui
 python -m http.server 8081
 ```
 
-3. Open `http://127.0.0.1:8081/` in a browser.
-4. Edit `app.js` and set:
-   - `grpcBaseUrl`
-   - `userName`
-   - `accountPassword`
-   - `userProperties`
-   - `privateKey`
-5. Click **Bootstrap user** in the page.
-6. Click **List users**.
+3. Open `http://127.0.0.1:8081/`.
+4. Click **Bootstrap user**.
+5. Use buttons section by section.
 
-The page uses token format `local-<user_name>` automatically.
+Notes:
+- Upload uses the selected file bytes; destination path is taken from `File path` (fallback: selected file name).
+- Token format is `local-<user_name>`.
