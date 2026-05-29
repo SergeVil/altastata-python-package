@@ -127,12 +127,14 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
   userNameInput.value = CONFIG.userName;
   userPasswordInput.value = CONFIG.accountPassword;
   queryPrefixInput.value = "";
-  attrNameInput.value = "source";
-  attrValueInput.value = "js-grpc-playground";
-  attrNamesInput.value = "source";
+  attrNameInput.value = "size";
+  attrValueInput.value = "";
+  attrNamesInput.value = "size,readers";
 
   let selectedFile = null;
   let subscribeController = null;
+  let authBootstrapDone = false;
+  let authBootstrapInFlight = null;
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -188,9 +190,52 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
     }
   }
 
+  function resolveRegistryUser() {
+    const inputUser = userNameInput.value.trim();
+    const configUser = CONFIG.userName.trim();
+    // Token validation uses GrpcUserRegistry keys (user_name from bootstrap),
+    // not "myuser" inside account properties.
+    return inputUser || configUser;
+  }
+
+  async function ensureAuthBootstrap() {
+    if (authBootstrapDone) return;
+    if (authBootstrapInFlight) {
+      await authBootstrapInFlight;
+      return;
+    }
+    const user = resolveRegistryUser();
+    const pwd = userPasswordInput.value;
+    if (!user) throw new Error("userName is empty");
+    if (!pwd) throw new Error("account password is empty");
+
+    authBootstrapInFlight = (async () => {
+      log("Auth bootstrap started", { userName: user });
+      await grpcUnary("altastata.v1.UsersService/SetUserProperties", "SetUserPropertiesRequest", {
+        userName: user,
+        userProperties: CONFIG.userProperties,
+      }, "SetUserPropertiesResponse", false);
+      await grpcUnary("altastata.v1.UsersService/SetPrivateKey", "SetPrivateKeyRequest", {
+        userName: user,
+        privateKeyEncrypted: CONFIG.privateKey,
+      }, "SetPrivateKeyResponse", false);
+      await grpcUnary("altastata.v1.UsersService/SetPasswordForUser", "SetPasswordForUserRequest", {
+        userName: user,
+        accountPassword: pwd,
+      }, "SetPasswordForUserResponse", false);
+      authBootstrapDone = true;
+      log("Auth bootstrap complete", { userName: user });
+    })();
+    try {
+      await authBootstrapInFlight;
+    } finally {
+      authBootstrapInFlight = null;
+    }
+  }
+
   function baseUrl() { return CONFIG.grpcBaseUrl.trim().replace(/\/+$/, ""); }
   function token() {
-    const user = userNameInput.value.trim() || CONFIG.userName.trim();
+    const user = resolveRegistryUser();
     if (!user) throw new Error("userName is empty");
     return `local-${user}`;
   }
@@ -250,7 +295,8 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
     return map;
   }
 
-  async function grpcUnary(methodPath, reqTypeName, reqObj, respTypeName, withAuth) {
+  async function grpcUnary(methodPath, reqTypeName, reqObj, respTypeName, withAuth, _retriedAfterBootstrap) {
+    if (withAuth) await ensureAuthBootstrap();
     const reqType = T(reqTypeName);
     const respType = T(respTypeName);
     const body = frameMessage(reqType.encode(reqType.create(reqObj || {})).finish());
@@ -274,12 +320,22 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
       else msg = respType.decode(f.payload);
     }
     const code = trailers.get("grpc-status") || "0";
-    if (code !== "0") throw new Error(`gRPC status=${code} message=${trailers.get("grpc-message") || ""}`);
+    if (code !== "0") {
+      const message = trailers.get("grpc-message") || "";
+      if (withAuth && !_retriedAfterBootstrap && code === "16" && /invalid token/i.test(message)) {
+        log("grpc unary retry", { methodPath, reason: "Invalid token", action: "re-bootstrap and retry once" });
+        authBootstrapDone = false;
+        await ensureAuthBootstrap();
+        return grpcUnary(methodPath, reqTypeName, reqObj, respTypeName, withAuth, true);
+      }
+      throw new Error(`gRPC status=${code} message=${message}`);
+    }
     log("grpc unary response", { methodPath, grpcStatus: code });
     return msg || respType.create({});
   }
 
-  async function grpcServerStream(methodPath, reqTypeName, reqObj, respTypeName, onMessage, withAuth, signal) {
+  async function grpcServerStream(methodPath, reqTypeName, reqObj, respTypeName, onMessage, withAuth, signal, _retriedAfterBootstrap) {
+    if (withAuth) await ensureAuthBootstrap();
     const reqType = T(reqTypeName);
     const respType = T(respTypeName);
     const body = frameMessage(reqType.encode(reqType.create(reqObj || {})).finish());
@@ -337,7 +393,16 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
     }
 
     const code = trailers.get("grpc-status") || "0";
-    if (code !== "0") throw new Error(`gRPC status=${code} message=${trailers.get("grpc-message") || ""}`);
+    if (code !== "0") {
+      const message = trailers.get("grpc-message") || "";
+      if (withAuth && !_retriedAfterBootstrap && code === "16" && /invalid token/i.test(message)) {
+        log("grpc stream retry", { methodPath, reason: "Invalid token", action: "re-bootstrap and retry once" });
+        authBootstrapDone = false;
+        await ensureAuthBootstrap();
+        return grpcServerStream(methodPath, reqTypeName, reqObj, respTypeName, onMessage, withAuth, signal, true);
+      }
+      throw new Error(`gRPC status=${code} message=${message}`);
+    }
     log("grpc stream closed", { methodPath, grpcStatus: code, messages: messageCount, trailersOnly: !sawTrailerFrame });
   }
 
@@ -417,12 +482,15 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
   }
 
   document.getElementById("bootstrapBtn").addEventListener("click", () => run("Bootstrap", async () => {
-    const user = userNameInput.value.trim();
+    const user = resolveRegistryUser();
+    userNameInput.value = user;
     const pwd = userPasswordInput.value;
     log("Bootstrap identity", { userName: user, myuser: parseMyUserFromProperties(CONFIG.userProperties) });
     await grpcUnary("altastata.v1.UsersService/SetUserProperties", "SetUserPropertiesRequest", { userName: user, userProperties: CONFIG.userProperties }, "SetUserPropertiesResponse", false);
     await grpcUnary("altastata.v1.UsersService/SetPrivateKey", "SetPrivateKeyRequest", { userName: user, privateKeyEncrypted: CONFIG.privateKey }, "SetPrivateKeyResponse", false);
-    return grpcUnary("altastata.v1.UsersService/SetPasswordForUser", "SetPasswordForUserRequest", { userName: user, accountPassword: pwd }, "SetPasswordForUserResponse", false);
+    const resp = await grpcUnary("altastata.v1.UsersService/SetPasswordForUser", "SetPasswordForUserRequest", { userName: user, accountPassword: pwd }, "SetPasswordForUserResponse", false);
+    authBootstrapDone = true;
+    return resp;
   }));
 
   document.getElementById("listUsersBtn").addEventListener("click", () => run("ListUsers", async () => {
@@ -663,4 +731,7 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
       log("Logs cleared by user");
     });
   }
+
+  userNameInput.addEventListener("change", () => { authBootstrapDone = false; });
+  userPasswordInput.addEventListener("change", () => { authBootstrapDone = false; });
 })();

@@ -134,26 +134,30 @@
     </div>
   </div>
 
-  <h2>AttributesService (Metadata)</h2>
+  <h2>AttributesService (Built-in attributes)</h2>
   <div class="grid">
     <div class="card">
+      <p class="hint">
+        For this workflow, use <code>size</code> and <code>readers</code>.
+        <code>eTag</code> / <code>s3metadata</code> are mainly for S3 gateway flows.
+      </p>
       <div class="row">
-        <label for="attrNameInput">Attribute name</label>
-        <input id="attrNameInput" value="source" />
+        <label for="attrNameInput">Attribute name (usually size or readers)</label>
+        <input id="attrNameInput" value="size" />
       </div>
       <div class="row">
-        <label for="attrValueInput">Attribute value</label>
-        <input id="attrValueInput" value="js-grpc-playground" />
+        <label for="attrValueInput">Attribute value (only for custom attributes)</label>
+        <input id="attrValueInput" placeholder="optional custom value" />
       </div>
       <div class="row">
         <label for="attrNamesInput">Attribute names (comma-separated)</label>
-        <input id="attrNamesInput" value="source" />
+        <input id="attrNamesInput" value="size,readers" />
       </div>
       <div class="buttons">
-        <button id="setAttrBtn">SetAttribute</button>
         <button id="getAttrBtn">GetAttribute</button>
         <button id="getAttrsBtn">GetAttributes</button>
-        <button id="delAttrBtn">DeleteAttribute</button>
+        <button id="setAttrBtn">SetAttribute (custom only)</button>
+        <button id="delAttrBtn">DeleteAttribute (custom only)</button>
       </div>
     </div>
   </div>
