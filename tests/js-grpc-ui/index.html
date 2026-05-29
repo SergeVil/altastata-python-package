@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AltaStata gRPC-Web Playground</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; max-width: 1200px; }
+    h1 { margin-bottom: 10px; }
+    h2 { margin-top: 26px; margin-bottom: 8px; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .card { border: 1px solid #d0d7de; background: #fff; padding: 12px; }
+    .row { margin: 8px 0; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; }
+    input, textarea { width: 100%; padding: 8px; box-sizing: border-box; }
+    textarea { min-height: 72px; font-family: monospace; }
+    .buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+    button { padding: 8px 12px; cursor: pointer; }
+    .dropzone {
+      border: 2px dashed #8c959f;
+      border-radius: 6px;
+      padding: 14px;
+      text-align: center;
+      color: #57606a;
+      background: #f6f8fa;
+    }
+    .dropzone.dragover {
+      border-color: #1f6feb;
+      background: #eaf2ff;
+      color: #1f6feb;
+    }
+    pre {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      padding: 10px;
+      white-space: pre-wrap;
+      min-height: 40px;
+    }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #d0d7de; padding: 8px; text-align: left; }
+    th { background: #f6f8fa; }
+    .hint { color: #57606a; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>AltaStata gRPC-Web Playground</h1>
+  <p class="hint">
+    Hardcoded credentials/config are in <code>app.js</code> (<code>CONFIG</code>).
+    Use this page as a guided, one-RPC-at-a-time tester.
+  </p>
+  <div class="card">
+    <strong>Quick start</strong>
+    <ol>
+      <li>Click <strong>Bootstrap user</strong>.</li>
+      <li>Drop a file and click <strong>Upload file</strong>.</li>
+      <li>Use other buttons one-by-one as needed.</li>
+    </ol>
+  </div>
+
+  <h3>Status</h3>
+  <pre id="status">Idle</pre>
+
+  <h3>Output</h3>
+  <pre id="output">No calls yet.</pre>
+  <div class="buttons">
+    <button id="clearLogsBtn">Clear logs</button>
+  </div>
+  <h3>Logs</h3>
+  <pre id="logsOutput">Logs initialized.</pre>
+
+  <h3>UsersService</h3>
+  <div class="grid">
+    <div class="card">
+      <div class="row">
+        <label for="userNameInput">User name</label>
+        <input id="userNameInput" />
+      </div>
+      <div class="row">
+        <label for="userPasswordInput">Password</label>
+        <input id="userPasswordInput" type="password" />
+      </div>
+      <div class="buttons">
+        <button id="bootstrapBtn">Bootstrap user</button>
+        <button id="listUsersBtn">List users</button>
+        <button id="getMyAccountBtn">Get my account</button>
+        <button id="getUserBtn">Get user by name</button>
+        <button id="setPasswordBtn">Set password (auth user)</button>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>User name</th>
+      </tr>
+    </thead>
+    <tbody id="usersBody">
+      <tr><td>No data yet</td></tr>
+    </tbody>
+  </table>
+
+  <h2>FileOpsService (Upload / Read / Copy / Delete)</h2>
+  <div class="grid">
+    <div class="card">
+      <div id="dropZone" class="dropzone">Drop file here or click to choose</div>
+      <input id="fileInput" type="file" style="display:none" />
+      <div class="row hint" id="fileInfo">No file selected.</div>
+      <div class="buttons">
+        <button id="createFileBtn">Upload file (CreateFile)</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <label for="filePathInput">File path (read/delete/copy source)</label>
+        <input id="filePathInput" placeholder="example: myfile.txt" />
+      </div>
+      <div class="row">
+        <label for="copyToPathInput">Copy target path (CopyFile destination)</label>
+        <input id="copyToPathInput" placeholder="example: myfile-copy.txt" />
+      </div>
+      <div class="row">
+        <label for="appendTextInput">Append text</label>
+        <input id="appendTextInput" placeholder="hello from grpc-web" />
+      </div>
+      <div class="buttons">
+        <button id="getBufferBtn">Download preview (GetBuffer)</button>
+        <button id="appendBtn">Append text</button>
+        <button id="copyBtn">Copy file</button>
+        <button id="deleteBtn">Delete by prefix</button>
+        <button id="listVersionsBtn">List versions</button>
+        <button id="readStreamBtn">Read stream</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>AttributesService (Built-in attributes)</h2>
+  <div class="grid">
+    <div class="card">
+      <p class="hint">
+        For this workflow, use <code>size</code> and <code>readers</code>.
+        <code>eTag</code> / <code>s3metadata</code> are mainly for S3 gateway flows.
+      </p>
+      <div class="row">
+        <label for="attrNameInput">Attribute name (usually size or readers)</label>
+        <input id="attrNameInput" value="size" />
+      </div>
+      <div class="row">
+        <label for="attrValueInput">Attribute value (only for custom attributes)</label>
+        <input id="attrValueInput" placeholder="optional custom value" />
+      </div>
+      <div class="row">
+        <label for="attrNamesInput">Attribute names (comma-separated)</label>
+        <input id="attrNamesInput" value="size,readers" />
+      </div>
+      <div class="buttons">
+        <button id="getAttrBtn">GetAttribute</button>
+        <button id="getAttrsBtn">GetAttributes</button>
+        <button id="setAttrBtn">SetAttribute (custom only)</button>
+        <button id="delAttrBtn">DeleteAttribute (custom only)</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>SharingService (Readers)</h2>
+  <div class="grid">
+    <div class="card">
+      <div class="row">
+        <label for="readersInput">Readers (comma-separated)</label>
+        <input id="readersInput" placeholder="user1,user2" />
+      </div>
+      <div class="row">
+        <label for="sharePathsInput">File paths (comma-separated)</label>
+        <input id="sharePathsInput" placeholder="myfile.txt,myfile-copy.txt" />
+      </div>
+      <div class="row">
+        <label for="queryPrefixInput">Query prefix</label>
+        <input id="queryPrefixInput" placeholder="my-prefix/" />
+      </div>
+      <div class="buttons">
+        <button id="shareBtn">Share</button>
+        <button id="revokeBtn">Revoke</button>
+        <button id="shareByQueryBtn">ShareByQuery</button>
+        <button id="revokeByQueryBtn">RevokeByQuery</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>EventsService (Live stream)</h2>
+  <div class="grid">
+    <div class="card">
+      <p class="hint">Start stream, perform file operations, observe events below.</p>
+      <div class="buttons">
+        <button id="subscribeBtn">Subscribe</button>
+        <button id="stopSubscribeBtn">Stop subscribe</button>
+      </div>
+      <pre id="eventsOutput">No events yet.</pre>
+    </div>
+  </div>
+
+  <script src="./protobuf.min.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>

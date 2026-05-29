@@ -60,16 +60,14 @@ f = AltaStataFunctions.from_account_dir(
 )
 ```
 
-`transport="grpc"` auto-starts `altastata-grpc` if needed. It first looks
-for a bundled `altastata-grpc-*-uber.jar` under `altastata/lib` and starts it
-with `java -cp ... com.altastata.grpc.GrpcApplication`, and then falls back to
-local dev startup (`./gradlew :altastata-grpc:run`) when a `mycloud` checkout
-is available.
+`transport="grpc"` auto-starts `altastata-grpc` when needed.
 
-To run the gRPC server explicitly (for browser JS or local testing), use:
+To run the gRPC server explicitly (for browser JS or local testing), use either:
 
 ```bash
 altastata-grpc-server
+# or (same entry point via Python module):
+python -m altastata.grpc_server
 ```
 
 ## PyTorch & TensorFlow Integration
