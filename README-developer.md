@@ -1,4 +1,6 @@
-# AltaStata Python Package Developer Guide v0.1.15
+# AltaStata Python Package Developer Guide
+
+> Package version is tracked in `setup.py` (`pip show altastata` to inspect).
 
 ## Prerequisites
 
