@@ -185,9 +185,12 @@ class GrpcClientTests(unittest.TestCase):
         from altastata.grpc_client import _start_local_grpc_service
         _start_local_grpc_service()
 
+        # env is built by _build_grpc_subprocess_env (covered separately) and
+        # is forwarded to Popen so the Java side can pick up the bundled SPA.
         mock_popen.assert_called_once_with(
             ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
             cwd="/tmp",
+            env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,
             stderr=unittest.mock.ANY,
         )
@@ -211,9 +214,76 @@ class GrpcClientTests(unittest.TestCase):
         mock_popen.assert_called_once_with(
             ["./gradlew", ":altastata-grpc:run"],
             cwd="/work/mycloud",
+            env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,
             stderr=unittest.mock.ANY,
         )
+
+    @patch("altastata.grpc_client._find_bundled_console_ui_dir")
+    def test_build_subprocess_env_exports_ui_dir_when_bundle_present(
+        self, mock_find_ui
+    ):
+        mock_find_ui.return_value = "/wheel/altastata/lib/altastata-console-static"
+
+        from altastata.grpc_client import _build_grpc_subprocess_env
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("ALTASTATA_WEB_UI_DIR", None)
+            env = _build_grpc_subprocess_env()
+
+        self.assertEqual(
+            env["ALTASTATA_WEB_UI_DIR"],
+            "/wheel/altastata/lib/altastata-console-static",
+        )
+
+    @patch("altastata.grpc_client._find_bundled_console_ui_dir")
+    def test_build_subprocess_env_skips_ui_dir_when_no_bundle(self, mock_find_ui):
+        mock_find_ui.return_value = None
+
+        from altastata.grpc_client import _build_grpc_subprocess_env
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("ALTASTATA_WEB_UI_DIR", None)
+            env = _build_grpc_subprocess_env()
+
+        self.assertNotIn("ALTASTATA_WEB_UI_DIR", env)
+
+    @patch("altastata.grpc_client._find_bundled_console_ui_dir")
+    def test_build_subprocess_env_respects_caller_override(self, mock_find_ui):
+        # If the caller explicitly set the variable (even to a different
+        # path, or to empty to disable), the bundled lookup must not
+        # silently override it.
+        mock_find_ui.return_value = "/wheel/altastata/lib/altastata-console-static"
+
+        from altastata.grpc_client import _build_grpc_subprocess_env
+        with patch.dict(os.environ, {"ALTASTATA_WEB_UI_DIR": "/custom/path"}):
+            env = _build_grpc_subprocess_env()
+
+        self.assertEqual(env["ALTASTATA_WEB_UI_DIR"], "/custom/path")
+        mock_find_ui.assert_not_called()
+
+    def test_find_bundled_console_ui_dir_returns_none_for_missing_dir(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            empty_pkg = os.path.join(tmp, "altastata", "lib")
+            os.makedirs(empty_pkg)
+            with patch(
+                "altastata.grpc_client.pkg_resources.resource_filename",
+                return_value=os.path.join(empty_pkg, "altastata-console-static"),
+            ):
+                from altastata.grpc_client import _find_bundled_console_ui_dir
+                self.assertIsNone(_find_bundled_console_ui_dir())
+
+    def test_find_bundled_console_ui_dir_returns_path_when_index_html_present(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ui_dir = os.path.join(tmp, "altastata-console-static")
+            os.makedirs(ui_dir)
+            with open(os.path.join(ui_dir, "index.html"), "w") as f:
+                f.write("<html></html>")
+            with patch(
+                "altastata.grpc_client.pkg_resources.resource_filename",
+                return_value=ui_dir,
+            ):
+                from altastata.grpc_client import _find_bundled_console_ui_dir
+                self.assertEqual(_find_bundled_console_ui_dir(), os.path.abspath(ui_dir))
+
 
 if __name__ == "__main__":
     unittest.main()

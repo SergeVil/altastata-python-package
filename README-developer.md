@@ -1,36 +1,73 @@
-# AltaStata Python Package Developer Guide v0.1.15
+# AltaStata Python Package Developer Guide
+
+> Package version is tracked in `setup.py` (`pip show altastata` to inspect).
 
 ## Prerequisites
 
-### JAR Files Setup
-1. Ensure you have the required JAR files in the `altastata/lib` directory:
-   ```bash
-   # For Windows example:
-   cp /c/Users/serge/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0/LocalCache/local-packages/share/py4j/py4j0.10.9.8.jar altastata/lib/
-   ```
+### Bundled artifacts setup
 
-2. Build and copy the AltaStata JARs:
-   ```bash
-   # Build gRPC artifact used by Python runtime
-   ./gradlew :altastata-grpc:shadowJar
+The wheel ships with two binary artifacts that this repo deliberately does
+not commit to git:
 
-   # Copy shared runtime jar (used by both Py4J classpath and gRPC auto-start)
+- `altastata/lib/altastata-grpc-<ver>-uber.jar` (built from `mycloud/altastata-grpc`)
+- `altastata/lib/altastata-console-static/` (built from `altastata-console/frontend`)
+
+Only `altastata/lib/py4j0.10.9.5.jar` is tracked in git, since it is a fixed
+upstream artifact rather than something we build. Everything else under
+`altastata/lib/` is gitignored (`lib/` rule in `.gitignore`) and must be
+populated locally before `pip install -e .` or `python -m build`.
+
+#### Quick start (recommended)
+
+Run the helper script — it builds both artifacts in one shot and stages
+them under `altastata/lib/`:
+
+```bash
+bash scripts/build-bundled-artifacts.sh
+```
+
+The script assumes the sibling layout `mycloud/` and `altastata-console/`
+next to this repo. Override with `ALTASTATA_MYCLOUD_DIR` /
+`ALTASTATA_CONSOLE_DIR` if your layout differs, or pass `SKIP_GRPC=1` /
+`SKIP_UI=1` to leave one side untouched.
+
+#### Manual fallback
+
+If you prefer to drive each build yourself:
+
+1. Build the gRPC uber jar in `mycloud/altastata-grpc`:
+   ```bash
+   (cd ../mycloud && ./gradlew :altastata-grpc:shadowJar)
    cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-uber.jar altastata/lib/
    ```
 
-3. Verify JAR integrity:
+2. Build the Console SPA in `altastata-console/frontend`:
    ```bash
-   # Check if py4j JAR is valid
-   jar tf altastata/lib/py4j0.10.9.5.jar | grep GatewayServer
-   
-   # If corrupted, download a fresh copy
-   wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar -O altastata/lib/py4j0.10.9.5.jar
+   (cd ../altastata-console/frontend && npm install && npm run build)
+   rm -rf altastata/lib/altastata-console-static
+   mkdir -p altastata/lib/altastata-console-static
+   cp -R ../altastata-console/frontend/dist/. altastata/lib/altastata-console-static/
    ```
 
-4. Run server from Python package (no Gradle needed):
+3. Verify py4j integrity (only relevant if you suspect corruption):
+   ```bash
+   jar tf altastata/lib/py4j0.10.9.5.jar | grep GatewayServer
+   # If corrupted, fetch a fresh copy
+   wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar \
+        -O altastata/lib/py4j0.10.9.5.jar
+   ```
+
+4. Run the server (Java + bundled SPA on the same port):
    ```bash
    altastata-grpc-server
+   # gRPC + UI both on http://127.0.0.1:9877
    ```
+
+   The launcher exports `ALTASTATA_WEB_UI_DIR` automatically when the
+   bundled `altastata/lib/altastata-console-static/` is present, so the Java
+   gRPC gateway serves the SPA from the same port. Set
+   `ALTASTATA_WEB_UI_DIR=` (empty) before running to disable the UI and
+   keep gRPC-only routing for legacy testing.
 
 ### Logging Configuration
 - To customize logging, copy and modify the logback configuration:
