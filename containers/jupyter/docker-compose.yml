@@ -12,6 +12,7 @@ services:
     container_name: altastata-jupyter
     ports:
       - "8888:8888"
+      - "9877:9877"
     volumes:
       - ../../examples/pytorch-example:/home/jovyan/pytorch-example
       - ../../examples/tensorflow-example:/home/jovyan/tensorflow-example
