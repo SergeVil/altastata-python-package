@@ -70,6 +70,15 @@ altastata-grpc-server
 python -m altastata.grpc_server
 ```
 
+The launcher binds gRPC to `127.0.0.1:9877` and, when the wheel ships with a
+bundled AltaStata Console SPA at `altastata/lib/altastata-console-static/`,
+serves the SPA from the same port. Open <http://127.0.0.1:9877> in a browser
+to get a Finder-style file manager with auto-refresh on `SHARE` / `DELETE`
+events from other users (see `mycloud/altastata-grpc/EventsService` and
+`altastata-console`). The launcher exports `ALTASTATA_WEB_UI_DIR`
+automatically; set `ALTASTATA_WEB_UI_DIR=` to disable the UI and keep the
+port gRPC-only.
+
 ## PyTorch & TensorFlow Integration
 
 ```python

@@ -53,6 +53,7 @@ The Altastata Python Package system consists of a single Jupyter DataScience env
 | **Service** | **Description** | **Port** | **Image** |
 |-------------|-----------------|----------|-----------|
 | **Jupyter DataScience** | Jupyter Lab with PyTorch, TensorFlow, and Altastata integration | 8888 | `altastata/jupyter-datascience` |
+| **AltaStata Console (optional)** | Browser file manager + gRPC-Web gateway (`altastata-grpc-server`); same Java process serves both gRPC and the bundled SPA | 9877 | (in-image; no separate image) |
 
 ## Multi-Architecture Support
 
@@ -118,6 +119,11 @@ docker compose -f containers/jupyter/docker-compose.yml up -d
 # 3. Access Jupyter Lab at http://localhost:8888/lab
 # Get the token from logs: docker logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"
 # Or: docker exec altastata-jupyter jupyter server list
+
+# 4. (Optional) Start the AltaStata Console UI on port 9877
+docker exec -d altastata-jupyter bash -lc 'altastata-grpc-server > /tmp/grpc-server.log 2>&1'
+# Then open http://localhost:9877 in a browser. The same port serves both the
+# SPA and the gRPC-Web API; the launcher exports ALTASTATA_WEB_UI_DIR for you.
 ```
 
 ### Option 2: Use Pre-built GHCR Images
