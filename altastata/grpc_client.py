@@ -677,6 +677,7 @@ def _start_local_grpc_service(
     process = subprocess.Popen(
         list(resolved_command),
         cwd=resolved_working_dir,
+        env=_build_grpc_subprocess_env(),
         stdout=subprocess.PIPE if stream_logs else subprocess.DEVNULL,
         stderr=subprocess.PIPE if stream_logs else subprocess.DEVNULL,
     )
@@ -739,6 +740,52 @@ def _find_bundled_grpc_uber_jar() -> Optional[str]:
     if not candidates:
         return None
     return candidates[-1]
+
+
+def _build_grpc_subprocess_env() -> Dict[str, str]:
+    """
+    Environment dict to hand to ``subprocess.Popen`` when launching the Java
+    gRPC gateway from Python.
+
+    Inherits the parent environment so callers can keep influencing Java
+    tuning via ``JAVA_OPTS`` and similar, then exports
+    ``ALTASTATA_WEB_UI_DIR`` pointing at the bundled SPA bundle (when one is
+    present in this wheel) so the Java gateway also serves the AltaStata
+    Console UI on the gRPC port. The variable is set only if the caller has
+    not already chosen a value, leaving room for explicit overrides during
+    development or testing — including ``ALTASTATA_WEB_UI_DIR=`` to disable
+    the UI entirely.
+    """
+    env = os.environ.copy()
+    if not env.get("ALTASTATA_WEB_UI_DIR"):
+        ui_dir = _find_bundled_console_ui_dir()
+        if ui_dir is not None:
+            env["ALTASTATA_WEB_UI_DIR"] = ui_dir
+            print(f"Bundled AltaStata Console UI: {ui_dir}")
+    return env
+
+
+def _find_bundled_console_ui_dir() -> Optional[str]:
+    """
+    Resolve the AltaStata Console SPA bundle that ships next to the gRPC jar.
+
+    Returns the absolute path to ``altastata/lib/altastata-console-static`` if
+    it exists and contains an ``index.html``, otherwise None. The directory is
+    optional: wheels built without ``scripts/build-bundled-artifacts.sh`` (or
+    builds where ``SKIP_UI=1`` was passed) simply will not have it, and the
+    Java gRPC gateway falls back to gRPC-only routing.
+    """
+    try:
+        ui_dir = pkg_resources.resource_filename(
+            "altastata", "lib/altastata-console-static"
+        )
+    except Exception:
+        return None
+    if not os.path.isdir(ui_dir):
+        return None
+    if not os.path.isfile(os.path.join(ui_dir, "index.html")):
+        return None
+    return os.path.abspath(ui_dir)
 
 
 def _build_bundled_grpc_classpath(bundled_uber_jar: str) -> str:
