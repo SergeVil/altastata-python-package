@@ -123,7 +123,7 @@ else
   "
 fi
 
-# Tagging strategy (RAG_VERSION comes from version.sh, currently 2026g_latest):
+# Tagging strategy (RAG_VERSION comes from version.sh, currently 2026i_latest):
 #   ENABLE_ZDNN=0 (default, end-user image) -> :latest AND :$RAG_VERSION
 #   ENABLE_ZDNN=1 (research-only, F16 + zDNN baked in) -> :${RAG_VERSION}_zdnn
 # The zDNN variant must NEVER claim :latest, otherwise an end user pulling the
