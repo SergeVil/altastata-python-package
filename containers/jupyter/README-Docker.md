@@ -29,9 +29,10 @@ This comprehensive guide covers building, running, and deploying the Altastata P
 
 The Docker image version is centrally managed in `version.sh`. To update the version across all scripts and configuration files:
 
-1. Edit `version.sh` and update the `VERSION` variable:
+1. Edit `version.sh` and update the relevant variable:
    ```bash
-   VERSION="2026b_latest"  # Change to your desired version
+   JUPYTER_VERSION="2026d_latest"   # Bump on real Jupyter image changes
+   RAG_VERSION="2026i_latest"       # Bump on RAG image changes (zDNN variant is :${RAG_VERSION}_zdnn)
    ```
 
 2. Run the update script to sync the version to all configuration files:
@@ -83,8 +84,9 @@ separately using `containers/jupyter/Dockerfile.s390x`.
 ### Usage (AMD64 + ARM64)
 
 ```bash
-# Pull image for your platform (version from version.sh, currently: 2026b_latest)
+# Pull image for your platform (version from version.sh, currently JUPYTER_VERSION=2026d_latest)
 source version.sh
+VERSION="${JUPYTER_VERSION}"
 
 # Apple Silicon (ARM64):
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
