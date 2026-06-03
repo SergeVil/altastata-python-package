@@ -472,6 +472,8 @@ LLAMA_CPP_MODEL_REPO= \
   ./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh
 ```
 
+**Build-time gotcha — grpcio on s390x.** `grpcio >= 1.69` (added as a dep via `altastata` for the gRPC transport) ships with bundled BoringSSL, whose FIPS code path fails to compile on s390x (`error: 'BN_ULONG' was not declared in this scope`). Our s390x Dockerfiles (`containers/rag-example/Dockerfile.open_llm_s390x` and `containers/jupyter/Dockerfile.s390x`) install `openssl-devel` and set `ENV GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=True` so the wheel builds against the system OpenSSL instead. Building `grpcio` from source on s390x adds **~10 min** to the image build; if you ever see the BoringSSL error after a `grpcio` major bump, the same env var is the workaround. See also IBM Z's [pytorch-on-z notes](https://github.com/IBM/ibmz-accelerated-for-pytorch) and grpc/grpc#37977.
+
 ### Simplest run on IBM Z (s390x) – no Docker build
 
 Run the RAG stack on 390 **without building any Docker images**: use Python on the s390x host and a **remote** LLM so you don’t need Ollama on 390.
