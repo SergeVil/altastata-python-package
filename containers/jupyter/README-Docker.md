@@ -132,8 +132,10 @@ docker exec altastata-jupyter tail -f /tmp/altastata-grpc-server.log
 #   Without it, altastata-grpc-server would bind the container's loopback —
 #   its safe default since Phase 1 of the TLS / bind-address design — and
 #   Docker port forwarding could not reach it.
-# - docker-compose.yml pins the host-side port to "127.0.0.1:9877:9877", so
-#   the UI is reachable only from this machine, not from the LAN.
+# - docker-compose.yml pins the host-side port to 127.0.0.1:9877, so the UI
+#   is reachable only from this machine, not from the LAN. Override with
+#   ALTASTATA_CONSOLE_UI_HOST_PORT=... in .env (e.g. when running RAG on
+#   the same machine — RAG defaults to 9878).
 # - For a plain `docker run` (no compose), pass both:
 #     -p 127.0.0.1:9877:9877 -e ENABLE_ALTASTATA_CONSOLE_UI=1
 #   The image still ships with ENABLE_ALTASTATA_CONSOLE_UI off, so a bare

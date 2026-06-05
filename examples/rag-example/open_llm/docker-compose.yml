@@ -16,7 +16,10 @@ services:
     ports:
       - "8766:8000"
       # Console UI; only listening when ENABLE_ALTASTATA_CONSOLE_UI=1 below.
-      - "127.0.0.1:9877:9877"
+      # Host-side port defaults to 9878 (Jupyter uses 9877) so both stacks
+      # can run side-by-side without a port collision. Override with
+      # ALTASTATA_CONSOLE_UI_HOST_PORT=... in .env.
+      - "127.0.0.1:${ALTASTATA_CONSOLE_UI_HOST_PORT:-9878}:9877"
     environment:
       - LOCAL_INDEX_PATH=/app/open_llm/local_index
       # Force transformers in Docker (MLX is Mac-only and not installed in the image)
