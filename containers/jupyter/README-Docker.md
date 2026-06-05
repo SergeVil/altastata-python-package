@@ -29,10 +29,9 @@ This comprehensive guide covers building, running, and deploying the Altastata P
 
 The Docker image version is centrally managed in `version.sh`. To update the version across all scripts and configuration files:
 
-1. Edit `version.sh` and update the relevant variable:
+1. Edit `version.sh` and update the `VERSION` variable:
    ```bash
-   JUPYTER_VERSION="2026d_latest"   # Bump on real Jupyter image changes
-   RAG_VERSION="2026i_latest"       # Bump on RAG image changes (zDNN variant is :${RAG_VERSION}_zdnn)
+   VERSION="2026b_latest"  # Change to your desired version
    ```
 
 2. Run the update script to sync the version to all configuration files:
@@ -85,9 +84,8 @@ separately using `containers/jupyter/Dockerfile.s390x`.
 ### Usage (AMD64 + ARM64)
 
 ```bash
-# Pull image for your platform (version from version.sh, currently JUPYTER_VERSION=2026d_latest)
+# Pull image for your platform (version from version.sh, currently: 2026b_latest)
 source version.sh
-VERSION="${JUPYTER_VERSION}"
 
 # Apple Silicon (ARM64):
 docker pull ghcr.io/sergevil/altastata/jupyter-datascience-arm64:${VERSION}
@@ -126,6 +124,14 @@ docker compose -f containers/jupyter/docker-compose.yml up -d
 docker exec -d altastata-jupyter bash -lc 'altastata-grpc-server > /tmp/grpc-server.log 2>&1'
 # Then open http://localhost:9877 in a browser. The same port serves both the
 # SPA and the gRPC-Web API; the launcher exports ALTASTATA_WEB_UI_DIR for you.
+#
+# Note: docker-compose.yml sets ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0 for the
+# container. Without it, altastata-grpc-server binds to the container's
+# loopback (its safe default since Phase 1 of the TLS / bind-address design),
+# and Docker port forwarding cannot reach it. The host-side port mapping is
+# pinned to 127.0.0.1, so the UI is reachable only from this machine — not
+# from the LAN — even though the process inside the container listens on all
+# interfaces. See mycloud/altastata-grpc/TLS_DESIGN.md (§10).
 ```
 
 ### Option 2: Use Pre-built GHCR Images
