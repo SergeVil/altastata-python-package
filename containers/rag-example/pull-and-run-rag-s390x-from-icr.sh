@@ -89,8 +89,16 @@ LLAMA_OPTS=""
 [ -n "${LLAMA_CPP_N_CTX:-}" ]      && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_N_CTX=$LLAMA_CPP_N_CTX"
 [ -n "${LLAMA_CPP_MAX_TOKENS:-}" ] && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_MAX_TOKENS=$LLAMA_CPP_MAX_TOKENS"
 
+# Opt-in Console UI on :9877. Bound to host loopback on the server; reach
+# from your laptop via `ssh -L 9877:127.0.0.1:9877 ...`.
+CONSOLE_UI_OPTS=""
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+  CONSOLE_UI_OPTS="-p 127.0.0.1:9877:9877 -e ENABLE_ALTASTATA_CONSOLE_UI=1"
+fi
+
 echo "Starting container $CONTAINER_NAME..."
 ssh $SSH_OPTS "$SSH_HOST" "docker run -d --name $CONTAINER_NAME -p 8000:8000 \
+  $CONSOLE_UI_OPTS \
   -e ALTASTATA_ACCOUNT_DIR=$REMOTE_ALTASTATA_ACCOUNTS/$ACCOUNT_NAME \
   $HPCS_ENV \
   -e LLM_PROVIDER=$LLM_PROVIDER \
@@ -127,3 +135,9 @@ ssh $SSH_OPTS "$SSH_HOST" "curl -s --max-time $((QUERY_TIMEOUT + 60)) -X POST ht
 echo ""
 echo "Done. Container $CONTAINER_NAME is running on the server (port 8000)."
 echo "Open http://<server-ip>:8000/ or stop: ssh $SSH_OPTS $SSH_HOST 'docker stop $CONTAINER_NAME; docker rm $CONTAINER_NAME'"
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+  echo "AltaStata Console UI is bound to 127.0.0.1:9877 on $SSH_HOST."
+  echo "Reach it from your laptop with an SSH tunnel:"
+  echo "  ssh $SSH_OPTS -L 9877:127.0.0.1:9877 $SSH_HOST"
+  echo "Then open http://localhost:9877/ in your browser."
+fi

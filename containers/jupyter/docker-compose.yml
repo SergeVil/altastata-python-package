@@ -11,12 +11,8 @@ services:
       dockerfile: containers/jupyter/Dockerfile.${ARCH:-amd64}
     container_name: altastata-jupyter
     ports:
-      # Bind both ports to host loopback only. The container is intended as a
-      # local-developer convenience (Jupyter Lab + the AltaStata Console UI on
-      # the same machine), not as a multi-user network service. Drop the
-      # "127.0.0.1:" prefix only if you knowingly want to expose these on the
-      # host's network — and add a TLS-terminating reverse proxy in front
-      # before doing so.
+      # Bound to host loopback so the stack is reachable only from this
+      # machine. Drop "127.0.0.1:" only behind a TLS-terminating proxy.
       - "127.0.0.1:8888:8888"
       - "127.0.0.1:9877:9877"
     volumes:
@@ -28,12 +24,9 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - JUPYTER_TOKEN=
       - JUPYTER_ALLOW_INSECURE_WRITES=1
-      # altastata-grpc-server defaults to binding loopback inside the container,
-      # which is unreachable from the host even with port forwarding. Inside a
-      # container we want to listen on all interfaces so Docker's port mapping
-      # can reach the process. Network exposure is bounded by the host-side
-      # "127.0.0.1:" prefix above. See mycloud/altastata-grpc/TLS_DESIGN.md.
-      - ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+      # Console UI auto-starts by default in this stack. Set to 0 in .env for
+      # Jupyter-only. ALTASTATA_GRPC_BIND_ADDRESS is baked in the image.
+      - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-1}
     networks:
       - altastata-network
     restart: unless-stopped

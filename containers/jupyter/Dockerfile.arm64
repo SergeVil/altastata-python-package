@@ -62,12 +62,21 @@ ENV JUPYTER_CONFIG_DIR=/home/jovyan/.jupyter
 ENV LANG=en_US.UTF-8
 ENV LC_ALL=en_US.UTF-8
 
-# Set the image label
+# altastata-grpc-server safe default is loopback; override here so Docker
+# port forwarding reaches it. See mycloud/altastata-grpc/TLS_DESIGN.md.
+ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+
+# Optional Console UI on :9877. Off by default; set ENABLE_ALTASTATA_CONSOLE_UI=1
+# to auto-start altastata-grpc-server alongside Jupyter Lab.
+USER root
+COPY containers/jupyter/altastata-console-entrypoint.sh \
+    /usr/local/bin/altastata-console-entrypoint.sh
+RUN chmod +x /usr/local/bin/altastata-console-entrypoint.sh
+USER ${NB_UID}
+
 LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
 LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
 LABEL org.opencontainers.image.version="latest"
 
-# Override base entrypoint and start Jupyter Lab
-# Token is generated at startup when JUPYTER_TOKEN is unset/empty (see compose env)
-ENTRYPOINT []
+ENTRYPOINT ["/usr/local/bin/altastata-console-entrypoint.sh"]
 CMD ["jupyter", "lab", "--ip=0.0.0.0", "--port=8888", "--no-browser", "--notebook-dir=/home/jovyan"]

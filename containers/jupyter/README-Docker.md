@@ -120,18 +120,25 @@ docker compose -f containers/jupyter/docker-compose.yml up -d
 # Get the token from logs: docker logs altastata-jupyter 2>&1 | grep -E "127.0.0.1:8888|token"
 # Or: docker exec altastata-jupyter jupyter server list
 
-# 4. (Optional) Start the AltaStata Console UI on port 9877
-docker exec -d altastata-jupyter bash -lc 'altastata-grpc-server > /tmp/grpc-server.log 2>&1'
-# Then open http://localhost:9877 in a browser. The same port serves both the
-# SPA and the gRPC-Web API; the launcher exports ALTASTATA_WEB_UI_DIR for you.
-#
-# Note: docker-compose.yml sets ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0 for the
-# container. Without it, altastata-grpc-server binds to the container's
-# loopback (its safe default since Phase 1 of the TLS / bind-address design),
-# and Docker port forwarding cannot reach it. The host-side port mapping is
-# pinned to 127.0.0.1, so the UI is reachable only from this machine — not
-# from the LAN — even though the process inside the container listens on all
-# interfaces. See mycloud/altastata-grpc/TLS_DESIGN.md (§10).
+# 4. AltaStata Console UI on http://127.0.0.1:9877 — auto-started by the
+# compose stack alongside Jupyter (ENABLE_ALTASTATA_CONSOLE_UI=1 by default
+# in docker-compose.yml; set it to 0 in your .env if you only want Jupyter
+# Lab and prefer to skip the JVM startup).
+# Tail its log:
+docker exec altastata-jupyter tail -f /tmp/altastata-grpc-server.log
+
+# Notes on the security model:
+# - The image bakes ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0 (see Dockerfile.${ARCH}).
+#   Without it, altastata-grpc-server would bind the container's loopback —
+#   its safe default since Phase 1 of the TLS / bind-address design — and
+#   Docker port forwarding could not reach it.
+# - docker-compose.yml pins the host-side port to "127.0.0.1:9877:9877", so
+#   the UI is reachable only from this machine, not from the LAN.
+# - For a plain `docker run` (no compose), pass both:
+#     -p 127.0.0.1:9877:9877 -e ENABLE_ALTASTATA_CONSOLE_UI=1
+#   The image still ships with ENABLE_ALTASTATA_CONSOLE_UI off, so a bare
+#   `docker run` gives you Jupyter only — no JVM, no Console UI.
+# See mycloud/altastata-grpc/TLS_DESIGN.md (§10).
 ```
 
 ### Option 2: Use Pre-built GHCR Images

@@ -37,7 +37,12 @@ ENV WEB_PORT=8000
 ENV PYTHONPATH=/app/open_llm
 ENV VECTOR_STORE=simple
 ENV LOCAL_INDEX_PATH=/app/open_llm/local_index
-EXPOSE 8000
+
+# Optional Console UI on :9877; off by default (set ENABLE_ALTASTATA_CONSOLE_UI=1).
+# 0.0.0.0 lets Docker's port forwarder reach the gateway; host-side mapping
+# bounds exposure. See mycloud/altastata-grpc/TLS_DESIGN.md.
+ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+EXPOSE 8000 9877
 
 ENTRYPOINT ["/app/open_llm/docker-entrypoint.sh"]
 CMD ["python", "-m", "uvicorn", "web_app:app", "--host", "0.0.0.0", "--port", "8000"]
