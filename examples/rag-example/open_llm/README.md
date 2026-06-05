@@ -263,6 +263,57 @@ docker compose exec app python indexer.py --once RAGDocs/policies
 
 For an event-driven indexer, run the indexer as a long-lived process (e.g. a second container or a background job) that shares the same `ALTASTATA_ACCOUNT_DIR`.
 
+## AltaStata Console UI (optional)
+
+The RAG image bundles `altastata-grpc-server` (the same Java gateway used by `pip install altastata` and the Jupyter image) and the AltaStata Console SPA. Together they let you **browse, share, and delete the AltaStata files that RAG is reading from** in a Finder-style web UI — useful for sanity-checking which documents are visible to the account and for sharing new RAGDocs without a separate Jupyter container.
+
+**Default host port is `9878`** (the Jupyter image uses `9877`); both stacks can run side-by-side on the same machine without a port collision. Override with `ALTASTATA_CONSOLE_UI_HOST_PORT=...` if needed.
+
+It is **off by default** to avoid running a second web server in the RAG container and to keep the JRE usage minimal for users who only want the RAG endpoint.
+
+### Enable with docker-compose
+
+Set the env var in your `.env` (sibling of `docker-compose.yml`):
+
+```
+ENABLE_ALTASTATA_CONSOLE_UI=1
+```
+
+Then `docker compose up -d`. The compose file maps `127.0.0.1:9878:9877`, so the UI is reachable only from this machine, **not from the LAN**. Open <http://127.0.0.1:9878> in a browser.
+
+### Enable with the Mac run-script
+
+```bash
+ENABLE_ALTASTATA_CONSOLE_UI=1 ./containers/rag-example/build-and-run-rag-mac.sh
+```
+
+The script adds `-p 127.0.0.1:9878:9877` and `-e ENABLE_ALTASTATA_CONSOLE_UI=1` to the `docker run` invocation. Open <http://127.0.0.1:9878>.
+
+### Enable on s390x (LinuxONE)
+
+```bash
+ENABLE_ALTASTATA_CONSOLE_UI=1 ./containers/rag-example/pull-and-run-rag-s390x-from-icr.sh ...
+```
+
+The host-side port is pinned to `127.0.0.1` on the LinuxONE server, so the UI is **not** exposed on the server's LAN. To reach it from your laptop, open an SSH tunnel:
+
+```bash
+ssh -L 9878:127.0.0.1:9878 user@<server>
+# then open http://localhost:9878 in a browser on your laptop
+```
+
+### Why bound to host loopback only
+
+The gRPC gateway in the container does not yet do TLS (the SPA is served as plain HTTP for now). Pinning the host-side port to `127.0.0.1` keeps the cleartext UI off the LAN/Wi-Fi while keeping the developer experience simple. The image bakes `ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0` only because Docker's port forwarder cannot reach a process bound to the container's loopback — see [`mycloud/altastata-grpc/TLS_DESIGN.md`](../../../../mycloud/altastata-grpc/TLS_DESIGN.md) for the full bind-address rationale.
+
+### Logs
+
+```bash
+docker exec <rag-container> tail -f /tmp/altastata-grpc-server.log
+```
+
+The first start brings the JVM + Armeria up in ~3–5 seconds.
+
 ## Why is it slow? / Performance
 
 Each RAG query does: **embed query** (sentence-transformers) → **vector search** → **read chunks from AltaStata** → **Ollama LLM**. Most of the time is **Ollama (LLM inference)**.

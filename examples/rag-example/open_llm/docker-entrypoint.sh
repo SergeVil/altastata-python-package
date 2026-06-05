@@ -55,6 +55,16 @@ if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
   python -m indexer &
 fi
 
+# Optional Console UI on :9877. See mycloud/altastata-grpc/TLS_DESIGN.md.
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+  if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
+    echo "[entrypoint] Starting altastata-grpc-server on :9877."
+    altastata-grpc-server > /tmp/altastata-grpc-server.log 2>&1 &
+  else
+    echo "[entrypoint] ENABLE_ALTASTATA_CONSOLE_UI=1 but no ALTASTATA_ACCOUNT_DIR; skipping."
+  fi
+fi
+
 # Auto-select GGUF for llama-cpp based on s390x hardware capability:
 #   * z16 / z17 (Telum I/II) advertise the 'nnpa' facility in /proc/cpuinfo and
 #     can run llama.cpp's zDNN backend, which only accelerates F32/F16/BF16
