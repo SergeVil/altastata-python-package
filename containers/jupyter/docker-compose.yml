@@ -11,7 +11,14 @@ services:
       dockerfile: containers/jupyter/Dockerfile.${ARCH:-amd64}
     container_name: altastata-jupyter
     ports:
-      - "8888:8888"
+      # Bound to host loopback so the stack is reachable only from this
+      # machine. Drop "127.0.0.1:" only behind a TLS-terminating proxy.
+      # ALTASTATA_CONSOLE_UI_HOST_PORT lets you change the host-side port
+      # without touching the container; default 9877. Set it to e.g. 9879
+      # in .env if 9877 is occupied (Jupyter + RAG side-by-side: RAG default
+      # is 9878).
+      - "127.0.0.1:8888:8888"
+      - "127.0.0.1:${ALTASTATA_CONSOLE_UI_HOST_PORT:-9877}:9877"
     volumes:
       - ../../examples/pytorch-example:/home/jovyan/pytorch-example
       - ../../examples/tensorflow-example:/home/jovyan/tensorflow-example
@@ -21,6 +28,9 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - JUPYTER_TOKEN=
       - JUPYTER_ALLOW_INSECURE_WRITES=1
+      # Console UI auto-starts by default in this stack. Set to 0 in .env for
+      # Jupyter-only. ALTASTATA_GRPC_BIND_ADDRESS is baked in the image.
+      - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-1}
     networks:
       - altastata-network
     restart: unless-stopped

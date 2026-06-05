@@ -14,7 +14,14 @@ services:
       context: ../../..
       dockerfile: examples/rag-example/open_llm/Dockerfile
     ports:
-      - "8766:8000"
+      # All host-side ports bound to 127.0.0.1 so the stack is reachable only
+      # from this machine (laptop-in-cafe-safe). See mycloud/altastata-grpc/TLS_DESIGN.md.
+      - "127.0.0.1:8766:8000"
+      # Console UI; only listening when ENABLE_ALTASTATA_CONSOLE_UI=1 below.
+      # Host-side port defaults to 9878 (Jupyter uses 9877) so both stacks
+      # can run side-by-side without a port collision. Override with
+      # ALTASTATA_CONSOLE_UI_HOST_PORT=... in .env.
+      - "127.0.0.1:${ALTASTATA_CONSOLE_UI_HOST_PORT:-9878}:9877"
     environment:
       - LOCAL_INDEX_PATH=/app/open_llm/local_index
       # Force transformers in Docker (MLX is Mac-only and not installed in the image)
@@ -28,6 +35,8 @@ services:
       - ALTASTATA_ACCOUNT_DIR=/altastata_account
       - ALTASTATA_PASSWORD=${ALTASTATA_PASSWORD:-123}
       - ALTASTATA_ACCOUNT_ID=${ALTASTATA_ACCOUNT_ID:-bob123}
+      # Set to 1 in .env to auto-start Console UI on :9877 alongside RAG.
+      - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-0}
     volumes:
       - ${ALTASTATA_ACCOUNT_DIR:-/tmp/altastata-account-must-set-in-env}:/altastata_account:ro
       - local_index_data:/app/open_llm/local_index
@@ -52,7 +61,7 @@ services:
       - ${ALTASTATA_ACCOUNT_DIR:-/tmp/altastata-account-must-set-in-env}:/altastata_account:ro
       - local_index_data:/app/open_llm/local_index
     ports:
-      - "25334:25334"
+      - "127.0.0.1:25334:25334"
     command: ["python", "indexer.py"]
     restart: unless-stopped
 
@@ -61,7 +70,7 @@ services:
     profiles:
       - ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
 
