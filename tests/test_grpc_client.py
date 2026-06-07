@@ -30,21 +30,29 @@ class DummyEventsStub:
         self._channel = channel
 
 
+class DummyAuthStub:
+    def __init__(self, channel):
+        self._channel = channel
+
+
 class GrpcClientTests(unittest.TestCase):
     def setUp(self):
         # Create fake generated modules so client can be instantiated in unit tests.
         pkg = types.ModuleType("altastata.v1")
+        auth_pb2 = types.ModuleType("auth_pb2")
         users_pb2 = types.ModuleType("users_pb2")
         sharing_pb2 = types.ModuleType("sharing_pb2")
         attributes_pb2 = types.ModuleType("attributes_pb2")
         fileops_pb2 = types.ModuleType("fileops_pb2")
         events_pb2 = types.ModuleType("events_pb2")
+        auth_pb2_grpc = types.ModuleType("auth_pb2_grpc")
         users_pb2_grpc = types.ModuleType("users_pb2_grpc")
         sharing_pb2_grpc = types.ModuleType("sharing_pb2_grpc")
         attributes_pb2_grpc = types.ModuleType("attributes_pb2_grpc")
         fileops_pb2_grpc = types.ModuleType("fileops_pb2_grpc")
         events_pb2_grpc = types.ModuleType("events_pb2_grpc")
 
+        auth_pb2_grpc.AuthServiceStub = DummyAuthStub
         users_pb2_grpc.UsersServiceStub = DummyUsersStub
         sharing_pb2_grpc.SharingServiceStub = DummySharingStub
         attributes_pb2_grpc.AttributesServiceStub = DummyAttributesStub
@@ -52,11 +60,13 @@ class GrpcClientTests(unittest.TestCase):
         events_pb2_grpc.EventsServiceStub = DummyEventsStub
 
         sys.modules["altastata.v1"] = pkg
+        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
         sys.modules["altastata.v1.users_pb2"] = users_pb2
         sys.modules["altastata.v1.sharing_pb2"] = sharing_pb2
         sys.modules["altastata.v1.attributes_pb2"] = attributes_pb2
         sys.modules["altastata.v1.fileops_pb2"] = fileops_pb2
         sys.modules["altastata.v1.events_pb2"] = events_pb2
+        sys.modules["altastata.v1.auth_pb2_grpc"] = auth_pb2_grpc
         sys.modules["altastata.v1.users_pb2_grpc"] = users_pb2_grpc
         sys.modules["altastata.v1.sharing_pb2_grpc"] = sharing_pb2_grpc
         sys.modules["altastata.v1.attributes_pb2_grpc"] = attributes_pb2_grpc
@@ -68,21 +78,25 @@ class GrpcClientTests(unittest.TestCase):
             if name.startswith("altastata.v1"):
                 sys.modules.pop(name, None)
 
-    def test_token_from_local_user(self):
-        from altastata.grpc_client import _token_from_params
-        token = _token_from_params(None, "alice", None)
-        self.assertEqual("local-alice", token)
-
     @patch("altastata.grpc_client.grpc.insecure_channel")
-    def test_client_builds_bearer_metadata(self, mock_insecure_channel):
+    def test_client_builds_bearer_metadata_from_session_token(self, mock_insecure_channel):
         mock_insecure_channel.return_value = object()
 
         from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
         client = AltaStataGrpcClient(
             endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
-            local_user="alice",
+            bearer_token="sess-abc123",
+            user_name="alice",
         )
-        self.assertEqual([("authorization", "Bearer local-alice")], client._metadata)
+        self.assertEqual([("authorization", "Bearer sess-abc123")], client._metadata)
+
+    def test_client_rejects_construction_without_token(self):
+        from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
+        with self.assertRaises(ValueError):
+            AltaStataGrpcClient(
+                endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+                bearer_token="",
+            )
 
     def test_infer_user_name_from_properties_filename(self):
         from altastata.grpc_client import _infer_user_name
@@ -103,7 +117,7 @@ class GrpcClientTests(unittest.TestCase):
         self.assertEqual("bob123", _infer_user_name_from_properties_text(props))
 
     @patch("altastata.grpc_client.grpc.insecure_channel")
-    @patch("altastata.grpc_client._bootstrap_via_grpc")
+    @patch("altastata.grpc_client._bootstrap_and_login")
     @patch("altastata.grpc_client._wait_for_port")
     @patch("altastata.grpc_client._start_local_grpc_service")
     @patch("altastata.grpc_client._is_port_open")
@@ -112,12 +126,13 @@ class GrpcClientTests(unittest.TestCase):
         mock_is_port_open,
         mock_start_server,
         _mock_wait_for_port,
-        _mock_bootstrap,
+        mock_bootstrap_and_login,
         mock_insecure_channel,
     ):
         mock_insecure_channel.return_value = object()
         mock_is_port_open.return_value = False
         mock_start_server.return_value = object()
+        mock_bootstrap_and_login.return_value = "sess-test-token"
 
         with tempfile.TemporaryDirectory() as td:
             up = os.path.join(td, "altastata-org-bob123.user.properties")
@@ -128,19 +143,23 @@ class GrpcClientTests(unittest.TestCase):
                 f.write("private.key")
 
             from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
-            AltaStataGrpcClient.from_account_dir(
+            client = AltaStataGrpcClient.from_account_dir(
                 td,
                 password="123",
                 endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
-                setup_port=9880,
                 auto_start_server=True,
                 grpc_server_command=["echo", "start"],
                 grpc_server_working_dir=td,
             )
             mock_start_server.assert_called_once()
+            mock_bootstrap_and_login.assert_called_once()
+            self.assertEqual(
+                [("authorization", "Bearer sess-test-token")],
+                client._metadata,
+            )
 
     @patch("altastata.grpc_client.grpc.insecure_channel")
-    @patch("altastata.grpc_client._bootstrap_via_grpc")
+    @patch("altastata.grpc_client._bootstrap_and_login")
     @patch("altastata.grpc_client._wait_for_port")
     @patch("altastata.grpc_client._start_local_grpc_service")
     @patch("altastata.grpc_client._is_port_open")
@@ -149,12 +168,13 @@ class GrpcClientTests(unittest.TestCase):
         mock_is_port_open,
         mock_start_server,
         _mock_wait_for_port,
-        _mock_bootstrap,
+        mock_bootstrap_and_login,
         mock_insecure_channel,
     ):
         mock_insecure_channel.return_value = object()
         mock_is_port_open.return_value = False
         mock_start_server.return_value = object()
+        mock_bootstrap_and_login.return_value = "sess-test-token"
 
         from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
         AltaStataGrpcClient.from_credentials(
@@ -162,12 +182,12 @@ class GrpcClientTests(unittest.TestCase):
             private_key_encrypted="-----BEGIN RSA PRIVATE KEY-----\n...\n",
             password="123",
             endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
-            setup_port=9880,
             auto_start_server=True,
             grpc_server_command=["echo", "start"],
             grpc_server_working_dir="/tmp",
         )
         mock_start_server.assert_called_once()
+        mock_bootstrap_and_login.assert_called_once()
 
     @patch("altastata.grpc_client.subprocess.Popen")
     @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")

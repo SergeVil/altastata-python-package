@@ -71,7 +71,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Benchmark getBuffer performance for gRPC vs Py4J")
     parser.add_argument("--account-dir", required=True)
     parser.add_argument("--password", required=True)
-    parser.add_argument("--user-name", required=True)
+    parser.add_argument("--user-name", required=False, default=None,
+                        help="Override user name (default: inferred from account dir)")
     parser.add_argument("--grpc-host", default="127.0.0.1")
     parser.add_argument("--grpc-port", type=int, default=9877)
     parser.add_argument("--sizes-mb", nargs="+", type=int, default=[1, 4, 12, 18])
@@ -82,9 +83,11 @@ def main() -> None:
 
     py4j_client = AltaStataFunctions.from_account_dir(args.account_dir)
     py4j_client.set_password(args.password)
-    grpc_client = AltaStataGrpcClient(
+    grpc_client = AltaStataGrpcClient.from_account_dir(
+        account_dir_path=args.account_dir,
+        password=args.password,
+        user_name=args.user_name,
         endpoint=GrpcEndpoint(host=args.grpc_host, port=args.grpc_port, secure=False),
-        local_user=args.user_name,
     )
 
     run_id = int(time.time())

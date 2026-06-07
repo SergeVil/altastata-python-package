@@ -14,20 +14,6 @@ import pkg_resources
 import platform
 
 
-def _token_from_params(
-    bearer_token: Optional[str],
-    local_user: Optional[str],
-    access_key: Optional[str],
-) -> str:
-    if bearer_token:
-        return bearer_token
-    if local_user:
-        return f"local-{local_user}"
-    if access_key:
-        return f"access-{access_key}"
-    raise ValueError("Provide one of: bearer_token, local_user, access_key")
-
-
 @dataclass
 class GrpcEndpoint:
     host: str = "127.0.0.1"
@@ -42,25 +28,44 @@ class GrpcEndpoint:
 class AltaStataGrpcClient:
     """
     gRPC client for AltaStata APIs.
+
+    Authentication model
+    --------------------
+    Every authenticated RPC sends ``Authorization: Bearer sess-<token>`` where
+    ``sess-<token>`` is the opaque session token issued by
+    ``AuthService.Login`` on the gateway. The server-side interceptor resolves
+    the token through ``SessionRegistry`` (sliding TTL).
+
+    The legacy ``local-<userName>`` / ``access-<accessKey>`` token paths are
+    no longer accepted by the gateway and are not produced by this client.
+
+    First-contact bootstrap (when the gateway has never seen this user in
+    this JVM) is still required: the gateway needs the user's properties
+    and encrypted private key in memory before ``Login`` can validate the
+    password. ``from_account_dir`` / ``from_credentials`` perform that
+    bootstrap once and then immediately call ``Login``.
     """
 
     def __init__(
         self,
         endpoint: GrpcEndpoint = GrpcEndpoint(),
         *,
-        bearer_token: Optional[str] = None,
-        local_user: Optional[str] = None,
-        access_key: Optional[str] = None,
+        bearer_token: str,
+        user_name: Optional[str] = None,
     ):
+        if not bearer_token:
+            raise ValueError("bearer_token is required (use AuthService.Login or pass an existing sess-<token>)")
+
         self.endpoint = endpoint
-        self._local_user = local_user
-        self._token = _token_from_params(bearer_token, local_user, access_key)
+        self._user_name = user_name
+        self._token = bearer_token
         self._metadata: List[Tuple[str, str]] = [("authorization", f"Bearer {self._token}")]
         self._channel = self._create_channel(endpoint)
 
         # Lazy import after channel creation for clearer error messaging.
         try:
             from .v1 import attributes_pb2, attributes_pb2_grpc
+            from .v1 import auth_pb2, auth_pb2_grpc
             from .v1 import sharing_pb2, sharing_pb2_grpc
             from .v1 import users_pb2, users_pb2_grpc
             from .v1 import fileops_pb2, fileops_pb2_grpc
@@ -70,18 +75,25 @@ class AltaStataGrpcClient:
                 "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"
             ) from exc
 
+        self._auth_pb2 = auth_pb2
         self._users_pb2 = users_pb2
         self._sharing_pb2 = sharing_pb2
         self._attributes_pb2 = attributes_pb2
         self._fileops_pb2 = fileops_pb2
         self._events_pb2 = events_pb2
 
+        self._auth_stub = auth_pb2_grpc.AuthServiceStub(self._channel)
         self._users_stub = users_pb2_grpc.UsersServiceStub(self._channel)
         self._sharing_stub = sharing_pb2_grpc.SharingServiceStub(self._channel)
         self._attributes_stub = attributes_pb2_grpc.AttributesServiceStub(self._channel)
         self._fileops_stub = fileops_pb2_grpc.FileOpsServiceStub(self._channel)
         self._events_stub = events_pb2_grpc.EventsServiceStub(self._channel)
-        self._listener_threads: List[threading.Thread] = []
+        # Tracks handles returned from add_event_listener so
+        # remove_all_event_listeners can stop every still-running worker.
+        # Each handle owns its own stop_flag / call_ref; we just keep the
+        # handle reference here so callers that lost their reference can
+        # still tear them all down.
+        self._listener_handles: List[Dict] = []
         self._server_process = None
 
     @classmethod
@@ -92,18 +104,24 @@ class AltaStataGrpcClient:
         password: Optional[str] = None,
         user_name: Optional[str] = None,
         endpoint: GrpcEndpoint = GrpcEndpoint(),
-        setup_port: int = 9880,
         auto_start_server: bool = True,
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
         start_timeout_s: int = 45,
+        client_hint: str = "altastata-python-package",
     ) -> "AltaStataGrpcClient":
         """
         Create a gRPC client from an AltaStata account directory.
 
-        This method mirrors the convenience of AltaStataFunctions.from_account_dir:
-        it reads account files and initializes the local gRPC service user context.
+        Reads ``*.user.properties`` + ``private.key`` from disk, ships them
+        to the gateway via the bootstrap RPCs, and then calls
+        ``AuthService.Login`` to obtain a per-process session token. All
+        subsequent RPCs on the returned client are authenticated with that
+        ``sess-<token>``.
         """
+        if password is None:
+            raise ValueError("password is required for AuthService.Login")
+
         account_dir = os.path.abspath(account_dir_path)
         if not os.path.isdir(account_dir):
             raise FileNotFoundError(f"Account directory not found: {account_dir}")
@@ -127,15 +145,17 @@ class AltaStataGrpcClient:
                 working_dir=grpc_server_working_dir,
             )
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
-        _bootstrap_via_grpc(
+
+        token = _bootstrap_and_login(
             endpoint=endpoint,
             user_name=resolved_user_name,
             user_properties=user_properties,
             private_key_encrypted=private_key,
             password=password,
+            client_hint=client_hint,
         )
 
-        client = cls(endpoint=endpoint, local_user=resolved_user_name)
+        client = cls(endpoint=endpoint, bearer_token=token, user_name=resolved_user_name)
         client._server_process = started_process
         return client
 
@@ -148,17 +168,18 @@ class AltaStataGrpcClient:
         password: Optional[str] = None,
         user_name: Optional[str] = None,
         endpoint: GrpcEndpoint = GrpcEndpoint(),
-        setup_port: int = 9880,
         auto_start_server: bool = True,
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
         start_timeout_s: int = 45,
+        client_hint: str = "altastata-python-package",
     ) -> "AltaStataGrpcClient":
         """
-        Create a gRPC client directly from credentials payloads.
-
-        Mirrors AltaStataFunctions.from_credentials(...) convenience.
+        Create a gRPC client directly from credential payloads.
         """
+        if password is None:
+            raise ValueError("password is required for AuthService.Login")
+
         resolved_user_name = user_name or _infer_user_name_from_properties_text(user_properties)
 
         started_process = None
@@ -168,15 +189,17 @@ class AltaStataGrpcClient:
                 working_dir=grpc_server_working_dir,
             )
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
-        _bootstrap_via_grpc(
+
+        token = _bootstrap_and_login(
             endpoint=endpoint,
             user_name=resolved_user_name,
             user_properties=user_properties,
             private_key_encrypted=private_key_encrypted,
             password=password,
+            client_hint=client_hint,
         )
 
-        client = cls(endpoint=endpoint, local_user=resolved_user_name)
+        client = cls(endpoint=endpoint, bearer_token=token, user_name=resolved_user_name)
         client._server_process = started_process
         return client
 
@@ -192,6 +215,16 @@ class AltaStataGrpcClient:
         return grpc.insecure_channel(endpoint.target, options=options)
 
     def close(self) -> None:
+        # Best-effort logout so the server-side SessionRegistry releases the
+        # entry promptly; channel close alone does not invalidate the session.
+        try:
+            self._auth_stub.Logout(
+                self._auth_pb2.LogoutRequest(),
+                metadata=self._metadata,
+                timeout=5.0,
+            )
+        except Exception:
+            pass
         self._channel.close()
         if self._server_process is not None:
             try:
@@ -437,21 +470,43 @@ class AltaStataGrpcClient:
     # ----- Py4J-compat aliases -----
 
     def set_password(self, account_password: str):
-        # For the local-user flow, setting the password also initializes the
-        # server-side AltaStataFileSystem (mirrors Py4J, where setPassword
-        # unlocks the account). SetPasswordForUser is the bootstrap RPC that
-        # creates the filesystem and sets the password in one step; the
-        # authenticated SetPassword RPC requires an already-initialized account.
-        if self._local_user:
-            req = self._users_pb2.SetPasswordForUserRequest(
-                user_name=self._local_user,
-                account_password=account_password,
+        """
+        Re-authenticate this client by logging out the current session (if any)
+        and calling ``AuthService.Login`` again.
+
+        Mirrors the legacy Py4J behaviour where ``setPassword`` unlocks the
+        account; over gRPC this is now a Logout-then-Login. The previous
+        ``SetPasswordForUser`` bootstrap RPC has been removed.
+        """
+        if not self._user_name:
+            raise RuntimeError(
+                "set_password requires a known user_name. Use from_account_dir / "
+                "from_credentials to construct the client, or pass user_name explicitly."
             )
-            resp = self._users_stub.SetPasswordForUser(req)
-            return bool(resp.success)
-        req = self._users_pb2.SetPasswordRequest(account_password=account_password)
-        resp = self._users_stub.SetPassword(req, metadata=self._metadata)
-        return bool(resp.success)
+
+        # Best-effort logout of the previous session — ignore failures so a
+        # fresh login is still attempted (e.g. if the previous session has
+        # already expired on the server).
+        try:
+            self._auth_stub.Logout(
+                self._auth_pb2.LogoutRequest(),
+                metadata=self._metadata,
+                timeout=5.0,
+            )
+        except Exception:
+            pass
+
+        resp = self._auth_stub.Login(
+            self._auth_pb2.LoginRequest(
+                user_name=self._user_name,
+                account_password=account_password,
+                client_hint="altastata-python-package",
+            ),
+            timeout=30.0,
+        )
+        self._token = resp.session_token
+        self._metadata = [("authorization", f"Bearer {self._token}")]
+        return True
 
     def share_files(
         self,
@@ -515,53 +570,68 @@ class AltaStataGrpcClient:
             parallel_chunks=how_many_chunks_in_parallel,
         )
 
+    # Watch is the sole event RPC; FileSharedEvent / FileUnsharedEvent
+    # are translated back to the ('SHARE'|'DELETE', path) pair the old
+    # AltaStataEventListener / Py4J path used so existing user callbacks
+    # keep working unchanged. Other typed payloads (gap, session revoked)
+    # had no legacy equivalent and are simply skipped.
+    @staticmethod
+    def _legacy_pair(event):
+        which = event.WhichOneof("payload")
+        if which == "file_shared":
+            return ("SHARE", event.file_shared.file_path)
+        if which == "file_unshared":
+            return ("DELETE", event.file_unshared.file_id)
+        return None
+
     def subscribe_events(self):
-        req = self._events_pb2.SubscribeRequest()
-        for event in self._events_stub.Subscribe(req, metadata=self._metadata):
-            yield {"event_name": event.event_name, "data": event.data}
+        req = self._events_pb2.WatchRequest(since_sequence=0)
+        for event in self._events_stub.Watch(req, metadata=self._metadata):
+            pair = self._legacy_pair(event)
+            if pair is not None:
+                yield {"event_name": pair[0], "data": pair[1]}
 
     def add_event_listener(self, callback):
-        """
-        gRPC replacement for Py4J add_event_listener.
-        Starts a daemon thread that consumes Subscribe stream and invokes callback.
-        """
         stop_flag = {"stop": False}
         call_ref = {"call": None}
 
         def _worker():
             try:
-                req = self._events_pb2.SubscribeRequest()
-                call = self._events_stub.Subscribe(req, metadata=self._metadata)
+                req = self._events_pb2.WatchRequest(since_sequence=0)
+                call = self._events_stub.Watch(req, metadata=self._metadata)
                 call_ref["call"] = call
                 for event in call:
                     if stop_flag["stop"]:
                         break
-                    callback(event.event_name, event.data)
+                    pair = self._legacy_pair(event)
+                    if pair is not None:
+                        callback(*pair)
             except Exception:
-                # Match Py4J behavior: do not crash caller on background listener errors.
                 pass
 
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         handle = {"thread": t, "stop": stop_flag, "call_ref": call_ref}
-        self._listener_threads.append(t)
+        self._listener_handles.append(handle)
         return handle
 
     def remove_event_listener(self, listener):
-        if isinstance(listener, dict) and "stop" in listener:
-            listener["stop"]["stop"] = True
-            call_ref = listener.get("call_ref")
-            if isinstance(call_ref, dict):
-                call = call_ref.get("call")
-                if call is not None:
-                    call.cancel()
+        if not isinstance(listener, dict) or "stop" not in listener:
+            return
+        listener["stop"]["stop"] = True
+        call_ref = listener.get("call_ref")
+        if isinstance(call_ref, dict):
+            call = call_ref.get("call")
+            if call is not None:
+                call.cancel()
+        try:
+            self._listener_handles.remove(listener)
+        except ValueError:
+            pass
 
     def remove_all_event_listeners(self):
-        # Cooperative stop; stream closes naturally when call finishes/cancelled.
-        for t in self._listener_threads:
-            # best-effort no-op; handles returned by add_event_listener own stop flags
-            _ = t
-        self._listener_threads.clear()
+        for handle in list(self._listener_handles):
+            self.remove_event_listener(handle)
 
 
 def _find_user_properties_file(account_dir: str) -> str:
@@ -593,14 +663,28 @@ def _infer_user_name(account_dir: str, user_properties_path: str) -> str:
     raise ValueError("Unable to infer user name from account directory")
 
 
-def _bootstrap_via_grpc(
+def _bootstrap_and_login(
     endpoint: GrpcEndpoint,
     user_name: str,
     user_properties: str,
     private_key_encrypted: str,
-    password: Optional[str],
-) -> None:
+    password: str,
+    client_hint: str,
+) -> str:
+    """
+    Install ``user_properties`` + ``private_key_encrypted`` for ``user_name``
+    in the gateway's in-memory registry (idempotent — safe to call repeatedly
+    for the same user) and then authenticate via ``AuthService.Login``.
+
+    Returns the issued ``sess-<token>``.
+
+    The bootstrap RPCs (``SetUserProperties`` / ``SetPrivateKey``) are still
+    auth-bypassed on the server because the user has no session yet at this
+    point. ``Login`` is the first authenticated call: a wrong password is
+    rejected here without corrupting any other live session for the same user.
+    """
     try:
+        from .v1 import auth_pb2, auth_pb2_grpc
         from .v1 import users_pb2, users_pb2_grpc
     except Exception as exc:
         raise ImportError(
@@ -610,19 +694,38 @@ def _bootstrap_via_grpc(
     channel = AltaStataGrpcClient._create_channel(endpoint)
     try:
         users = users_pb2_grpc.UsersServiceStub(channel)
-        users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
-            user_name=user_name,
-            user_properties=user_properties,
-        ))
-        users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
-            user_name=user_name,
-            private_key_encrypted=private_key_encrypted,
-        ))
-        if password is not None:
-            users.SetPasswordForUser(users_pb2.SetPasswordForUserRequest(
+        # The gateway returns ALREADY_EXISTS for SetUserProperties /
+        # SetPrivateKey when this userName already has a live
+        # AltaStataFileSystem (another browser tab / Python client of the
+        # same user is already logged in). The right reaction is to skip
+        # straight to AuthService.Login — the whole point of #186 was to
+        # stop a second client from re-installing properties / private
+        # key over a running session. See SESSION_AND_EVENTS_DESIGN.md
+        # §8.1.
+        try:
+            users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
                 user_name=user_name,
-                account_password=password,
+                user_properties=user_properties,
             ))
+        except grpc.RpcError as exc:
+            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+                raise
+        try:
+            users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
+                user_name=user_name,
+                private_key_encrypted=private_key_encrypted,
+            ))
+        except grpc.RpcError as exc:
+            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+                raise
+
+        auth = auth_pb2_grpc.AuthServiceStub(channel)
+        resp = auth.Login(auth_pb2.LoginRequest(
+            user_name=user_name,
+            account_password=password,
+            client_hint=client_hint,
+        ), timeout=30.0)
+        return resp.session_token
     finally:
         channel.close()
 

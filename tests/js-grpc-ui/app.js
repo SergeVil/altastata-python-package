@@ -95,9 +95,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
     message RevokeByQueryRequest { string cloud_path_prefix = 1; bool including_subdirectories = 2; string time_interval_start = 3; string time_interval_end = 4; repeated string readers = 5; }
     message ShareResult { repeated FileStatus statuses = 1; }
     message RevokeResult { repeated FileStatus statuses = 1; }
-
-    message SubscribeRequest {}
-    message EventMessage { string event_name = 1; string data = 2; }
   `;
 
   const root = protobuf.parse(protoDef).root;
@@ -107,7 +104,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
   const outputEl = document.getElementById("output");
   const logsOutputEl = document.getElementById("logsOutput");
   const usersBody = document.getElementById("usersBody");
-  const eventsOutput = document.getElementById("eventsOutput");
 
   const userNameInput = document.getElementById("userNameInput");
   const userPasswordInput = document.getElementById("userPasswordInput");
@@ -132,7 +128,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
   attrNamesInput.value = "size,readers";
 
   let selectedFile = null;
-  let subscribeController = null;
   let authBootstrapDone = false;
   let authBootstrapInFlight = null;
 
@@ -152,19 +147,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
     }
     if (logsOutputEl) logsOutputEl.textContent += `\n${line}`;
     console.log(line);
-  }
-
-  function appendEvent(text) {
-    if (!eventsOutput) return;
-    const current = eventsOutput.textContent || "";
-    if (current === "No events yet." || current === "Subscribed. Waiting for events...") {
-      eventsOutput.textContent = text;
-    } else {
-      eventsOutput.textContent += `\n${text}`;
-    }
-    eventsOutput.scrollTop = eventsOutput.scrollHeight;
-    log("Event received", text);
-    setStatus(`Event: ${text}`);
   }
 
   function parseMyUserFromProperties(text) {
@@ -698,31 +680,6 @@ wV5BUmp5CEmbeB4r/+BlFttRZBLBXT1sq80YyQIVLumq0Livao9mOg==
       readers: asList(readersInput.value),
     }, "RevokeResult", true)
   ));
-
-  document.getElementById("subscribeBtn").addEventListener("click", () => run("Subscribe", async () => {
-    if (subscribeController) throw new Error("Already subscribed");
-    eventsOutput.textContent = "Subscribed. Waiting for events...";
-    subscribeController = new AbortController();
-    try {
-      await grpcServerStream("altastata.v1.EventsService/Subscribe", "SubscribeRequest", {}, "EventMessage", (msg) => {
-        const eventName = msg.event_name || msg.eventName || "event";
-        const data = msg.data || "";
-        appendEvent(`${eventName}: ${data}`);
-      }, true, subscribeController.signal);
-    } finally {
-      subscribeController = null;
-    }
-    return "Subscription ended";
-  }));
-
-  document.getElementById("stopSubscribeBtn").addEventListener("click", () => {
-    if (subscribeController) {
-      subscribeController.abort();
-      subscribeController = null;
-      setStatus("Subscribe stopped");
-      log("Subscribe stopped by user");
-    }
-  });
 
   const clearLogsBtn = document.getElementById("clearLogsBtn");
   if (clearLogsBtn) {

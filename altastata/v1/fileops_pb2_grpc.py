@@ -79,6 +79,11 @@ class FileOpsServiceStub(object):
                 request_serializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
                 response_deserializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
                 _registered_method=True)
+        self.DownloadDirectoryAsZip = channel.unary_stream(
+                '/altastata.v1.FileOpsService/DownloadDirectoryAsZip',
+                request_serializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
+                _registered_method=True)
 
 
 class FileOpsServiceServicer(object):
@@ -138,6 +143,12 @@ class FileOpsServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def DownloadDirectoryAsZip(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_FileOpsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -185,6 +196,11 @@ def add_FileOpsServiceServicer_to_server(servicer, server):
                     servicer.ReadStream,
                     request_deserializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.FromString,
                     response_serializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.SerializeToString,
+            ),
+            'DownloadDirectoryAsZip': grpc.unary_stream_rpc_method_handler(
+                    servicer.DownloadDirectoryAsZip,
+                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -430,6 +446,33 @@ class FileOpsService(object):
             '/altastata.v1.FileOpsService/ReadStream',
             altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
             altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def DownloadDirectoryAsZip(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/altastata.v1.FileOpsService/DownloadDirectoryAsZip',
+            altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
+            altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
             options,
             channel_credentials,
             insecure,

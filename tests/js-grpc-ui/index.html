@@ -184,17 +184,11 @@
     </div>
   </div>
 
-  <h2>EventsService (Live stream)</h2>
-  <div class="grid">
-    <div class="card">
-      <p class="hint">Start stream, perform file operations, observe events below.</p>
-      <div class="buttons">
-        <button id="subscribeBtn">Subscribe</button>
-        <button id="stopSubscribeBtn">Stop subscribe</button>
-      </div>
-      <pre id="eventsOutput">No events yet.</pre>
-    </div>
-  </div>
+  <!--
+    EventsService.Watch is exercised via the production Console UI; this
+    dev sandbox intentionally does not wire a button for it. See
+    altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7.
+  -->
 
   <script src="./protobuf.min.js"></script>
   <script src="./app.js"></script>

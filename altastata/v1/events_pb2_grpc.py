@@ -26,7 +26,24 @@ if _version_not_supported:
 
 
 class EventsServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
+
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Watch is the only event RPC. Each session (each browser tab / each
+    AuthService.Login) opens exactly one Watch stream after Login. The server
+    delivers a typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the in-memory ring
+    buffer, and emits EventGap when the requested cursor is older than the
+    buffer.
+
+    The pre-EventBus untyped Subscribe RPC was removed once both first-party
+    clients (Console UI and altastata-python-package) had switched to Watch;
+    see SESSION_AND_EVENTS_DESIGN.md §12 for the migration history.
+    =============================================================================
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -34,18 +51,39 @@ class EventsServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Subscribe = channel.unary_stream(
-                '/altastata.v1.EventsService/Subscribe',
-                request_serializer=altastata_dot_v1_dot_events__pb2.SubscribeRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_events__pb2.EventMessage.FromString,
+        self.Watch = channel.unary_stream(
+                '/altastata.v1.EventsService/Watch',
+                request_serializer=altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_events__pb2.Event.FromString,
                 _registered_method=True)
 
 
 class EventsServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
 
-    def Subscribe(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Watch is the only event RPC. Each session (each browser tab / each
+    AuthService.Login) opens exactly one Watch stream after Login. The server
+    delivers a typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the in-memory ring
+    buffer, and emits EventGap when the requested cursor is older than the
+    buffer.
+
+    The pre-EventBus untyped Subscribe RPC was removed once both first-party
+    clients (Console UI and altastata-python-package) had switched to Watch;
+    see SESSION_AND_EVENTS_DESIGN.md §12 for the migration history.
+    =============================================================================
+
+    """
+
+    def Watch(self, request, context):
+        """Per-session real-time event stream. Authenticated via the standard
+        Authorization: Bearer sess-... header. The userName for fan-out is
+        resolved server-side from the session token; clients cannot watch
+        events for another user.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -53,10 +91,10 @@ class EventsServiceServicer(object):
 
 def add_EventsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Subscribe': grpc.unary_stream_rpc_method_handler(
-                    servicer.Subscribe,
-                    request_deserializer=altastata_dot_v1_dot_events__pb2.SubscribeRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_events__pb2.EventMessage.SerializeToString,
+            'Watch': grpc.unary_stream_rpc_method_handler(
+                    servicer.Watch,
+                    request_deserializer=altastata_dot_v1_dot_events__pb2.WatchRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_events__pb2.Event.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -67,10 +105,27 @@ def add_EventsServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class EventsService(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
+
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Watch is the only event RPC. Each session (each browser tab / each
+    AuthService.Login) opens exactly one Watch stream after Login. The server
+    delivers a typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the in-memory ring
+    buffer, and emits EventGap when the requested cursor is older than the
+    buffer.
+
+    The pre-EventBus untyped Subscribe RPC was removed once both first-party
+    clients (Console UI and altastata-python-package) had switched to Watch;
+    see SESSION_AND_EVENTS_DESIGN.md §12 for the migration history.
+    =============================================================================
+
+    """
 
     @staticmethod
-    def Subscribe(request,
+    def Watch(request,
             target,
             options=(),
             channel_credentials=None,
@@ -83,9 +138,9 @@ class EventsService(object):
         return grpc.experimental.unary_stream(
             request,
             target,
-            '/altastata.v1.EventsService/Subscribe',
-            altastata_dot_v1_dot_events__pb2.SubscribeRequest.SerializeToString,
-            altastata_dot_v1_dot_events__pb2.EventMessage.FromString,
+            '/altastata.v1.EventsService/Watch',
+            altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+            altastata_dot_v1_dot_events__pb2.Event.FromString,
             options,
             channel_credentials,
             insecure,

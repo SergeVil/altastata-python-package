@@ -120,6 +120,10 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             AltaStataFunctions: New instance initialized with account directory
         """
+        # grpc_setup_port is accepted for backwards compatibility with
+        # callers from before the AuthService.Login migration but is no
+        # longer used internally; the gateway is reached via grpc_endpoint.
+        del grpc_setup_port
         if transport.lower() == "grpc":
             endpoint = grpc_endpoint or GrpcEndpoint()
             client = AltaStataGrpcClient.from_account_dir(
@@ -127,7 +131,6 @@ class AltaStataFunctions(BaseGateway):
                 password=password,
                 user_name=user_name,
                 endpoint=endpoint,
-                setup_port=grpc_setup_port,
                 auto_start_server=grpc_auto_start_server,
             )
             return cls(
@@ -176,6 +179,8 @@ class AltaStataFunctions(BaseGateway):
         Returns:
             AltaStataFunctions: New instance initialized with credentials
         """
+        # See note in from_account_dir about grpc_setup_port deprecation.
+        del grpc_setup_port
         if transport.lower() == "grpc":
             endpoint = grpc_endpoint or GrpcEndpoint()
             client = AltaStataGrpcClient.from_credentials(
@@ -184,7 +189,6 @@ class AltaStataFunctions(BaseGateway):
                 password=password,
                 user_name=user_name,
                 endpoint=endpoint,
-                setup_port=grpc_setup_port,
                 auto_start_server=grpc_auto_start_server,
             )
             return cls(
