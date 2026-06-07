@@ -567,30 +567,43 @@ class AltaStataGrpcClient:
             parallel_chunks=how_many_chunks_in_parallel,
         )
 
+    # Watch is the sole event RPC; FileSharedEvent / FileUnsharedEvent
+    # are translated back to the ('SHARE'|'DELETE', path) pair the old
+    # AltaStataEventListener / Py4J path used so existing user callbacks
+    # keep working unchanged. Other typed payloads (gap, session revoked)
+    # had no legacy equivalent and are simply skipped.
+    @staticmethod
+    def _legacy_pair(event):
+        which = event.WhichOneof("payload")
+        if which == "file_shared":
+            return ("SHARE", event.file_shared.file_path)
+        if which == "file_unshared":
+            return ("DELETE", event.file_unshared.file_id)
+        return None
+
     def subscribe_events(self):
-        req = self._events_pb2.SubscribeRequest()
-        for event in self._events_stub.Subscribe(req, metadata=self._metadata):
-            yield {"event_name": event.event_name, "data": event.data}
+        req = self._events_pb2.WatchRequest(since_sequence=0)
+        for event in self._events_stub.Watch(req, metadata=self._metadata):
+            pair = self._legacy_pair(event)
+            if pair is not None:
+                yield {"event_name": pair[0], "data": pair[1]}
 
     def add_event_listener(self, callback):
-        """
-        gRPC replacement for Py4J add_event_listener.
-        Starts a daemon thread that consumes Subscribe stream and invokes callback.
-        """
         stop_flag = {"stop": False}
         call_ref = {"call": None}
 
         def _worker():
             try:
-                req = self._events_pb2.SubscribeRequest()
-                call = self._events_stub.Subscribe(req, metadata=self._metadata)
+                req = self._events_pb2.WatchRequest(since_sequence=0)
+                call = self._events_stub.Watch(req, metadata=self._metadata)
                 call_ref["call"] = call
                 for event in call:
                     if stop_flag["stop"]:
                         break
-                    callback(event.event_name, event.data)
+                    pair = self._legacy_pair(event)
+                    if pair is not None:
+                        callback(*pair)
             except Exception:
-                # Match Py4J behavior: do not crash caller on background listener errors.
                 pass
 
         t = threading.Thread(target=_worker, daemon=True)
@@ -609,9 +622,7 @@ class AltaStataGrpcClient:
                     call.cancel()
 
     def remove_all_event_listeners(self):
-        # Cooperative stop; stream closes naturally when call finishes/cancelled.
         for t in self._listener_threads:
-            # best-effort no-op; handles returned by add_event_listener own stop flags
             _ = t
         self._listener_threads.clear()
 
