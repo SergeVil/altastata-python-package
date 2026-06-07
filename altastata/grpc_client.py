@@ -694,14 +694,31 @@ def _bootstrap_and_login(
     channel = AltaStataGrpcClient._create_channel(endpoint)
     try:
         users = users_pb2_grpc.UsersServiceStub(channel)
-        users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
-            user_name=user_name,
-            user_properties=user_properties,
-        ))
-        users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
-            user_name=user_name,
-            private_key_encrypted=private_key_encrypted,
-        ))
+        # The gateway returns ALREADY_EXISTS for SetUserProperties /
+        # SetPrivateKey when this userName already has a live
+        # AltaStataFileSystem (another browser tab / Python client of the
+        # same user is already logged in). The right reaction is to skip
+        # straight to AuthService.Login — the whole point of #186 was to
+        # stop a second client from re-installing properties / private
+        # key over a running session. See SESSION_AND_EVENTS_DESIGN.md
+        # §8.1.
+        try:
+            users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
+                user_name=user_name,
+                user_properties=user_properties,
+            ))
+        except grpc.RpcError as exc:
+            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+                raise
+        try:
+            users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
+                user_name=user_name,
+                private_key_encrypted=private_key_encrypted,
+            ))
+        except grpc.RpcError as exc:
+            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+                raise
+
         auth = auth_pb2_grpc.AuthServiceStub(channel)
         resp = auth.Login(auth_pb2.LoginRequest(
             user_name=user_name,
