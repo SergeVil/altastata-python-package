@@ -26,7 +26,13 @@ if _version_not_supported:
 
 
 class UsersServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """SetPasswordForUser was removed; clients must use AuthService.Login instead.
+    SetUserProperties / SetPrivateKey remain bootstrap-only RPCs needed for the
+    gateway's first contact with a user; they are auth-bypassed but reject with
+    ALREADY_EXISTS once the user is fully bootstrapped (has an installed live
+    AltaStataFileSystem). See SESSION_AND_EVENTS_DESIGN.md §11.
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -64,15 +70,16 @@ class UsersServiceStub(object):
                 request_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
                 response_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
                 _registered_method=True)
-        self.SetPasswordForUser = channel.unary_unary(
-                '/altastata.v1.UsersService/SetPasswordForUser',
-                request_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.FromString,
-                _registered_method=True)
 
 
 class UsersServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """SetPasswordForUser was removed; clients must use AuthService.Login instead.
+    SetUserProperties / SetPrivateKey remain bootstrap-only RPCs needed for the
+    gateway's first contact with a user; they are auth-bypassed but reject with
+    ALREADY_EXISTS once the user is fully bootstrapped (has an installed live
+    AltaStataFileSystem). See SESSION_AND_EVENTS_DESIGN.md §11.
+
+    """
 
     def ListUsers(self, request, context):
         """Missing associated documentation comment in .proto file."""
@@ -105,12 +112,6 @@ class UsersServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def SetPrivateKey(self, request, context):
-        """Missing associated documentation comment in .proto file."""
-        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
-
-    def SetPasswordForUser(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -149,11 +150,6 @@ def add_UsersServiceServicer_to_server(servicer, server):
                     request_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.FromString,
                     response_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.SerializeToString,
             ),
-            'SetPasswordForUser': grpc.unary_unary_rpc_method_handler(
-                    servicer.SetPasswordForUser,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.SerializeToString,
-            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'altastata.v1.UsersService', rpc_method_handlers)
@@ -163,7 +159,13 @@ def add_UsersServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class UsersService(object):
-    """Missing associated documentation comment in .proto file."""
+    """SetPasswordForUser was removed; clients must use AuthService.Login instead.
+    SetUserProperties / SetPrivateKey remain bootstrap-only RPCs needed for the
+    gateway's first contact with a user; they are auth-bypassed but reject with
+    ALREADY_EXISTS once the user is fully bootstrapped (has an installed live
+    AltaStataFileSystem). See SESSION_AND_EVENTS_DESIGN.md §11.
+
+    """
 
     @staticmethod
     def ListUsers(request,
@@ -317,33 +319,6 @@ class UsersService(object):
             '/altastata.v1.UsersService/SetPrivateKey',
             altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
             altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
-            options,
-            channel_credentials,
-            insecure,
-            call_credentials,
-            compression,
-            wait_for_ready,
-            timeout,
-            metadata,
-            _registered_method=True)
-
-    @staticmethod
-    def SetPasswordForUser(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
-        return grpc.experimental.unary_unary(
-            request,
-            target,
-            '/altastata.v1.UsersService/SetPasswordForUser',
-            altastata_dot_v1_dot_users__pb2.SetPasswordForUserRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.SetPasswordForUserResponse.FromString,
             options,
             channel_credentials,
             insecure,

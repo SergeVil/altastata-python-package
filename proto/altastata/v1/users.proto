@@ -51,16 +51,11 @@ message SetPrivateKeyResponse {
   bool success = 1;
 }
 
-message SetPasswordForUserRequest {
-  string user_name = 1;
-  string account_password = 2;
-}
-
-message SetPasswordForUserResponse {
-  bool success = 1;
-  string access_key = 2;
-  string secret_key = 3;
-}
+// SetPasswordForUser was removed; clients must use AuthService.Login instead.
+// SetUserProperties / SetPrivateKey remain bootstrap-only RPCs needed for the
+// gateway's first contact with a user; they are auth-bypassed but reject with
+// ALREADY_EXISTS once the user is fully bootstrapped (has an installed live
+// AltaStataFileSystem). See SESSION_AND_EVENTS_DESIGN.md §11.
 
 service UsersService {
   rpc ListUsers(Empty) returns (stream UserSummary);
@@ -69,5 +64,4 @@ service UsersService {
   rpc SetPassword(SetPasswordRequest) returns (SetPasswordResponse);
   rpc SetUserProperties(SetUserPropertiesRequest) returns (SetUserPropertiesResponse);
   rpc SetPrivateKey(SetPrivateKeyRequest) returns (SetPrivateKeyResponse);
-  rpc SetPasswordForUser(SetPasswordForUserRequest) returns (SetPasswordForUserResponse);
 }

@@ -26,7 +26,29 @@ if _version_not_supported:
 
 
 class EventsServiceStub(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
+
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Two RPCs live in this file:
+
+    Watch     — NEW.  Per-session server-streaming RPC backed by EventBus.
+    Each session (each browser tab / each AuthService.Login) opens
+    exactly one Watch stream after Login. The server delivers a
+    typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the
+    in-memory ring buffer, and emits EventGap when the requested
+    cursor is older than the buffer.
+
+    Subscribe — DEPRECATED. The pre-EventBus path that registers a listener
+    directly on AltaStataFileSystem and forwards untyped
+    (eventName, data) tuples. Kept for backwards compatibility
+    with the existing frontend; will be removed together with
+    EventMessage / SubscribeRequest in PR-6 of the design doc.
+    =============================================================================
+
+    """
 
     def __init__(self, channel):
         """Constructor.
@@ -34,6 +56,11 @@ class EventsServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.Watch = channel.unary_stream(
+                '/altastata.v1.EventsService/Watch',
+                request_serializer=altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_events__pb2.Event.FromString,
+                _registered_method=True)
         self.Subscribe = channel.unary_stream(
                 '/altastata.v1.EventsService/Subscribe',
                 request_serializer=altastata_dot_v1_dot_events__pb2.SubscribeRequest.SerializeToString,
@@ -42,10 +69,43 @@ class EventsServiceStub(object):
 
 
 class EventsServiceServicer(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
+
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Two RPCs live in this file:
+
+    Watch     — NEW.  Per-session server-streaming RPC backed by EventBus.
+    Each session (each browser tab / each AuthService.Login) opens
+    exactly one Watch stream after Login. The server delivers a
+    typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the
+    in-memory ring buffer, and emits EventGap when the requested
+    cursor is older than the buffer.
+
+    Subscribe — DEPRECATED. The pre-EventBus path that registers a listener
+    directly on AltaStataFileSystem and forwards untyped
+    (eventName, data) tuples. Kept for backwards compatibility
+    with the existing frontend; will be removed together with
+    EventMessage / SubscribeRequest in PR-6 of the design doc.
+    =============================================================================
+
+    """
+
+    def Watch(self, request, context):
+        """Per-session real-time event stream. Authenticated via the standard
+        Authorization: Bearer sess-... header. The userName for fan-out is
+        resolved server-side from the session token; clients cannot watch
+        events for another user.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def Subscribe(self, request, context):
-        """Missing associated documentation comment in .proto file."""
+        """DEPRECATED: untyped pre-EventBus listener path. Use Watch instead.
+        """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
@@ -53,6 +113,11 @@ class EventsServiceServicer(object):
 
 def add_EventsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'Watch': grpc.unary_stream_rpc_method_handler(
+                    servicer.Watch,
+                    request_deserializer=altastata_dot_v1_dot_events__pb2.WatchRequest.FromString,
+                    response_serializer=altastata_dot_v1_dot_events__pb2.Event.SerializeToString,
+            ),
             'Subscribe': grpc.unary_stream_rpc_method_handler(
                     servicer.Subscribe,
                     request_deserializer=altastata_dot_v1_dot_events__pb2.SubscribeRequest.FromString,
@@ -67,7 +132,56 @@ def add_EventsServiceServicer_to_server(servicer, server):
 
  # This class is part of an EXPERIMENTAL API.
 class EventsService(object):
-    """Missing associated documentation comment in .proto file."""
+    """=============================================================================
+    Real-time event delivery for altastata-grpc.
+
+    See altastata-grpc/SESSION_AND_EVENTS_DESIGN.md §7 for the full model.
+
+    Two RPCs live in this file:
+
+    Watch     — NEW.  Per-session server-streaming RPC backed by EventBus.
+    Each session (each browser tab / each AuthService.Login) opens
+    exactly one Watch stream after Login. The server delivers a
+    typed Event stream with monotonic per-userName sequence
+    numbers, supports since_sequence-based replay from the
+    in-memory ring buffer, and emits EventGap when the requested
+    cursor is older than the buffer.
+
+    Subscribe — DEPRECATED. The pre-EventBus path that registers a listener
+    directly on AltaStataFileSystem and forwards untyped
+    (eventName, data) tuples. Kept for backwards compatibility
+    with the existing frontend; will be removed together with
+    EventMessage / SubscribeRequest in PR-6 of the design doc.
+    =============================================================================
+
+    """
+
+    @staticmethod
+    def Watch(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_stream(
+            request,
+            target,
+            '/altastata.v1.EventsService/Watch',
+            altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+            altastata_dot_v1_dot_events__pb2.Event.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def Subscribe(request,

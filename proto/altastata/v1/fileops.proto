@@ -111,6 +111,14 @@ message ReadStreamChunk {
   bytes data = 1;
 }
 
+message DownloadDirectoryAsZipRequest {
+  string cloud_path_prefix = 1;
+}
+
+message DownloadDirectoryAsZipChunk {
+  bytes data = 1;
+}
+
 service FileOpsService {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc GetBuffer(GetBufferRequest) returns (GetBufferResponse);
@@ -121,4 +129,5 @@ service FileOpsService {
   rpc Retrieve(RetrieveRequest) returns (RetrieveResponse);
   rpc CopyFile(CopyFileRequest) returns (CopyFileResponse);
   rpc ReadStream(ReadStreamRequest) returns (stream ReadStreamChunk);
+  rpc DownloadDirectoryAsZip(DownloadDirectoryAsZipRequest) returns (stream DownloadDirectoryAsZipChunk);
 }
