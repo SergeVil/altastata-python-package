@@ -88,7 +88,12 @@ class AltaStataGrpcClient:
         self._attributes_stub = attributes_pb2_grpc.AttributesServiceStub(self._channel)
         self._fileops_stub = fileops_pb2_grpc.FileOpsServiceStub(self._channel)
         self._events_stub = events_pb2_grpc.EventsServiceStub(self._channel)
-        self._listener_threads: List[threading.Thread] = []
+        # Tracks handles returned from add_event_listener so
+        # remove_all_event_listeners can stop every still-running worker.
+        # Each handle owns its own stop_flag / call_ref; we just keep the
+        # handle reference here so callers that lost their reference can
+        # still tear them all down.
+        self._listener_handles: List[Dict] = []
         self._server_process = None
 
     @classmethod
@@ -99,7 +104,6 @@ class AltaStataGrpcClient:
         password: Optional[str] = None,
         user_name: Optional[str] = None,
         endpoint: GrpcEndpoint = GrpcEndpoint(),
-        setup_port: int = 9880,
         auto_start_server: bool = True,
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
@@ -164,7 +168,6 @@ class AltaStataGrpcClient:
         password: Optional[str] = None,
         user_name: Optional[str] = None,
         endpoint: GrpcEndpoint = GrpcEndpoint(),
-        setup_port: int = 9880,
         auto_start_server: bool = True,
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
@@ -609,22 +612,26 @@ class AltaStataGrpcClient:
         t = threading.Thread(target=_worker, daemon=True)
         t.start()
         handle = {"thread": t, "stop": stop_flag, "call_ref": call_ref}
-        self._listener_threads.append(t)
+        self._listener_handles.append(handle)
         return handle
 
     def remove_event_listener(self, listener):
-        if isinstance(listener, dict) and "stop" in listener:
-            listener["stop"]["stop"] = True
-            call_ref = listener.get("call_ref")
-            if isinstance(call_ref, dict):
-                call = call_ref.get("call")
-                if call is not None:
-                    call.cancel()
+        if not isinstance(listener, dict) or "stop" not in listener:
+            return
+        listener["stop"]["stop"] = True
+        call_ref = listener.get("call_ref")
+        if isinstance(call_ref, dict):
+            call = call_ref.get("call")
+            if call is not None:
+                call.cancel()
+        try:
+            self._listener_handles.remove(listener)
+        except ValueError:
+            pass
 
     def remove_all_event_listeners(self):
-        for t in self._listener_threads:
-            _ = t
-        self._listener_threads.clear()
+        for handle in list(self._listener_handles):
+            self.remove_event_listener(handle)
 
 
 def _find_user_properties_file(account_dir: str) -> str:
