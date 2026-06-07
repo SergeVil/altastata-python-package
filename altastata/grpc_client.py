@@ -10,8 +10,24 @@ import re
 import socket
 import subprocess
 import time
+import uuid
 import pkg_resources
 import platform
+
+
+def _default_client_hint() -> str:
+    """
+    Generate a process-unique ``clientHint`` for ``AuthService.Login``.
+
+    The gateway enforces a single-session-per-(userName, clientHint) rule:
+    a fresh Login from the same hint evicts the prior session and closes
+    its ``EventsService.Watch`` stream. Tagging the hint with a per-instance
+    UUID means two ``AltaStataGrpcClient`` objects in the same Python
+    process (and two independent kernels for the same user) coexist instead
+    of stomping on each other's sessions, while a single client's own
+    re-Login still hits the same hint and correctly evicts its own zombie.
+    """
+    return f"altastata-python-package/{uuid.uuid4()}"
 
 
 @dataclass
@@ -52,6 +68,7 @@ class AltaStataGrpcClient:
         *,
         bearer_token: str,
         user_name: Optional[str] = None,
+        client_hint: Optional[str] = None,
     ):
         if not bearer_token:
             raise ValueError("bearer_token is required (use AuthService.Login or pass an existing sess-<token>)")
@@ -59,6 +76,11 @@ class AltaStataGrpcClient:
         self.endpoint = endpoint
         self._user_name = user_name
         self._token = bearer_token
+        # Pin the hint for the life of this instance: re_login must reuse it
+        # so the gateway recognises the new Login as "same logical client"
+        # and evicts only this instance's own prior session, not someone
+        # else's session for the same user.
+        self._client_hint = client_hint or _default_client_hint()
         self._metadata: List[Tuple[str, str]] = [("authorization", f"Bearer {self._token}")]
         self._channel = self._create_channel(endpoint)
 
@@ -108,7 +130,7 @@ class AltaStataGrpcClient:
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
         start_timeout_s: int = 45,
-        client_hint: str = "altastata-python-package",
+        client_hint: Optional[str] = None,
     ) -> "AltaStataGrpcClient":
         """
         Create a gRPC client from an AltaStata account directory.
@@ -118,6 +140,12 @@ class AltaStataGrpcClient:
         ``AuthService.Login`` to obtain a per-process session token. All
         subsequent RPCs on the returned client are authenticated with that
         ``sess-<token>``.
+
+        ``client_hint`` defaults to a freshly minted, per-instance UUID
+        prefixed with ``altastata-python-package/`` so two clients in the
+        same process (or a Console UI tab and a Jupyter kernel) do not
+        evict each other on Login. Pass an explicit value only when you
+        deliberately want a different instance to *replace* a prior one.
         """
         if password is None:
             raise ValueError("password is required for AuthService.Login")
@@ -146,16 +174,22 @@ class AltaStataGrpcClient:
             )
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
 
+        effective_hint = client_hint or _default_client_hint()
         token = _bootstrap_and_login(
             endpoint=endpoint,
             user_name=resolved_user_name,
             user_properties=user_properties,
             private_key_encrypted=private_key,
             password=password,
-            client_hint=client_hint,
+            client_hint=effective_hint,
         )
 
-        client = cls(endpoint=endpoint, bearer_token=token, user_name=resolved_user_name)
+        client = cls(
+            endpoint=endpoint,
+            bearer_token=token,
+            user_name=resolved_user_name,
+            client_hint=effective_hint,
+        )
         client._server_process = started_process
         return client
 
@@ -172,10 +206,13 @@ class AltaStataGrpcClient:
         grpc_server_command: Optional[Sequence[str]] = None,
         grpc_server_working_dir: Optional[str] = None,
         start_timeout_s: int = 45,
-        client_hint: str = "altastata-python-package",
+        client_hint: Optional[str] = None,
     ) -> "AltaStataGrpcClient":
         """
         Create a gRPC client directly from credential payloads.
+
+        See ``from_account_dir`` for the ``client_hint`` semantics — when
+        omitted, a fresh per-instance UUID is generated automatically.
         """
         if password is None:
             raise ValueError("password is required for AuthService.Login")
@@ -190,16 +227,22 @@ class AltaStataGrpcClient:
             )
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
 
+        effective_hint = client_hint or _default_client_hint()
         token = _bootstrap_and_login(
             endpoint=endpoint,
             user_name=resolved_user_name,
             user_properties=user_properties,
             private_key_encrypted=private_key_encrypted,
             password=password,
-            client_hint=client_hint,
+            client_hint=effective_hint,
         )
 
-        client = cls(endpoint=endpoint, bearer_token=token, user_name=resolved_user_name)
+        client = cls(
+            endpoint=endpoint,
+            bearer_token=token,
+            user_name=resolved_user_name,
+            client_hint=effective_hint,
+        )
         client._server_process = started_process
         return client
 
@@ -500,7 +543,7 @@ class AltaStataGrpcClient:
             self._auth_pb2.LoginRequest(
                 user_name=self._user_name,
                 account_password=account_password,
-                client_hint="altastata-python-package",
+                client_hint=self._client_hint,
             ),
             timeout=30.0,
         )
