@@ -65,7 +65,8 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--account-dir", required=True, help="AltaStata account directory")
     parser.add_argument("--password", required=True, help="Account password")
-    parser.add_argument("--user-name", required=True, help="User name for Bearer local-{user}")
+    parser.add_argument("--user-name", required=False, default=None,
+                        help="Override user name (default: inferred from account dir)")
     parser.add_argument("--file-path", required=True, help="Cloud file path to query attribute for")
     parser.add_argument("--iterations", type=int, default=200)
     parser.add_argument("--warmup", type=int, default=20)
@@ -76,8 +77,10 @@ def main():
     py4j_client = AltaStataFunctions.from_account_dir(args.account_dir)
     py4j_client.set_password(args.password)
 
-    grpc_client = AltaStataGrpcClient(
-        local_user=args.user_name,
+    grpc_client = AltaStataGrpcClient.from_account_dir(
+        account_dir_path=args.account_dir,
+        password=args.password,
+        user_name=args.user_name,
         endpoint=GrpcEndpoint(host=args.grpc_host, port=args.grpc_port, secure=False),
     )
 

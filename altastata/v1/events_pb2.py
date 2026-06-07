@@ -22,9 +22,10 @@ _runtime_version.ValidateProtobufRuntimeVersion(
 _sym_db = _symbol_database.Default()
 
 
+from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19\x61ltastata/v1/events.proto\x12\x0c\x61ltastata.v1\"\x12\n\x10SubscribeRequest\"0\n\x0c\x45ventMessage\x12\x12\n\nevent_name\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t2Z\n\rEventsService\x12I\n\tSubscribe\x12\x1e.altastata.v1.SubscribeRequest\x1a\x1a.altastata.v1.EventMessage0\x01\x42)\n\x18\x63om.altastata.grpc.protoB\x0b\x45ventsProtoP\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x19\x61ltastata/v1/events.proto\x12\x0c\x61ltastata.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"&\n\x0cWatchRequest\x12\x16\n\x0esince_sequence\x18\x01 \x01(\x04\"\xd2\x02\n\x05\x45vent\x12\x10\n\x08sequence\x18\x01 \x01(\x04\x12/\n\x0boccurred_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x1b\n\x13origin_session_hash\x18\x03 \x01(\t\x12\x34\n\x0b\x66ile_shared\x18\n \x01(\x0b\x32\x1d.altastata.v1.FileSharedEventH\x00\x12\x38\n\rfile_unshared\x18\x0b \x01(\x0b\x32\x1f.altastata.v1.FileUnsharedEventH\x00\x12<\n\x0fsession_revoked\x18\x63 \x01(\x0b\x32!.altastata.v1.SessionRevokedEventH\x00\x12\x30\n\tevent_gap\x18\x64 \x01(\x0b\x32\x1b.altastata.v1.EventGapEventH\x00\x42\t\n\x07payload\"H\n\x0f\x46ileSharedEvent\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x11\n\tfile_path\x18\x02 \x01(\t\x12\x11\n\tshared_by\x18\x03 \x01(\t\"9\n\x11\x46ileUnsharedEvent\x12\x0f\n\x07\x66ile_id\x18\x01 \x01(\t\x12\x13\n\x0bunshared_by\x18\x02 \x01(\t\"}\n\x13SessionRevokedEvent\x12\x38\n\x06reason\x18\x01 \x01(\x0e\x32(.altastata.v1.SessionRevokedEvent.Reason\",\n\x06Reason\x12\n\n\x06LOGOUT\x10\x00\x12\x0b\n\x07\x45XPIRED\x10\x01\x12\t\n\x05\x41\x44MIN\x10\x02\"/\n\rEventGapEvent\x12\x1e\n\x16server_oldest_sequence\x18\x01 \x01(\x04\"\x12\n\x10SubscribeRequest\"0\n\x0c\x45ventMessage\x12\x12\n\nevent_name\x18\x01 \x01(\t\x12\x0c\n\x04\x64\x61ta\x18\x02 \x01(\t2\x96\x01\n\rEventsService\x12:\n\x05Watch\x12\x1a.altastata.v1.WatchRequest\x1a\x13.altastata.v1.Event0\x01\x12I\n\tSubscribe\x12\x1e.altastata.v1.SubscribeRequest\x1a\x1a.altastata.v1.EventMessage0\x01\x42)\n\x18\x63om.altastata.grpc.protoB\x0b\x45ventsProtoP\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -32,10 +33,24 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'altastata.v1.events_pb2', _
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\030com.altastata.grpc.protoB\013EventsProtoP\001'
-  _globals['_SUBSCRIBEREQUEST']._serialized_start=43
-  _globals['_SUBSCRIBEREQUEST']._serialized_end=61
-  _globals['_EVENTMESSAGE']._serialized_start=63
-  _globals['_EVENTMESSAGE']._serialized_end=111
-  _globals['_EVENTSSERVICE']._serialized_start=113
-  _globals['_EVENTSSERVICE']._serialized_end=203
+  _globals['_WATCHREQUEST']._serialized_start=76
+  _globals['_WATCHREQUEST']._serialized_end=114
+  _globals['_EVENT']._serialized_start=117
+  _globals['_EVENT']._serialized_end=455
+  _globals['_FILESHAREDEVENT']._serialized_start=457
+  _globals['_FILESHAREDEVENT']._serialized_end=529
+  _globals['_FILEUNSHAREDEVENT']._serialized_start=531
+  _globals['_FILEUNSHAREDEVENT']._serialized_end=588
+  _globals['_SESSIONREVOKEDEVENT']._serialized_start=590
+  _globals['_SESSIONREVOKEDEVENT']._serialized_end=715
+  _globals['_SESSIONREVOKEDEVENT_REASON']._serialized_start=671
+  _globals['_SESSIONREVOKEDEVENT_REASON']._serialized_end=715
+  _globals['_EVENTGAPEVENT']._serialized_start=717
+  _globals['_EVENTGAPEVENT']._serialized_end=764
+  _globals['_SUBSCRIBEREQUEST']._serialized_start=766
+  _globals['_SUBSCRIBEREQUEST']._serialized_end=784
+  _globals['_EVENTMESSAGE']._serialized_start=786
+  _globals['_EVENTMESSAGE']._serialized_end=834
+  _globals['_EVENTSSERVICE']._serialized_start=837
+  _globals['_EVENTSSERVICE']._serialized_end=987
 # @@protoc_insertion_point(module_scope)
