@@ -60,13 +60,36 @@ echo ""
 
 ssh $SSH_OPTS "$SSH_HOST" "mkdir -p '$REMOTE_JUP_WORK' '$REMOTE_MODELS_DIR'" || true
 
+# Console UI (gRPC + SPA) defaults to enabled inside the Jupyter image but is
+# only reachable through the port we publish here. Bind 9877 the same way 8888
+# is bound; override with JUPYTER_CONSOLE_UI_HOST_PORT.
+JUPYTER_CONSOLE_UI_HOST_PORT="${JUPYTER_CONSOLE_UI_HOST_PORT:-9877}"
+
+# HPCS auto-mount for Jupyter: when the canonical HPCS files exist on the VM,
+# mount them at the paths the example notebooks reference. This matches what
+# the RAG block below already does. If you don't use HPCS the mounts are
+# simply skipped (no failure). The mount destinations match the
+# user_properties shipped in the example notebooks:
+#   hpcs-yaml-path=/etc/ep11client/grep11client.yaml
+#   hpcs-priv-key-blob-path=/home/jovyan/hpcs-privkey.blob
+JUP_HPCS_MOUNTS=""
+if ssh $SSH_OPTS "$SSH_HOST" "test -f '$REMOTE_GREP11_YAML'" 2>/dev/null; then
+  JUP_HPCS_MOUNTS="$JUP_HPCS_MOUNTS -v $REMOTE_GREP11_YAML:/etc/ep11client/grep11client.yaml:ro"
+fi
+if ssh $SSH_OPTS "$SSH_HOST" "test -f '$REMOTE_HPCS_BLOB'" 2>/dev/null; then
+  JUP_HPCS_MOUNTS="$JUP_HPCS_MOUNTS -v $REMOTE_HPCS_BLOB:/home/jovyan/hpcs-privkey.blob:ro"
+fi
+[ -n "$JUP_HPCS_MOUNTS" ] && echo "  HPCS mounts for Jupyter:$JUP_HPCS_MOUNTS"
+
 if [ "$RUN_JUP" = "1" ]; then
   echo "--- Starting Jupyter (detached)"
   ssh $SSH_OPTS "$SSH_HOST" "docker rm -f '$JUP_CTR' 2>/dev/null || true"
   ssh $SSH_OPTS "$SSH_HOST" "docker run -d --name '$JUP_CTR' \
     -p '${JUPYTER_HOST_PORT}:8888' \
+    -p '${JUPYTER_CONSOLE_UI_HOST_PORT}:9877' \
     -v '${REMOTE_JUP_WORK}:/home/jovyan/work' \
     -v '/root/.altastata:/opt/app-root/src/.altastata:rw' \
+    $JUP_HPCS_MOUNTS \
     '$JUP_IMG'"
 else
   echo "--- Skipping Jupyter (RUN_JUP=$RUN_JUP)"
@@ -109,7 +132,8 @@ fi
 echo ""
 echo "===== Browser ====="
 [ "$RUN_JUP" = "1" ] && {
-  echo "Jupyter Lab:  http://$PUBLIC_HOST:$JUPYTER_HOST_PORT/"
+  echo "Jupyter Lab:    http://$PUBLIC_HOST:$JUPYTER_HOST_PORT/"
+  echo "Console UI:     http://$PUBLIC_HOST:$JUPYTER_CONSOLE_UI_HOST_PORT/   (set gRPC base URL to the same host:port on first load)"
   echo "Get token:      ssh $SSH_OPTS $SSH_HOST \"docker exec '$JUP_CTR' jupyter server list\""
   echo "Logs:           ssh $SSH_OPTS $SSH_HOST \"docker logs -f '$JUP_CTR'\""
 }
