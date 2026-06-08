@@ -65,6 +65,15 @@ ENV LC_ALL=en_US.UTF-8
 # altastata-grpc-server safe default is loopback; override here so Docker
 # port forwarding reaches it. See mycloud/altastata-grpc/TLS_DESIGN.md.
 ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+# Phase A would auto-enable HTTPS on this 0.0.0.0 bind, but inside a
+# Docker port-mapping (-p 127.0.0.1:9877:9877) the gateway is only
+# reachable via host loopback, so the threat model is the same as a
+# plain loopback bind. Self-signed HTTPS here also breaks Console UI
+# streaming gRPC-Web subresources in Chromium ("Failed to fetch" after
+# the user accepts the cert on the main page). Keep plain HTTP and let
+# operators stand up a TLS-terminating proxy when remote network
+# reachability is actually required. See TLS_DESIGN.md §10A.
+ENV ALTASTATA_GRPC_TLS=disabled
 
 # Optional Console UI on :9877. Off by default; set ENABLE_ALTASTATA_CONSOLE_UI=1
 # to auto-start altastata-grpc-server alongside Jupyter Lab.

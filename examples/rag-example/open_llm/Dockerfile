@@ -42,6 +42,12 @@ ENV LOCAL_INDEX_PATH=/app/open_llm/local_index
 # 0.0.0.0 lets Docker's port forwarder reach the gateway; host-side mapping
 # bounds exposure. See mycloud/altastata-grpc/TLS_DESIGN.md.
 ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+# Phase A would auto-enable HTTPS on this 0.0.0.0 bind, but inside a
+# Docker port-mapping the gateway is only reachable via host loopback —
+# same threat model as a plain loopback bind. Self-signed HTTPS here
+# also breaks Console UI streaming gRPC-Web subresources in Chromium.
+# See TLS_DESIGN.md §10A.
+ENV ALTASTATA_GRPC_TLS=disabled
 EXPOSE 8000 9877
 
 ENTRYPOINT ["/app/open_llm/docker-entrypoint.sh"]

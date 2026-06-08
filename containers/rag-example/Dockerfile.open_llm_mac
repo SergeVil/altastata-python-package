@@ -52,6 +52,12 @@ ENV LLM_PROVIDER=transformers
 # Optional Console UI on :9877; off by default (set ENABLE_ALTASTATA_CONSOLE_UI=1).
 # Host-side must use `-p 127.0.0.1:9877:9877`. See mycloud/altastata-grpc/TLS_DESIGN.md.
 ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
+# Phase A would auto-enable HTTPS on this 0.0.0.0 bind, but inside a
+# Docker port-mapping the gateway is only reachable via host loopback —
+# same threat model as a plain loopback bind. Self-signed HTTPS here
+# also breaks Console UI streaming gRPC-Web subresources in Chromium.
+# See TLS_DESIGN.md §10A.
+ENV ALTASTATA_GRPC_TLS=disabled
 
 VOLUME /app/open_llm/local_index
 EXPOSE 8000 9877
