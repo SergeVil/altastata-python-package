@@ -87,6 +87,7 @@ if [ "$RUN_JUP" = "1" ]; then
   ssh $SSH_OPTS "$SSH_HOST" "docker run -d --name '$JUP_CTR' \
     -p '${JUPYTER_HOST_PORT}:8888' \
     -p '${JUPYTER_CONSOLE_UI_HOST_PORT}:9877' \
+    -e 'ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-1}' \
     -v '${REMOTE_JUP_WORK}:/home/jovyan/work' \
     -v '/root/.altastata:/opt/app-root/src/.altastata:rw' \
     $JUP_HPCS_MOUNTS \
