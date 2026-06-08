@@ -725,6 +725,12 @@ def _bootstrap_and_login(
     auth-bypassed on the server because the user has no session yet at this
     point. ``Login`` is the first authenticated call: a wrong password is
     rejected here without corrupting any other live session for the same user.
+
+    HPCS / HSM-backed accounts pass ``private_key_encrypted=""`` because the
+    private key material lives in the HSM rather than as a local PEM. In that
+    case ``SetPrivateKey`` is skipped entirely — the gateway sources the key
+    material server-side from ``user_properties`` (e.g. ``hpcs-priv-key-blob-path``
+    + ``hpcs-yaml-path``) and the EP11 client.
     """
     try:
         from .v1 import auth_pb2, auth_pb2_grpc
@@ -753,14 +759,19 @@ def _bootstrap_and_login(
         except grpc.RpcError as exc:
             if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
                 raise
-        try:
-            users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
-                user_name=user_name,
-                private_key_encrypted=private_key_encrypted,
-            ))
-        except grpc.RpcError as exc:
-            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
-                raise
+        # HPCS / HSM-backed accounts have no PEM to send; the server's
+        # SetPrivateKey validator rejects an empty private_key_encrypted with
+        # INVALID_ARGUMENT, so skip the call entirely in that case. The
+        # gateway derives the key material from user_properties on first use.
+        if private_key_encrypted:
+            try:
+                users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
+                    user_name=user_name,
+                    private_key_encrypted=private_key_encrypted,
+                ))
+            except grpc.RpcError as exc:
+                if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
+                    raise
 
         auth = auth_pb2_grpc.AuthServiceStub(channel)
         resp = auth.Login(auth_pb2.LoginRequest(
