@@ -13,8 +13,8 @@ then tagging and pushing the s390x image to IBM Container Registry (ICR).
 
 `version.sh` exposes two image tags (different release cadences):
 
-- `JUPYTER_VERSION` (currently `2026d_latest`) — used for `jupyter-datascience-{arm64,amd64,s390x}`.
-- `RAG_VERSION` (currently `2026i_latest`) — used for `rag-open-llm-s390x`. The `:${RAG_VERSION}_zdnn` variant is the research/zDNN-on build; the plain tag is the default CPU build.
+- `JUPYTER_VERSION` (currently `2026e_latest`) — used for `jupyter-datascience-{arm64,amd64,s390x}`.
+- `RAG_VERSION` (currently `2026j_latest`) — used for `rag-open-llm-s390x`. The `:${RAG_VERSION}_zdnn` variant is the research/zDNN-on build; the plain tag is the default CPU build.
 
 Source `version.sh` once and the rest of these examples just use `${JUPYTER_VERSION}` / `${RAG_VERSION}`.
 
@@ -106,7 +106,7 @@ docker buildx build --platform linux/s390x -f containers/rag-example/Dockerfile.
 
 ### Tag and push RAG s390x to ICR
 
-Uses **`RAG_VERSION`** from `version.sh` (currently **`2026i_latest`** — different from Jupyter’s **`JUPYTER_VERSION`** / `2026d_latest`).
+Uses **`RAG_VERSION`** from `version.sh` (currently **`2026j_latest`** — different from Jupyter’s **`JUPYTER_VERSION`** / `2026e_latest`).
 
 **Push from server** (image was built with `build-rag-s390x-on-server.sh`):
 ```bash
