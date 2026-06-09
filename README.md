@@ -131,11 +131,10 @@ This means you can use Altastata with pandas, dask, xarray, and hundreds of othe
 ## boto3 / `aws` CLI / `s3fs` (S3-compatible API)
 
 The bundled `altastata-services` JVM exposes an S3-compatible REST API on
-port `9876` from inside the **same process** that backs the Python API.
-Reads/writes from `boto3` resolve to the same `AltaStataFileSystem`
-instance the Python API uses (shared `AccountRegistry`, no second cache).
-Three helpers on `AltaStataFunctions` drive the admin bootstrap and
-surface the access/secret pair the gateway generates:
+port `9876` from inside the **same process** that backs the Python API,
+so `boto3` and the Python API see the same files. Three helpers on
+`AltaStataFunctions` drive the admin bootstrap and surface the
+access/secret pair the gateway generates:
 
 ```python
 from altastata import AltaStataFunctions
@@ -146,7 +145,9 @@ alt.set_password("your_password")
 # One-liner: ready-to-use boto3 S3 client.
 s3 = alt.boto3_s3()
 print(s3.list_buckets())
-s3.put_object(Bucket="my-bucket", Key="hello.txt", Body=b"hi")
+# `altastata-bucket` is the virtual bucket the gateway exposes for this
+# account; substitute your own name if your deployment uses a different one.
+s3.put_object(Bucket="altastata-bucket", Key="hello.txt", Body=b"hi")
 
 # Or: just the kwargs — pass to any AWS SDK / s3fs / pyarrow / awswrangler.
 creds = alt.s3_credentials()
