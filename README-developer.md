@@ -80,6 +80,46 @@ If you prefer to drive each build yourself:
   # Optional: provide your own logback.xml in altastata/lib/
   ```
 
+## boto3 / `aws` CLI against the bundled S3 gateway
+
+The `altastata-services` JVM hosts the S3-compatible REST API on port `9876`
+inside the same process that backs py4j (and gRPC). When the S3 gate is on
+(`ALTASTATA_SERVICES_S3GATEWAY_ENABLED=true`, default in the Jupyter docker
+compose), `boto3` can hit the gateway directly and reads/writes will resolve
+to the **same** `AltaStataFileSystem` instance the Python API uses, via the
+shared `AccountRegistry`. See
+`mycloud/ALTASTATA_SERVICES_UBER_DESIGN.md` §3.1 for the wiring.
+
+`AltaStataFunctions` exposes three helpers that drive the S3 admin bootstrap
+PUTs (`setUserProperties` → `setPrivateKey` → `setPassword`) and surface the
+generated access/secret pair:
+
+```python
+from altastata import AltaStataFunctions
+
+alt = AltaStataFunctions.from_account_dir("/home/jovyan/.altastata/accounts/amazon.rsa.bob123")
+alt.set_password("your-account-password")
+
+# One-liner — bootstrap on first call, dict-lookup on subsequent calls.
+s3 = alt.boto3_s3()
+print(s3.list_buckets())
+
+# Or: get kwargs and pass to any AWS SDK / s3fs / pyarrow / awswrangler.
+creds = alt.s3_credentials()
+# {'endpoint_url': 'http://127.0.0.1:9876',
+#  'aws_access_key_id': 'AKIA...',
+#  'aws_secret_access_key': '...',
+#  'region_name': 'us-east-1'}
+
+# Or: install AWS_* env vars so `!aws s3 ls`, `!s3cmd`, and any SDK that
+# reads the ambient env all "just work" from this Python process.
+alt.install_aws_env()
+```
+
+`boto3` is not in `install_requires` — pip-install it separately when you
+want the convenience wrapper (`pip install boto3`). The other two helpers
+(`s3_credentials`, `install_aws_env`) only use stdlib.
+
 ## Local Development
 
 ### Installation
