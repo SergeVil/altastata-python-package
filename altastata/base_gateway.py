@@ -79,13 +79,15 @@ class BaseGateway:
         has_py4j_jar = any(name.startswith('py4j') and name.endswith('.jar') for name in jar_names)
         has_altastata_runtime = any(
             name == 'altastata-hadoop-all.jar' or
+            (name.startswith('altastata-services-') and name.endswith('-uber.jar')) or
             (name.startswith('altastata-grpc-') and name.endswith('-uber.jar'))
             for name in jar_names
         )
         if not has_py4j_jar or not has_altastata_runtime:
             raise RuntimeError(
                 "Missing required Java runtime jars in altastata/lib. "
-                "Expected py4j*.jar and either altastata-grpc-*-uber.jar (preferred) "
+                "Expected py4j*.jar and one of: altastata-services-*-uber.jar "
+                "(preferred, current build), altastata-grpc-*-uber.jar (legacy), "
                 "or altastata-hadoop-all.jar."
             )
 

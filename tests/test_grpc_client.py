@@ -270,8 +270,8 @@ class GrpcClientTests(unittest.TestCase):
         mock_find_uber,
         mock_popen,
     ):
-        mock_find_uber.return_value = "/tmp/altastata-grpc-1.0.0-uber.jar"
-        mock_build_cp.return_value = "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar"
+        mock_find_uber.return_value = "/tmp/altastata-services-1.0.0-uber.jar"
+        mock_build_cp.return_value = "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar"
         mock_popen.return_value = MagicMock()
 
         from altastata.grpc_client import _start_local_grpc_service
@@ -280,7 +280,7 @@ class GrpcClientTests(unittest.TestCase):
         # env is built by _build_grpc_subprocess_env (covered separately) and
         # is forwarded to Popen so the Java side can pick up the bundled SPA.
         mock_popen.assert_called_once_with(
-            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
+            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar", "com.altastata.services.AltaStataServicesApplication"],
             cwd="/tmp",
             env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,
@@ -304,7 +304,7 @@ class GrpcClientTests(unittest.TestCase):
         _start_local_grpc_service()
 
         mock_popen.assert_called_once_with(
-            ["./gradlew", ":altastata-grpc:run"],
+            ["./gradlew", ":altastata-services:run"],
             cwd="/work/mycloud",
             env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,

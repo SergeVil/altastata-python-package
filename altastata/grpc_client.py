@@ -853,18 +853,19 @@ def _resolve_local_grpc_startup_command(
         bundled_uber_jar = _find_bundled_grpc_uber_jar()
         if bundled_uber_jar is not None:
             classpath = _build_bundled_grpc_classpath(bundled_uber_jar)
-            grpc_server_command = ["java", "-cp", classpath, "com.altastata.grpc.GrpcApplication"]
+            main_class = _grpc_main_class_for_jar(bundled_uber_jar)
+            grpc_server_command = ["java", "-cp", classpath, main_class]
             if resolved_working_dir is None:
                 resolved_working_dir = os.path.dirname(bundled_uber_jar)
         else:
-            grpc_server_command = ["./gradlew", ":altastata-grpc:run"]
+            grpc_server_command = ["./gradlew", ":altastata-services:run"]
             if resolved_working_dir is None:
                 resolved_working_dir = _default_mycloud_dir()
 
-    if resolved_working_dir is None and grpc_server_command[:2] == ["./gradlew", ":altastata-grpc:run"]:
+    if resolved_working_dir is None and grpc_server_command[:2] == ["./gradlew", ":altastata-services:run"]:
         raise RuntimeError(
-            "Unable to locate bundled altastata-grpc runtime jar and unable to determine mycloud "
-            "directory for Gradle fallback. Package altastata-grpc-*-uber.jar under altastata/lib, "
+            "Unable to locate bundled altastata-services runtime jar and unable to determine mycloud "
+            "directory for Gradle fallback. Package altastata-services-*-uber.jar under altastata/lib, "
             "or pass grpc_server_command/grpc_server_working_dir, or set ALTASTATA_MYCLOUD_DIR."
         )
     return list(grpc_server_command), resolved_working_dir
@@ -882,6 +883,17 @@ def _default_mycloud_dir() -> Optional[str]:
 
 
 def _find_bundled_grpc_uber_jar() -> Optional[str]:
+    """
+    Locate the bundled gateway uber jar under ``altastata/lib``.
+
+    Preference order:
+      1. ``altastata-services-*-uber.jar`` — the unified gateway shipped by
+         current mycloud builds (Micronaut + gRPC + S3 + py4j under
+         ``com.altastata.services.AltaStataServicesApplication``).
+      2. ``altastata-grpc-*-uber.jar`` — the legacy gRPC-only gateway
+         (``com.altastata.grpc.GrpcApplication``). Kept so older wheels keep
+         working if the user pip-installed before the rename.
+    """
     try:
         jar_dir = pkg_resources.resource_filename("altastata", "lib")
     except Exception:
@@ -889,14 +901,30 @@ def _find_bundled_grpc_uber_jar() -> Optional[str]:
     if not os.path.isdir(jar_dir):
         return None
 
-    candidates = sorted(
+    services = sorted(
+        os.path.join(jar_dir, f)
+        for f in os.listdir(jar_dir)
+        if f.startswith("altastata-services-") and f.endswith("-uber.jar")
+    )
+    if services:
+        return services[-1]
+
+    legacy = sorted(
         os.path.join(jar_dir, f)
         for f in os.listdir(jar_dir)
         if f.startswith("altastata-grpc-") and f.endswith("-uber.jar")
     )
-    if not candidates:
+    if not legacy:
         return None
-    return candidates[-1]
+    return legacy[-1]
+
+
+def _grpc_main_class_for_jar(bundled_uber_jar: str) -> str:
+    """Pick the right Java main class for the given uber jar filename."""
+    name = os.path.basename(bundled_uber_jar)
+    if name.startswith("altastata-services-"):
+        return "com.altastata.services.AltaStataServicesApplication"
+    return "com.altastata.grpc.GrpcApplication"
 
 
 def _build_grpc_subprocess_env() -> Dict[str, str]:
