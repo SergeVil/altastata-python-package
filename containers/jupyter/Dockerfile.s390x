@@ -66,7 +66,9 @@ RUN if [ -n "${ALTASTATA_VERSION}" ]; then \
         pip install --no-cache-dir altastata ; \
     fi
 # gRPC stubs in altastata.v1 are generated with grpcio-tools 1.80.x.
-RUN pip install --no-cache-dir "grpcio>=1.80.0"
+# boto3 lets notebooks drive AltaStataFunctions.boto3_s3() and the AWS CLI
+# against the local S3 gateway on :9876 without an extra `pip install`.
+RUN pip install --no-cache-dir "grpcio>=1.80.0" boto3
 
 # Copy pytorch-example for reference
 COPY --chown=1001:0 examples/pytorch-example /opt/app-root/src/pytorch-example/

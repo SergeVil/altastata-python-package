@@ -9,7 +9,9 @@
 The wheel ships with two binary artifacts that this repo deliberately does
 not commit to git:
 
-- `altastata/lib/altastata-grpc-<ver>-uber.jar` (built from `mycloud/altastata-grpc`)
+- `altastata/lib/altastata-services-<ver>-uber.jar` (built from
+  `mycloud/altastata-services` — the unified Micronaut app that hosts gRPC,
+  the S3 gateway, and py4j under `com.altastata.services.AltaStataServicesApplication`)
 - `altastata/lib/altastata-console-static/` (built from `altastata-console/frontend`)
 
 Only `altastata/lib/py4j0.10.9.5.jar` is tracked in git, since it is a fixed
@@ -35,10 +37,13 @@ next to this repo. Override with `ALTASTATA_MYCLOUD_DIR` /
 
 If you prefer to drive each build yourself:
 
-1. Build the gRPC uber jar in `mycloud/altastata-grpc`:
+1. Build the unified services uber jar in `mycloud/altastata-services`:
    ```bash
-   (cd ../mycloud && ./gradlew :altastata-grpc:shadowJar)
-   cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-uber.jar altastata/lib/
+   (cd ../mycloud && ./gradlew :altastata-services:shadowJar)
+   cp ../mycloud/altastata-services/build/libs/altastata-services-*-uber.jar altastata/lib/
+   # BouncyCastle is externalized as signed JCE jars referenced from the
+   # uber jar manifest Class-Path; co-locate them alongside the uber jar:
+   cp ../mycloud/altastata-services/build/libs/lib/bc*.jar altastata/lib/
    ```
 
 2. Build the Console SPA in `altastata-console/frontend`:
@@ -74,6 +79,46 @@ If you prefer to drive each build yourself:
   ```bash
   # Optional: provide your own logback.xml in altastata/lib/
   ```
+
+## boto3 / `aws` CLI against the bundled S3 gateway
+
+The `altastata-services` JVM hosts the S3-compatible REST API on port `9876`
+inside the same process that backs py4j (and gRPC). When the S3 gate is on
+(`ALTASTATA_SERVICES_S3GATEWAY_ENABLED=true`, default in the Jupyter docker
+compose), `boto3` can hit the gateway directly and reads/writes will resolve
+to the **same** `AltaStataFileSystem` instance the Python API uses, via the
+shared `AccountRegistry`. See
+`mycloud/ALTASTATA_SERVICES_UBER_DESIGN.md` §3.1 for the wiring.
+
+`AltaStataFunctions` exposes three helpers that drive the S3 admin bootstrap
+PUTs (`setUserProperties` → `setPrivateKey` → `setPassword`) and surface the
+generated access/secret pair:
+
+```python
+from altastata import AltaStataFunctions
+
+alt = AltaStataFunctions.from_account_dir("/home/jovyan/.altastata/accounts/amazon.rsa.bob123")
+alt.set_password("your-account-password")
+
+# One-liner — bootstrap on first call, dict-lookup on subsequent calls.
+s3 = alt.boto3_s3()
+print(s3.list_buckets())
+
+# Or: get kwargs and pass to any AWS SDK / s3fs / pyarrow / awswrangler.
+creds = alt.s3_credentials()
+# {'endpoint_url': 'http://127.0.0.1:9876',
+#  'aws_access_key_id': 'AKIA...',
+#  'aws_secret_access_key': '...',
+#  'region_name': 'us-east-1'}
+
+# Or: install AWS_* env vars so `!aws s3 ls`, `!s3cmd`, and any SDK that
+# reads the ambient env all "just work" from this Python process.
+alt.install_aws_env()
+```
+
+`boto3` is not in `install_requires` — pip-install it separately when you
+want the convenience wrapper (`pip install boto3`). The other two helpers
+(`s3_credentials`, `install_aws_env`) only use stdlib.
 
 ## Local Development
 

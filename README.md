@@ -11,6 +11,7 @@ pip install altastata
 ## Features
 
 - **fsspec filesystem interface** - Use standard Python file operations with encrypted cloud storage
+- **S3-compatible API** - Drive boto3 / `aws` CLI / `s3fs` / pyarrow against the bundled S3 gateway with one helper call
 - **Real-time Event Notifications** - Listen for file share, delete, and create events
 - **LangChain Integration** - Native support for document loaders and vector stores
 - **PyTorch & TensorFlow Support** - Custom datasets for machine learning workflows
@@ -126,6 +127,57 @@ with fs.open("Public/Documents/file.txt", "r") as f:
 ```
 
 This means you can use Altastata with pandas, dask, xarray, and hundreds of other libraries without any special configuration.
+
+## boto3 / `aws` CLI / `s3fs` (S3-compatible API)
+
+The bundled `altastata-services` JVM exposes an S3-compatible REST API on
+port `9876` from inside the **same process** that backs the Python API,
+so `boto3` and the Python API see the same files. Three helpers on
+`AltaStataFunctions` drive the admin bootstrap and surface the
+access/secret pair the gateway generates:
+
+```python
+from altastata import AltaStataFunctions
+
+alt = AltaStataFunctions.from_account_dir("/path/to/account")
+alt.set_password("your_password")
+
+# One-liner: ready-to-use boto3 S3 client.
+s3 = alt.boto3_s3()
+print(s3.list_buckets())
+# `altastata-bucket` is the virtual bucket the gateway exposes for this
+# account; substitute your own name if your deployment uses a different one.
+s3.put_object(Bucket="altastata-bucket", Key="hello.txt", Body=b"hi")
+
+# Or: just the kwargs — pass to any AWS SDK / s3fs / pyarrow / awswrangler.
+creds = alt.s3_credentials()
+# {'endpoint_url': 'http://127.0.0.1:9876',
+#  'aws_access_key_id': 'AKIA...',
+#  'aws_secret_access_key': '...',
+#  'region_name': 'us-east-1'}
+
+import s3fs
+fs = s3fs.S3FileSystem(
+    key=creds["aws_access_key_id"],
+    secret=creds["aws_secret_access_key"],
+    client_kwargs={"endpoint_url": creds["endpoint_url"]},
+)
+
+# Or: install AWS_* env vars so `!aws s3 ls`, `!s3cmd ls`, and any SDK
+# that reads the ambient environment all "just work" — handy from Jupyter
+# notebook shell cells.
+alt.install_aws_env()
+```
+
+Requirements:
+
+- The S3 gateway must be enabled on the JVM
+  (`ALTASTATA_SERVICES_S3GATEWAY_ENABLED=true`, which is the **default in the
+  bundled `jupyter-datascience` docker compose**).
+- `boto3` is **not** in the wheel's `install_requires` — install it
+  separately (`pip install boto3`) only if you want the
+  `alt.boto3_s3()` convenience. `s3_credentials()` and `install_aws_env()`
+  use stdlib only.
 
 ## Event Listener
 

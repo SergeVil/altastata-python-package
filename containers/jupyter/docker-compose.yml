@@ -17,8 +17,13 @@ services:
       # without touching the container; default 9877. Set it to e.g. 9879
       # in .env if 9877 is occupied (Jupyter + RAG side-by-side: RAG default
       # is 9878).
+      # ALTASTATA_S3_HOST_PORT is the S3-compatible REST API (default 9876)
+      # so boto3 / aws CLI / s3fs / etc. can hit the gateway from the host.
+      # Only used when ALTASTATA_SERVICES_S3GATEWAY_ENABLED=1; otherwise the
+      # JVM still binds 9876 internally but routes return 404 (no controller).
       - "127.0.0.1:8888:8888"
       - "127.0.0.1:${ALTASTATA_CONSOLE_UI_HOST_PORT:-9877}:9877"
+      - "127.0.0.1:${ALTASTATA_S3_HOST_PORT:-9876}:9876"
     volumes:
       - ../../examples/pytorch-example:/home/jovyan/pytorch-example
       - ../../examples/tensorflow-example:/home/jovyan/tensorflow-example
@@ -31,6 +36,24 @@ services:
       # Console UI auto-starts by default in this stack. Set to 0 in .env for
       # Jupyter-only. ALTASTATA_GRPC_BIND_ADDRESS is baked in the image.
       - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-1}
+      # S3 gateway gate inside the altastata-services JVM. Default ON in this
+      # stack so notebooks can drive boto3 / aws CLI against the same data
+      # the py4j Python API sees (shared AccountRegistry → same
+      # AltaStataFileSystem inside one JVM). The value is consumed by
+      # @Requires(value="true") on S3Controller, so it MUST be the literal
+      # string "true" or "false" (not "1"/"0"). Set to "false" in .env to
+      # bind only gRPC + py4j (the JVM still listens on 9876 but with no S3
+      # routes registered).
+      - ALTASTATA_SERVICES_S3GATEWAY_ENABLED=${ALTASTATA_SERVICES_S3GATEWAY_ENABLED:-true}
+      # S3Controller persists its userDataMap (per-user access/secret keys
+      # + encrypted user_properties + encrypted private-key PEM) to JSON so
+      # it survives container restarts. Default path /app/data/.userdata.json
+      # does not exist in this image; redirect to the existing jupyter-data
+      # named volume mounted at /home/jovyan/work so persistence Just Works
+      # without adding a new bind mount. The file does NOT contain plaintext
+      # passwords or decrypted material — all sensitive bytes are still
+      # encrypted by the user password (see S3Controller.getConfigurableFilePath).
+      - ALTASTATA_USERDATA_FILE=${ALTASTATA_USERDATA_FILE:-/home/jovyan/work/altastata-userdata.json}
     networks:
       - altastata-network
     restart: unless-stopped

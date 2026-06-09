@@ -11,21 +11,26 @@ This benchmark compares control-plane latency for equivalent calls:
 
 ```bash
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/mycloud
-./gradlew :altastata-grpc:run
+./gradlew :altastata-services:run
 ```
 
 ### 2) Initialize gateway user/session with account files
 
+The three bootstrap PUTs used to live on Micronaut port 9880; after the
+`altastata-services` consolidation they are served by Armeria on port 9877
+alongside the gRPC server (see
+`mycloud/ALTASTATA_SERVICES_UBER_DESIGN.md` §3.1).
+
 ```bash
-curl -sS -X PUT "http://127.0.0.1:9880/setUserProperties/bob123" \
+curl -sS -X PUT "http://127.0.0.1:9877/setUserProperties/bob123" \
   -H "Content-Type: text/plain" \
   --data-binary @"/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123/altastata-myorgrsa444-bob123.user.properties"
 
-curl -sS -X PUT "http://127.0.0.1:9880/setPrivateKey/bob123" \
+curl -sS -X PUT "http://127.0.0.1:9877/setPrivateKey/bob123" \
   -H "Content-Type: text/plain" \
   --data-binary @"/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123/private.key"
 
-curl -sS -X PUT "http://127.0.0.1:9880/setPassword/bob123" \
+curl -sS -X PUT "http://127.0.0.1:9877/setPassword/bob123" \
   -H "Content-Type: text/plain" \
   --data "123"
 ```

@@ -189,6 +189,78 @@ class GrpcClientTests(unittest.TestCase):
         mock_start_server.assert_called_once()
         mock_bootstrap_and_login.assert_called_once()
 
+    @patch("altastata.grpc_client.AltaStataGrpcClient._create_channel")
+    def test_bootstrap_skips_set_private_key_for_hpcs_account(self, mock_create_channel):
+        """HPCS / HSM-backed accounts pass private_key_encrypted="" because the
+        key lives in the HSM. The server's SetPrivateKey validator rejects an
+        empty PEM with INVALID_ARGUMENT, so the client must skip that RPC
+        entirely. SetUserProperties and Login must still run."""
+        users_stub_mock = MagicMock()
+        auth_stub_mock = MagicMock()
+        auth_stub_mock.Login.return_value = MagicMock(session_token="sess-hpcs-token")
+
+        sys.modules["altastata.v1.users_pb2_grpc"].UsersServiceStub = MagicMock(
+            return_value=users_stub_mock,
+        )
+        sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
+            return_value=auth_stub_mock,
+        )
+        sys.modules["altastata.v1.users_pb2"].SetUserPropertiesRequest = MagicMock()
+        sys.modules["altastata.v1.users_pb2"].SetPrivateKeyRequest = MagicMock()
+        sys.modules["altastata.v1.auth_pb2"].LoginRequest = MagicMock()
+
+        mock_create_channel.return_value = MagicMock()
+
+        from altastata.grpc_client import _bootstrap_and_login, GrpcEndpoint
+        token = _bootstrap_and_login(
+            endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+            user_name="serge678",
+            user_properties="myuser=serge678\nkey-protection=HPCS\n",
+            private_key_encrypted="",
+            password="",
+            client_hint="hpcs-test",
+        )
+
+        self.assertEqual("sess-hpcs-token", token)
+        users_stub_mock.SetUserProperties.assert_called_once()
+        users_stub_mock.SetPrivateKey.assert_not_called()
+        auth_stub_mock.Login.assert_called_once()
+
+    @patch("altastata.grpc_client.AltaStataGrpcClient._create_channel")
+    def test_bootstrap_calls_set_private_key_for_rsa_account(self, mock_create_channel):
+        """Regression guard: password-based / RSA accounts pass a real
+        encrypted PEM and SetPrivateKey must still be called for them."""
+        users_stub_mock = MagicMock()
+        auth_stub_mock = MagicMock()
+        auth_stub_mock.Login.return_value = MagicMock(session_token="sess-rsa-token")
+
+        sys.modules["altastata.v1.users_pb2_grpc"].UsersServiceStub = MagicMock(
+            return_value=users_stub_mock,
+        )
+        sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
+            return_value=auth_stub_mock,
+        )
+        sys.modules["altastata.v1.users_pb2"].SetUserPropertiesRequest = MagicMock()
+        sys.modules["altastata.v1.users_pb2"].SetPrivateKeyRequest = MagicMock()
+        sys.modules["altastata.v1.auth_pb2"].LoginRequest = MagicMock()
+
+        mock_create_channel.return_value = MagicMock()
+
+        from altastata.grpc_client import _bootstrap_and_login, GrpcEndpoint
+        token = _bootstrap_and_login(
+            endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+            user_name="bob123",
+            user_properties="myuser=bob123\n",
+            private_key_encrypted="-----BEGIN RSA PRIVATE KEY-----\n...\n",
+            password="123",
+            client_hint="rsa-test",
+        )
+
+        self.assertEqual("sess-rsa-token", token)
+        users_stub_mock.SetUserProperties.assert_called_once()
+        users_stub_mock.SetPrivateKey.assert_called_once()
+        auth_stub_mock.Login.assert_called_once()
+
     @patch("altastata.grpc_client.subprocess.Popen")
     @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
     @patch("altastata.grpc_client._build_bundled_grpc_classpath")
@@ -198,8 +270,8 @@ class GrpcClientTests(unittest.TestCase):
         mock_find_uber,
         mock_popen,
     ):
-        mock_find_uber.return_value = "/tmp/altastata-grpc-1.0.0-uber.jar"
-        mock_build_cp.return_value = "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar"
+        mock_find_uber.return_value = "/tmp/altastata-services-1.0.0-uber.jar"
+        mock_build_cp.return_value = "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar"
         mock_popen.return_value = MagicMock()
 
         from altastata.grpc_client import _start_local_grpc_service
@@ -208,7 +280,7 @@ class GrpcClientTests(unittest.TestCase):
         # env is built by _build_grpc_subprocess_env (covered separately) and
         # is forwarded to Popen so the Java side can pick up the bundled SPA.
         mock_popen.assert_called_once_with(
-            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-grpc-1.0.0-uber.jar", "com.altastata.grpc.GrpcApplication"],
+            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar", "com.altastata.services.AltaStataServicesApplication"],
             cwd="/tmp",
             env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,
@@ -232,7 +304,7 @@ class GrpcClientTests(unittest.TestCase):
         _start_local_grpc_service()
 
         mock_popen.assert_called_once_with(
-            ["./gradlew", ":altastata-grpc:run"],
+            ["./gradlew", ":altastata-services:run"],
             cwd="/work/mycloud",
             env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,

@@ -53,7 +53,9 @@ RUN if [ -n "${ALTASTATA_VERSION}" ]; then \
         pip install --no-cache-dir altastata ; \
     fi
 # gRPC stubs in altastata.v1 are generated with grpcio-tools 1.80.x.
-RUN pip install --no-cache-dir "grpcio>=1.80.0"
+# boto3 lets notebooks drive AltaStataFunctions.boto3_s3() and the AWS CLI
+# against the local S3 gateway on :9876 without an extra `pip install`.
+RUN pip install --no-cache-dir "grpcio>=1.80.0" boto3
 
 # Copy pytorch-example for reference
 COPY --chown=1001:0 examples/pytorch-example /opt/app-root/src/pytorch-example/
@@ -101,4 +103,12 @@ LABEL org.opencontainers.image.title="altastata/jupyter-datascience"
 LABEL org.opencontainers.image.description="Jupyter DataScience environment with AltaStata integration"
 LABEL org.opencontainers.image.version="latest"
 
-CMD ["altastata-console-entrypoint.sh", "start-notebook.sh"]
+# The opendatahub base image has its own ENTRYPOINT=start-notebook.sh which
+# builds its own argv for jupyter-lab and ignores any CMD args we pass. To
+# auto-start altastata-grpc-server alongside Jupyter Lab when
+# ENABLE_ALTASTATA_CONSOLE_UI=1, we have to override ENTRYPOINT (mirrors the
+# pattern already used in Dockerfile.arm64). The wrapper backgrounds the
+# gateway and then `exec`s start-notebook.sh, which in turn does its own
+# Jupyter argv composition.
+ENTRYPOINT ["/usr/local/bin/altastata-console-entrypoint.sh"]
+CMD ["/opt/app-root/bin/start-notebook.sh"]

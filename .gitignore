@@ -89,3 +89,4 @@ containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf
 # Local RAG dev: account props and Mac-side build transcripts (never commit)
 containers/rag-example/*.user.properties
 rag-zdnn-build.log
+containers/jupyter/docker-compose.override.yml
