@@ -45,6 +45,15 @@ services:
       # bind only gRPC + py4j (the JVM still listens on 9876 but with no S3
       # routes registered).
       - ALTASTATA_SERVICES_S3GATEWAY_ENABLED=${ALTASTATA_SERVICES_S3GATEWAY_ENABLED:-true}
+      # S3Controller persists its userDataMap (per-user access/secret keys
+      # + encrypted user_properties + encrypted private-key PEM) to JSON so
+      # it survives container restarts. Default path /app/data/.userdata.json
+      # does not exist in this image; redirect to the existing jupyter-data
+      # named volume mounted at /home/jovyan/work so persistence Just Works
+      # without adding a new bind mount. The file does NOT contain plaintext
+      # passwords or decrypted material — all sensitive bytes are still
+      # encrypted by the user password (see S3Controller.getConfigurableFilePath).
+      - ALTASTATA_USERDATA_FILE=${ALTASTATA_USERDATA_FILE:-/home/jovyan/work/altastata-userdata.json}
     networks:
       - altastata-network
     restart: unless-stopped
