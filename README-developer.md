@@ -9,7 +9,9 @@
 The wheel ships with two binary artifacts that this repo deliberately does
 not commit to git:
 
-- `altastata/lib/altastata-grpc-<ver>-uber.jar` (built from `mycloud/altastata-grpc`)
+- `altastata/lib/altastata-services-<ver>-uber.jar` (built from
+  `mycloud/altastata-services` — the unified Micronaut app that hosts gRPC,
+  the S3 gateway, and py4j under `com.altastata.services.AltaStataServicesApplication`)
 - `altastata/lib/altastata-console-static/` (built from `altastata-console/frontend`)
 
 Only `altastata/lib/py4j0.10.9.5.jar` is tracked in git, since it is a fixed
@@ -35,10 +37,13 @@ next to this repo. Override with `ALTASTATA_MYCLOUD_DIR` /
 
 If you prefer to drive each build yourself:
 
-1. Build the gRPC uber jar in `mycloud/altastata-grpc`:
+1. Build the unified services uber jar in `mycloud/altastata-services`:
    ```bash
-   (cd ../mycloud && ./gradlew :altastata-grpc:shadowJar)
-   cp ../mycloud/altastata-grpc/build/libs/altastata-grpc-*-uber.jar altastata/lib/
+   (cd ../mycloud && ./gradlew :altastata-services:shadowJar)
+   cp ../mycloud/altastata-services/build/libs/altastata-services-*-uber.jar altastata/lib/
+   # BouncyCastle is externalized as signed JCE jars referenced from the
+   # uber jar manifest Class-Path; co-locate them alongside the uber jar:
+   cp ../mycloud/altastata-services/build/libs/lib/bc*.jar altastata/lib/
    ```
 
 2. Build the Console SPA in `altastata-console/frontend`:

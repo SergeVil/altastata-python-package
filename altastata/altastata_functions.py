@@ -147,7 +147,14 @@ class AltaStataFunctions(BaseGateway):
             callback_server_port=callback_server_port,
             transport="py4j",
         )
-        instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(account_dir_path)
+        # The AltaStataFileSystem constructor is package-private since the
+        # AccountRegistry refactor: direct `new AltaStataFileSystem(...)` over
+        # py4j now fails reflection. Route through the registry's static
+        # factory so the per-(prefix,user,accounttype) instance is shared
+        # JVM-wide with any co-hosted gRPC / S3 / examples.
+        instance.altastata_file_system = (
+            instance.gateway.jvm.com.altastata.api.AccountRegistry.getOrCreateFromDir(account_dir_path)
+        )
         return instance
 
     @classmethod
@@ -205,7 +212,13 @@ class AltaStataFunctions(BaseGateway):
             callback_server_port=callback_server_port,
             transport="py4j",
         )
-        instance.altastata_file_system = instance.gateway.jvm.com.altastata.api.AltaStataFileSystem(user_properties, private_key_encrypted)
+        # See note in from_account_dir: package-private constructor is no
+        # longer reachable via py4j reflection, so go through the registry.
+        instance.altastata_file_system = (
+            instance.gateway.jvm.com.altastata.api.AccountRegistry.getOrCreate(
+                user_properties, private_key_encrypted
+            )
+        )
         return instance
 
     def convert_java_list_to_python(self, java_list):

@@ -4,7 +4,9 @@
 # Why this exists:
 #   The altastata Python package ships two binary artifacts that this repo
 #   does not store in git:
-#     1. altastata-grpc-<ver>-uber.jar  (built from sibling mycloud/altastata-grpc)
+#     1. altastata-services-<ver>-uber.jar  (built from sibling
+#        mycloud/altastata-services — the unified Micronaut app that hosts
+#        gRPC + S3 + py4j under com.altastata.services.AltaStataServicesApplication)
 #     2. altastata/lib/altastata-console-static/  (built from sibling altastata-console)
 #   Both are deliberately gitignored under altastata/lib/ so the repo stays
 #   text-only. They are populated locally before `python -m build` so they
@@ -18,8 +20,8 @@
 #                           (default: ../mycloud relative to this repo)
 #   ALTASTATA_CONSOLE_DIR   override path to the altastata-console checkout
 #                           (default: ../altastata-console relative to this repo)
-#   SKIP_GRPC=1             skip the altastata-grpc Gradle build (use existing
-#                           altastata-grpc-*-uber.jar already present in lib/)
+#   SKIP_GRPC=1             skip the altastata-services Gradle build (use existing
+#                           altastata-services-*-uber.jar already present in lib/)
 #   SKIP_UI=1               skip the altastata-console npm build (use existing
 #                           altastata/lib/altastata-console-static/ contents)
 #
@@ -48,22 +50,35 @@ if [[ -z "${SKIP_GRPC:-}" ]]; then
         echo "       Set ALTASTATA_MYCLOUD_DIR or place mycloud next to this repo." >&2
         exit 1
     fi
-    echo "==> Building altastata-grpc uber jar in $MYCLOUD_DIR"
-    (cd "$MYCLOUD_DIR" && ./gradlew :altastata-grpc:shadowJar)
+    echo "==> Building altastata-services uber jar in $MYCLOUD_DIR"
+    (cd "$MYCLOUD_DIR" && ./gradlew :altastata-services:shadowJar)
 
-    UBER_JAR="$(ls -1 "$MYCLOUD_DIR"/altastata-grpc/build/libs/altastata-grpc-*-uber.jar 2>/dev/null | tail -1 || true)"
+    UBER_JAR="$(ls -1 "$MYCLOUD_DIR"/altastata-services/build/libs/altastata-services-*-uber.jar 2>/dev/null | tail -1 || true)"
     if [[ -z "$UBER_JAR" || ! -f "$UBER_JAR" ]]; then
-        echo "ERROR: no altastata-grpc-*-uber.jar produced under $MYCLOUD_DIR/altastata-grpc/build/libs/" >&2
+        echo "ERROR: no altastata-services-*-uber.jar produced under $MYCLOUD_DIR/altastata-services/build/libs/" >&2
         exit 1
     fi
 
-    # Remove any previously-staged uber jar so we never ship two side by side
-    # (the launcher classpath would otherwise pick the older version arbitrarily).
-    find "$LIB_DIR" -maxdepth 1 -name 'altastata-grpc-*-uber.jar' -print -delete
+    # Drop any previously-staged uber jars (both the new services name and the
+    # legacy altastata-grpc name) so we never ship two side by side; the
+    # launcher classpath would otherwise pick whichever sorts last.
+    find "$LIB_DIR" -maxdepth 1 \( -name 'altastata-services-*-uber.jar' -o -name 'altastata-grpc-*-uber.jar' \) -print -delete
     cp "$UBER_JAR" "$LIB_DIR/"
     echo "    copied $(basename "$UBER_JAR") -> altastata/lib/"
+
+    # Co-locate the BouncyCastle jars that altastata-services externalizes
+    # (they are referenced from the uber jar manifest Class-Path) so JCE
+    # signing keeps working when Python launches the gateway from altastata/lib.
+    SERVICES_LIB_DIR="$MYCLOUD_DIR/altastata-services/build/libs/lib"
+    if [[ -d "$SERVICES_LIB_DIR" ]]; then
+        for bc_jar in "$SERVICES_LIB_DIR"/bcpkix-*.jar "$SERVICES_LIB_DIR"/bcprov-*.jar "$SERVICES_LIB_DIR"/bcutil-*.jar; do
+            [[ -f "$bc_jar" ]] || continue
+            cp "$bc_jar" "$LIB_DIR/"
+            echo "    copied $(basename "$bc_jar") -> altastata/lib/"
+        done
+    fi
 else
-    echo "==> SKIP_GRPC=1, leaving altastata-grpc uber jar untouched"
+    echo "==> SKIP_GRPC=1, leaving altastata-services uber jar untouched"
 fi
 
 if [[ -z "${SKIP_UI:-}" ]]; then
