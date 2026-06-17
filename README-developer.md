@@ -74,6 +74,14 @@ If you prefer to drive each build yourself:
    `ALTASTATA_WEB_UI_DIR=` (empty) before running to disable the UI and
    keep gRPC-only routing for legacy testing.
 
+### gRPC transport (`transport="grpc"`)
+
+`AltaStataGrpcClient.from_account_dir` authenticates via `AuthService.LoginV2`
+with `user_account_directory` (account folder on the same host as the gateway).
+`from_credentials` uses the `upload` form (`user_properties` + private key
+bytes). Legacy `SetUserProperties` / `SetPrivateKey` bootstrap is not used on
+the gRPC path. See `mycloud/altastata-grpc/CONSOLE_ACCOUNT_SETUP_DESIGN.md` §2.
+
 ### Logging Configuration
 - To customize logging, copy and modify the logback configuration:
   ```bash

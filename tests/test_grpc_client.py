@@ -117,7 +117,7 @@ class GrpcClientTests(unittest.TestCase):
         self.assertEqual("bob123", _infer_user_name_from_properties_text(props))
 
     @patch("altastata.grpc_client.grpc.insecure_channel")
-    @patch("altastata.grpc_client._bootstrap_and_login")
+    @patch("altastata.grpc_client._login_v2")
     @patch("altastata.grpc_client._wait_for_port")
     @patch("altastata.grpc_client._start_local_grpc_service")
     @patch("altastata.grpc_client._is_port_open")
@@ -126,13 +126,13 @@ class GrpcClientTests(unittest.TestCase):
         mock_is_port_open,
         mock_start_server,
         _mock_wait_for_port,
-        mock_bootstrap_and_login,
+        mock_login_v2,
         mock_insecure_channel,
     ):
         mock_insecure_channel.return_value = object()
         mock_is_port_open.return_value = False
         mock_start_server.return_value = object()
-        mock_bootstrap_and_login.return_value = "sess-test-token"
+        mock_login_v2.return_value = "sess-test-token"
 
         with tempfile.TemporaryDirectory() as td:
             up = os.path.join(td, "altastata-org-bob123.user.properties")
@@ -152,14 +152,14 @@ class GrpcClientTests(unittest.TestCase):
                 grpc_server_working_dir=td,
             )
             mock_start_server.assert_called_once()
-            mock_bootstrap_and_login.assert_called_once()
+            mock_login_v2.assert_called_once()
             self.assertEqual(
                 [("authorization", "Bearer sess-test-token")],
                 client._metadata,
             )
 
     @patch("altastata.grpc_client.grpc.insecure_channel")
-    @patch("altastata.grpc_client._bootstrap_and_login")
+    @patch("altastata.grpc_client._login_v2")
     @patch("altastata.grpc_client._wait_for_port")
     @patch("altastata.grpc_client._start_local_grpc_service")
     @patch("altastata.grpc_client._is_port_open")
@@ -168,13 +168,13 @@ class GrpcClientTests(unittest.TestCase):
         mock_is_port_open,
         mock_start_server,
         _mock_wait_for_port,
-        mock_bootstrap_and_login,
+        mock_login_v2,
         mock_insecure_channel,
     ):
         mock_insecure_channel.return_value = object()
         mock_is_port_open.return_value = False
         mock_start_server.return_value = object()
-        mock_bootstrap_and_login.return_value = "sess-test-token"
+        mock_login_v2.return_value = "sess-test-token"
 
         from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
         AltaStataGrpcClient.from_credentials(
@@ -187,79 +187,101 @@ class GrpcClientTests(unittest.TestCase):
             grpc_server_working_dir="/tmp",
         )
         mock_start_server.assert_called_once()
-        mock_bootstrap_and_login.assert_called_once()
+        mock_login_v2.assert_called_once()
+
+    @patch("altastata.grpc_client.grpc.insecure_channel")
+    @patch("altastata.grpc_client._login_v2")
+    @patch("altastata.grpc_client._wait_for_port")
+    @patch("altastata.grpc_client._start_local_grpc_service")
+    @patch("altastata.grpc_client._is_port_open")
+    def test_from_account_dir_hpcs_without_private_key(
+        self,
+        mock_is_port_open,
+        mock_start_server,
+        _mock_wait_for_port,
+        mock_login_v2,
+        mock_insecure_channel,
+    ):
+        """HPCS accounts have no private.key on disk; LoginV2 directory mode reads the blob."""
+        mock_insecure_channel.return_value = object()
+        mock_is_port_open.return_value = True
+        mock_login_v2.return_value = "sess-hpcs-token"
+
+        with tempfile.TemporaryDirectory() as td:
+            up = os.path.join(td, "altastata-org-serge678.user.properties")
+            with open(up, "w", encoding="utf-8") as f:
+                f.write("myuser=serge678\nkey-protection=HPCS\n")
+
+            from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
+            client = AltaStataGrpcClient.from_account_dir(
+                td,
+                password="",
+                endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+                auto_start_server=False,
+            )
+            mock_start_server.assert_not_called()
+            mock_login_v2.assert_called_once()
+            _, kwargs = mock_login_v2.call_args
+            self.assertEqual(os.path.abspath(td), kwargs["user_account_directory"])
+            self.assertEqual(
+                [("authorization", "Bearer sess-hpcs-token")],
+                client._metadata,
+            )
 
     @patch("altastata.grpc_client.AltaStataGrpcClient._create_channel")
-    def test_bootstrap_skips_set_private_key_for_hpcs_account(self, mock_create_channel):
-        """HPCS / HSM-backed accounts pass private_key_encrypted="" because the
-        key lives in the HSM. The server's SetPrivateKey validator rejects an
-        empty PEM with INVALID_ARGUMENT, so the client must skip that RPC
-        entirely. SetUserProperties and Login must still run."""
-        users_stub_mock = MagicMock()
+    def test_login_v2_upload_skips_private_key_for_hpcs(self, mock_create_channel):
         auth_stub_mock = MagicMock()
-        auth_stub_mock.Login.return_value = MagicMock(session_token="sess-hpcs-token")
+        auth_stub_mock.LoginV2.return_value = MagicMock(session_token="sess-hpcs-token")
 
-        sys.modules["altastata.v1.users_pb2_grpc"].UsersServiceStub = MagicMock(
-            return_value=users_stub_mock,
-        )
+        auth_pb2 = types.ModuleType("auth_pb2")
+        auth_pb2.LoginV2Request = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
+        auth_pb2.LoginV2Upload = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
+        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
         sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
             return_value=auth_stub_mock,
         )
-        sys.modules["altastata.v1.users_pb2"].SetUserPropertiesRequest = MagicMock()
-        sys.modules["altastata.v1.users_pb2"].SetPrivateKeyRequest = MagicMock()
-        sys.modules["altastata.v1.auth_pb2"].LoginRequest = MagicMock()
 
         mock_create_channel.return_value = MagicMock()
 
-        from altastata.grpc_client import _bootstrap_and_login, GrpcEndpoint
-        token = _bootstrap_and_login(
+        from altastata.grpc_client import _login_v2, GrpcEndpoint
+        token = _login_v2(
             endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
-            user_name="serge678",
-            user_properties="myuser=serge678\nkey-protection=HPCS\n",
-            private_key_encrypted="",
             password="",
             client_hint="hpcs-test",
+            user_properties="myuser=serge678\nkey-protection=HPCS\n",
+            account_files={},
         )
 
         self.assertEqual("sess-hpcs-token", token)
-        users_stub_mock.SetUserProperties.assert_called_once()
-        users_stub_mock.SetPrivateKey.assert_not_called()
-        auth_stub_mock.Login.assert_called_once()
+        auth_stub_mock.LoginV2.assert_called_once()
 
     @patch("altastata.grpc_client.AltaStataGrpcClient._create_channel")
-    def test_bootstrap_calls_set_private_key_for_rsa_account(self, mock_create_channel):
-        """Regression guard: password-based / RSA accounts pass a real
-        encrypted PEM and SetPrivateKey must still be called for them."""
-        users_stub_mock = MagicMock()
+    def test_login_v2_upload_includes_private_key_for_rsa(self, mock_create_channel):
         auth_stub_mock = MagicMock()
-        auth_stub_mock.Login.return_value = MagicMock(session_token="sess-rsa-token")
+        auth_stub_mock.LoginV2.return_value = MagicMock(session_token="sess-rsa-token")
 
-        sys.modules["altastata.v1.users_pb2_grpc"].UsersServiceStub = MagicMock(
-            return_value=users_stub_mock,
-        )
+        auth_pb2 = types.ModuleType("auth_pb2")
+        auth_pb2.LoginV2Request = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
+        auth_pb2.LoginV2Upload = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
+        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
         sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
             return_value=auth_stub_mock,
         )
-        sys.modules["altastata.v1.users_pb2"].SetUserPropertiesRequest = MagicMock()
-        sys.modules["altastata.v1.users_pb2"].SetPrivateKeyRequest = MagicMock()
-        sys.modules["altastata.v1.auth_pb2"].LoginRequest = MagicMock()
 
         mock_create_channel.return_value = MagicMock()
 
-        from altastata.grpc_client import _bootstrap_and_login, GrpcEndpoint
-        token = _bootstrap_and_login(
+        from altastata.grpc_client import _login_v2, GrpcEndpoint
+        pem = "-----BEGIN RSA PRIVATE KEY-----\n...\n"
+        token = _login_v2(
             endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
-            user_name="bob123",
-            user_properties="myuser=bob123\n",
-            private_key_encrypted="-----BEGIN RSA PRIVATE KEY-----\n...\n",
             password="123",
             client_hint="rsa-test",
+            user_properties="myuser=bob123\n",
+            account_files={"private.key": pem.encode("utf-8")},
         )
 
         self.assertEqual("sess-rsa-token", token)
-        users_stub_mock.SetUserProperties.assert_called_once()
-        users_stub_mock.SetPrivateKey.assert_called_once()
-        auth_stub_mock.Login.assert_called_once()
+        auth_stub_mock.LoginV2.assert_called_once()
 
     @patch("altastata.grpc_client.subprocess.Popen")
     @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
