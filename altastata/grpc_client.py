@@ -55,11 +55,14 @@ class AltaStataGrpcClient:
     The legacy ``local-<userName>`` / ``access-<accessKey>`` token paths are
     no longer accepted by the gateway and are not produced by this client.
 
-    First-contact bootstrap (when the gateway has never seen this user in
-    this JVM) is still required: the gateway needs the user's properties
-    and encrypted private key in memory before ``Login`` can validate the
-    password. ``from_account_dir`` / ``from_credentials`` perform that
-    bootstrap once and then immediately call ``Login``.
+    First-contact authentication uses ``AuthService.LoginV2``:
+
+    - ``from_account_dir`` sends ``user_account_directory`` (co-located gateway).
+    - ``from_credentials`` sends ``upload`` with ``user_properties`` + private key
+      file bytes (remote / in-memory bootstrap).
+
+    Legacy ``SetUserProperties`` / ``SetPrivateKey`` bootstrap is no longer used
+    by this client.
     """
 
     def __init__(
@@ -69,6 +72,8 @@ class AltaStataGrpcClient:
         bearer_token: str,
         user_name: Optional[str] = None,
         client_hint: Optional[str] = None,
+        account_dir_path: Optional[str] = None,
+        login_upload: Optional[Tuple[str, Dict[str, bytes]]] = None,
     ):
         if not bearer_token:
             raise ValueError("bearer_token is required (use AuthService.Login or pass an existing sess-<token>)")
@@ -81,6 +86,8 @@ class AltaStataGrpcClient:
         # and evicts only this instance's own prior session, not someone
         # else's session for the same user.
         self._client_hint = client_hint or _default_client_hint()
+        self._account_dir_path = account_dir_path
+        self._login_upload = login_upload
         self._metadata: List[Tuple[str, str]] = [("authorization", f"Bearer {self._token}")]
         self._channel = self._create_channel(endpoint)
 
@@ -135,11 +142,9 @@ class AltaStataGrpcClient:
         """
         Create a gRPC client from an AltaStata account directory.
 
-        Reads ``*.user.properties`` + ``private.key`` from disk, ships them
-        to the gateway via the bootstrap RPCs, and then calls
-        ``AuthService.Login`` to obtain a per-process session token. All
-        subsequent RPCs on the returned client are authenticated with that
-        ``sess-<token>``.
+        Calls ``AuthService.LoginV2`` with ``user_account_directory`` so the
+        gateway reads ``*user.properties`` and private key material from disk
+        (RSA ``private.key``, PQC private keys, HPCS ``hpcs-privkey.blob``, etc.).
 
         ``client_hint`` defaults to a freshly minted, per-instance UUID
         prefixed with ``altastata-python-package/`` so two clients in the
@@ -148,22 +153,15 @@ class AltaStataGrpcClient:
         deliberately want a different instance to *replace* a prior one.
         """
         if password is None:
-            raise ValueError("password is required for AuthService.Login")
+            raise ValueError("password is required for AuthService.LoginV2")
 
         account_dir = os.path.abspath(account_dir_path)
         if not os.path.isdir(account_dir):
             raise FileNotFoundError(f"Account directory not found: {account_dir}")
 
         user_properties_path = _find_user_properties_file(account_dir)
-        private_key_path = os.path.join(account_dir, "private.key")
-        if not os.path.exists(private_key_path):
-            raise FileNotFoundError(f"private.key not found in account directory: {account_dir}")
-
         with open(user_properties_path, "r", encoding="utf-8") as f:
             user_properties = f.read()
-        with open(private_key_path, "r", encoding="utf-8") as f:
-            private_key = f.read()
-
         resolved_user_name = user_name or _infer_user_name(account_dir, user_properties_path)
 
         started_process = None
@@ -175,13 +173,11 @@ class AltaStataGrpcClient:
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
 
         effective_hint = client_hint or _default_client_hint()
-        token = _bootstrap_and_login(
+        token = _login_v2(
             endpoint=endpoint,
-            user_name=resolved_user_name,
-            user_properties=user_properties,
-            private_key_encrypted=private_key,
             password=password,
             client_hint=effective_hint,
+            user_account_directory=account_dir,
         )
 
         client = cls(
@@ -189,6 +185,7 @@ class AltaStataGrpcClient:
             bearer_token=token,
             user_name=resolved_user_name,
             client_hint=effective_hint,
+            account_dir_path=account_dir,
         )
         client._server_process = started_process
         return client
@@ -215,9 +212,10 @@ class AltaStataGrpcClient:
         omitted, a fresh per-instance UUID is generated automatically.
         """
         if password is None:
-            raise ValueError("password is required for AuthService.Login")
+            raise ValueError("password is required for AuthService.LoginV2")
 
         resolved_user_name = user_name or _infer_user_name_from_properties_text(user_properties)
+        account_files = _account_files_from_private_key(private_key_encrypted)
 
         started_process = None
         if not _is_port_open(endpoint.host, endpoint.port) and auto_start_server:
@@ -228,13 +226,12 @@ class AltaStataGrpcClient:
             _wait_for_port(endpoint.host, endpoint.port, timeout_s=start_timeout_s)
 
         effective_hint = client_hint or _default_client_hint()
-        token = _bootstrap_and_login(
+        token = _login_v2(
             endpoint=endpoint,
-            user_name=resolved_user_name,
-            user_properties=user_properties,
-            private_key_encrypted=private_key_encrypted,
             password=password,
             client_hint=effective_hint,
+            user_properties=user_properties,
+            account_files=account_files,
         )
 
         client = cls(
@@ -242,6 +239,7 @@ class AltaStataGrpcClient:
             bearer_token=token,
             user_name=resolved_user_name,
             client_hint=effective_hint,
+            login_upload=(user_properties, account_files),
         )
         client._server_process = started_process
         return client
@@ -515,11 +513,8 @@ class AltaStataGrpcClient:
     def set_password(self, account_password: str):
         """
         Re-authenticate this client by logging out the current session (if any)
-        and calling ``AuthService.Login`` again.
-
-        Mirrors the legacy Py4J behaviour where ``setPassword`` unlocks the
-        account; over gRPC this is now a Logout-then-Login. The previous
-        ``SetPasswordForUser`` bootstrap RPC has been removed.
+        and calling ``AuthService.LoginV2`` again (or legacy ``Login`` when no
+        account material was stored at construction).
         """
         if not self._user_name:
             raise RuntimeError(
@@ -539,15 +534,39 @@ class AltaStataGrpcClient:
         except Exception:
             pass
 
-        resp = self._auth_stub.Login(
-            self._auth_pb2.LoginRequest(
-                user_name=self._user_name,
-                account_password=account_password,
+        if self._account_dir_path:
+            token = _login_v2(
+                endpoint=self.endpoint,
+                password=account_password,
                 client_hint=self._client_hint,
-            ),
-            timeout=30.0,
-        )
-        self._token = resp.session_token
+                user_account_directory=self._account_dir_path,
+            )
+        elif self._login_upload is not None:
+            user_properties, account_files = self._login_upload
+            token = _login_v2(
+                endpoint=self.endpoint,
+                password=account_password,
+                client_hint=self._client_hint,
+                user_properties=user_properties,
+                account_files=account_files,
+            )
+        elif self._user_name:
+            resp = self._auth_stub.Login(
+                self._auth_pb2.LoginRequest(
+                    user_name=self._user_name,
+                    account_password=account_password,
+                    client_hint=self._client_hint,
+                ),
+                timeout=30.0,
+            )
+            token = resp.session_token
+        else:
+            raise RuntimeError(
+                "set_password requires account_dir_path or login upload material; "
+                "reconstruct the client via from_account_dir / from_credentials."
+            )
+
+        self._token = token
         self._metadata = [("authorization", f"Bearer {self._token}")]
         return True
 
@@ -706,6 +725,67 @@ def _infer_user_name(account_dir: str, user_properties_path: str) -> str:
     raise ValueError("Unable to infer user name from account directory")
 
 
+def _account_files_from_private_key(private_key_encrypted: str) -> Dict[str, bytes]:
+    """Map legacy ``private_key_encrypted`` PEM text to LoginV2 upload files."""
+    files: Dict[str, bytes] = {}
+    if private_key_encrypted:
+        files["private.key"] = private_key_encrypted.encode("utf-8")
+    return files
+
+
+def _login_v2(
+    endpoint: GrpcEndpoint,
+    password: str,
+    client_hint: str,
+    *,
+    user_account_directory: Optional[str] = None,
+    user_properties: Optional[str] = None,
+    account_files: Optional[Dict[str, bytes]] = None,
+) -> str:
+    """
+    Authenticate via ``AuthService.LoginV2``.
+
+    Exactly one of ``user_account_directory`` or ``user_properties`` must be set.
+    Returns the issued ``sess-<token>``.
+    """
+    if user_account_directory:
+        if user_properties is not None or account_files is not None:
+            raise ValueError("user_account_directory cannot be combined with upload fields")
+    elif user_properties is None:
+        raise ValueError("user_account_directory or user_properties is required")
+    else:
+        if not user_properties.strip():
+            raise ValueError("user_properties is required for LoginV2 upload")
+
+    try:
+        from .v1 import auth_pb2, auth_pb2_grpc
+    except Exception as exc:
+        raise ImportError(
+            "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"
+        ) from exc
+
+    channel = AltaStataGrpcClient._create_channel(endpoint)
+    try:
+        auth = auth_pb2_grpc.AuthServiceStub(channel)
+        req = auth_pb2.LoginV2Request(
+            client_hint=client_hint,
+            password=password,
+        )
+        if user_account_directory is not None:
+            req.user_account_directory = user_account_directory
+        else:
+            upload = auth_pb2.LoginV2Upload(user_properties=user_properties)
+            if account_files:
+                for name, data in account_files.items():
+                    upload.account_files[name] = data
+            req.upload.CopyFrom(upload)
+
+        resp = auth.LoginV2(req, timeout=30.0)
+        return resp.session_token
+    finally:
+        channel.close()
+
+
 def _bootstrap_and_login(
     endpoint: GrpcEndpoint,
     user_name: str,
@@ -714,74 +794,15 @@ def _bootstrap_and_login(
     password: str,
     client_hint: str,
 ) -> str:
-    """
-    Install ``user_properties`` + ``private_key_encrypted`` for ``user_name``
-    in the gateway's in-memory registry (idempotent — safe to call repeatedly
-    for the same user) and then authenticate via ``AuthService.Login``.
-
-    Returns the issued ``sess-<token>``.
-
-    The bootstrap RPCs (``SetUserProperties`` / ``SetPrivateKey``) are still
-    auth-bypassed on the server because the user has no session yet at this
-    point. ``Login`` is the first authenticated call: a wrong password is
-    rejected here without corrupting any other live session for the same user.
-
-    HPCS / HSM-backed accounts pass ``private_key_encrypted=""`` because the
-    private key material lives in the HSM rather than as a local PEM. In that
-    case ``SetPrivateKey`` is skipped entirely — the gateway sources the key
-    material server-side from ``user_properties`` (e.g. ``hpcs-priv-key-blob-path``
-    + ``hpcs-yaml-path``) and the EP11 client.
-    """
-    try:
-        from .v1 import auth_pb2, auth_pb2_grpc
-        from .v1 import users_pb2, users_pb2_grpc
-    except Exception as exc:
-        raise ImportError(
-            "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"
-        ) from exc
-
-    channel = AltaStataGrpcClient._create_channel(endpoint)
-    try:
-        users = users_pb2_grpc.UsersServiceStub(channel)
-        # The gateway returns ALREADY_EXISTS for SetUserProperties /
-        # SetPrivateKey when this userName already has a live
-        # AltaStataFileSystem (another browser tab / Python client of the
-        # same user is already logged in). The right reaction is to skip
-        # straight to AuthService.Login — the whole point of #186 was to
-        # stop a second client from re-installing properties / private
-        # key over a running session. See SESSION_AND_EVENTS_DESIGN.md
-        # §8.1.
-        try:
-            users.SetUserProperties(users_pb2.SetUserPropertiesRequest(
-                user_name=user_name,
-                user_properties=user_properties,
-            ))
-        except grpc.RpcError as exc:
-            if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
-                raise
-        # HPCS / HSM-backed accounts have no PEM to send; the server's
-        # SetPrivateKey validator rejects an empty private_key_encrypted with
-        # INVALID_ARGUMENT, so skip the call entirely in that case. The
-        # gateway derives the key material from user_properties on first use.
-        if private_key_encrypted:
-            try:
-                users.SetPrivateKey(users_pb2.SetPrivateKeyRequest(
-                    user_name=user_name,
-                    private_key_encrypted=private_key_encrypted,
-                ))
-            except grpc.RpcError as exc:
-                if exc.code() != grpc.StatusCode.ALREADY_EXISTS:
-                    raise
-
-        auth = auth_pb2_grpc.AuthServiceStub(channel)
-        resp = auth.Login(auth_pb2.LoginRequest(
-            user_name=user_name,
-            account_password=password,
-            client_hint=client_hint,
-        ), timeout=30.0)
-        return resp.session_token
-    finally:
-        channel.close()
+    """Deprecated alias — use :func:`_login_v2`."""
+    del user_name
+    return _login_v2(
+        endpoint=endpoint,
+        password=password,
+        client_hint=client_hint,
+        user_properties=user_properties,
+        account_files=_account_files_from_private_key(private_key_encrypted),
+    )
 
 
 def _infer_user_name_from_properties_text(user_properties: str) -> str:
