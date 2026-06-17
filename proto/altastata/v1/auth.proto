@@ -22,6 +22,7 @@ import "google/protobuf/timestamp.proto";
 // other sessions of the same user are unaffected.
 service AuthService {
   rpc Login(LoginRequest) returns (LoginResponse);
+  rpc LoginV2(LoginV2Request) returns (LoginV2Response);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
   rpc Refresh(RefreshRequest) returns (RefreshResponse);
 }
@@ -53,4 +54,25 @@ message LogoutResponse {}
 message RefreshRequest {}
 message RefreshResponse {
   google.protobuf.Timestamp expires_at = 1;
+}
+
+// Target session entry — see CONSOLE_ACCOUNT_SETUP_DESIGN.md §5.2.
+message LoginV2Request {
+  string client_hint = 1;
+  string password = 2;
+
+  oneof account_source {
+    LoginV2Upload upload = 3;
+    string user_account_directory = 4;
+  }
+}
+
+message LoginV2Upload {
+  string user_properties = 1;
+  map<string, bytes> account_files = 2;
+}
+
+message LoginV2Response {
+  string session_token = 1;
+  google.protobuf.Timestamp expires_at = 2;
 }

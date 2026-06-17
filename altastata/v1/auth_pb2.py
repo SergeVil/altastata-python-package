@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from google.protobuf import timestamp_pb2 as google_dot_protobuf_dot_timestamp__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x17\x61ltastata/v1/auth.proto\x12\x0c\x61ltastata.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"P\n\x0cLoginRequest\x12\x11\n\tuser_name\x18\x01 \x01(\t\x12\x18\n\x10\x61\x63\x63ount_password\x18\x02 \x01(\t\x12\x13\n\x0b\x63lient_hint\x18\x03 \x01(\t\"j\n\rLoginResponse\x12\x15\n\rsession_token\x18\x01 \x01(\t\x12.\n\nexpires_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\naccess_key\x18\x03 \x01(\t\"\x0f\n\rLogoutRequest\"\x10\n\x0eLogoutResponse\"\x10\n\x0eRefreshRequest\"A\n\x0fRefreshResponse\x12.\n\nexpires_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp2\xdc\x01\n\x0b\x41uthService\x12@\n\x05Login\x12\x1a.altastata.v1.LoginRequest\x1a\x1b.altastata.v1.LoginResponse\x12\x43\n\x06Logout\x12\x1b.altastata.v1.LogoutRequest\x1a\x1c.altastata.v1.LogoutResponse\x12\x46\n\x07Refresh\x12\x1c.altastata.v1.RefreshRequest\x1a\x1d.altastata.v1.RefreshResponseB\'\n\x18\x63om.altastata.grpc.protoB\tAuthProtoP\x01\x62\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x17\x61ltastata/v1/auth.proto\x12\x0c\x61ltastata.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"P\n\x0cLoginRequest\x12\x11\n\tuser_name\x18\x01 \x01(\t\x12\x18\n\x10\x61\x63\x63ount_password\x18\x02 \x01(\t\x12\x13\n\x0b\x63lient_hint\x18\x03 \x01(\t\"j\n\rLoginResponse\x12\x15\n\rsession_token\x18\x01 \x01(\t\x12.\n\nexpires_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\x12\x12\n\naccess_key\x18\x03 \x01(\t\"\x0f\n\rLogoutRequest\"\x10\n\x0eLogoutResponse\"\x10\n\x0eRefreshRequest\"A\n\x0fRefreshResponse\x12.\n\nexpires_at\x18\x01 \x01(\x0b\x32\x1a.google.protobuf.Timestamp\"\x9a\x01\n\x0eLoginV2Request\x12\x13\n\x0b\x63lient_hint\x18\x01 \x01(\t\x12\x10\n\x08password\x18\x02 \x01(\t\x12-\n\x06upload\x18\x03 \x01(\x0b\x32\x1b.altastata.v1.LoginV2UploadH\x00\x12 \n\x16user_account_directory\x18\x04 \x01(\tH\x00\x42\x10\n\x0e\x61\x63\x63ount_source\"\xa3\x01\n\rLoginV2Upload\x12\x17\n\x0fuser_properties\x18\x01 \x01(\t\x12\x44\n\raccount_files\x18\x02 \x03(\x0b\x32-.altastata.v1.LoginV2Upload.AccountFilesEntry\x1a\x33\n\x11\x41\x63\x63ountFilesEntry\x12\x0b\n\x03key\x18\x01 \x01(\t\x12\r\n\x05value\x18\x02 \x01(\x0c:\x02\x38\x01\"X\n\x0fLoginV2Response\x12\x15\n\rsession_token\x18\x01 \x01(\t\x12.\n\nexpires_at\x18\x02 \x01(\x0b\x32\x1a.google.protobuf.Timestamp2\xa4\x02\n\x0b\x41uthService\x12@\n\x05Login\x12\x1a.altastata.v1.LoginRequest\x1a\x1b.altastata.v1.LoginResponse\x12\x46\n\x07LoginV2\x12\x1c.altastata.v1.LoginV2Request\x1a\x1d.altastata.v1.LoginV2Response\x12\x43\n\x06Logout\x12\x1b.altastata.v1.LogoutRequest\x1a\x1c.altastata.v1.LogoutResponse\x12\x46\n\x07Refresh\x12\x1c.altastata.v1.RefreshRequest\x1a\x1d.altastata.v1.RefreshResponseB\'\n\x18\x63om.altastata.grpc.protoB\tAuthProtoP\x01\x62\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -33,6 +33,8 @@ _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'altastata.v1.auth_pb2', _gl
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
   _globals['DESCRIPTOR']._serialized_options = b'\n\030com.altastata.grpc.protoB\tAuthProtoP\001'
+  _globals['_LOGINV2UPLOAD_ACCOUNTFILESENTRY']._loaded_options = None
+  _globals['_LOGINV2UPLOAD_ACCOUNTFILESENTRY']._serialized_options = b'8\001'
   _globals['_LOGINREQUEST']._serialized_start=74
   _globals['_LOGINREQUEST']._serialized_end=154
   _globals['_LOGINRESPONSE']._serialized_start=156
@@ -45,6 +47,14 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_REFRESHREQUEST']._serialized_end=315
   _globals['_REFRESHRESPONSE']._serialized_start=317
   _globals['_REFRESHRESPONSE']._serialized_end=382
-  _globals['_AUTHSERVICE']._serialized_start=385
-  _globals['_AUTHSERVICE']._serialized_end=605
+  _globals['_LOGINV2REQUEST']._serialized_start=385
+  _globals['_LOGINV2REQUEST']._serialized_end=539
+  _globals['_LOGINV2UPLOAD']._serialized_start=542
+  _globals['_LOGINV2UPLOAD']._serialized_end=705
+  _globals['_LOGINV2UPLOAD_ACCOUNTFILESENTRY']._serialized_start=654
+  _globals['_LOGINV2UPLOAD_ACCOUNTFILESENTRY']._serialized_end=705
+  _globals['_LOGINV2RESPONSE']._serialized_start=707
+  _globals['_LOGINV2RESPONSE']._serialized_end=795
+  _globals['_AUTHSERVICE']._serialized_start=798
+  _globals['_AUTHSERVICE']._serialized_end=1090
 # @@protoc_insertion_point(module_scope)

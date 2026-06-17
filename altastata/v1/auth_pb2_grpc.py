@@ -51,6 +51,11 @@ class AuthServiceStub(object):
                 request_serializer=altastata_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
                 response_deserializer=altastata_dot_v1_dot_auth__pb2.LoginResponse.FromString,
                 _registered_method=True)
+        self.LoginV2 = channel.unary_unary(
+                '/altastata.v1.AuthService/LoginV2',
+                request_serializer=altastata_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
+                response_deserializer=altastata_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
+                _registered_method=True)
         self.Logout = channel.unary_unary(
                 '/altastata.v1.AuthService/Logout',
                 request_serializer=altastata_dot_v1_dot_auth__pb2.LogoutRequest.SerializeToString,
@@ -84,6 +89,12 @@ class AuthServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def LoginV2(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def Logout(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -103,6 +114,11 @@ def add_AuthServiceServicer_to_server(servicer, server):
                     servicer.Login,
                     request_deserializer=altastata_dot_v1_dot_auth__pb2.LoginRequest.FromString,
                     response_serializer=altastata_dot_v1_dot_auth__pb2.LoginResponse.SerializeToString,
+            ),
+            'LoginV2': grpc.unary_unary_rpc_method_handler(
+                    servicer.LoginV2,
+                    request_deserializer=altastata_dot_v1_dot_auth__pb2.LoginV2Request.FromString,
+                    response_serializer=altastata_dot_v1_dot_auth__pb2.LoginV2Response.SerializeToString,
             ),
             'Logout': grpc.unary_unary_rpc_method_handler(
                     servicer.Logout,
@@ -154,6 +170,33 @@ class AuthService(object):
             '/altastata.v1.AuthService/Login',
             altastata_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
             altastata_dot_v1_dot_auth__pb2.LoginResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def LoginV2(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.AuthService/LoginV2',
+            altastata_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
+            altastata_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
             options,
             channel_credentials,
             insecure,
