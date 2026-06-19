@@ -36,7 +36,7 @@ services:
       - ALTASTATA_PASSWORD=${ALTASTATA_PASSWORD:-123}
       - ALTASTATA_ACCOUNT_ID=${ALTASTATA_ACCOUNT_ID:-bob123}
       # Set to 1 in .env to auto-start Console UI on :9877 alongside RAG.
-      - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-0}
+      - ENABLE_ALTASTATA_CONSOLE_UI=${ENABLE_ALTASTATA_CONSOLE_UI:-1}
     volumes:
       - ${ALTASTATA_ACCOUNT_DIR:-/tmp/altastata-account-must-set-in-env}:/altastata_account:ro
       - local_index_data:/app/open_llm/local_index

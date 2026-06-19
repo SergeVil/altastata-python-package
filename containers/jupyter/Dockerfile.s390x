@@ -117,7 +117,7 @@ ENV LC_ALL=en_US.UTF-8
 # port forwarding reaches it. See mycloud/altastata-grpc/TLS_DESIGN.md.
 ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
 
-# Optional Console UI on :9877. Off by default; set ENABLE_ALTASTATA_CONSOLE_UI=1
+# Console UI on :9877 (default on). Set ENABLE_ALTASTATA_CONSOLE_UI=0 to disable.
 # to auto-start altastata-grpc-server alongside Jupyter Lab.
 USER root
 COPY containers/jupyter/altastata-console-entrypoint.sh \

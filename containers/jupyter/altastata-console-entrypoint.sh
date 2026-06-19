@@ -3,7 +3,7 @@
 # ENABLE_ALTASTATA_CONSOLE_UI=1. See mycloud/altastata-grpc/TLS_DESIGN.md.
 set -e
 
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
     altastata-grpc-server > /tmp/altastata-grpc-server.log 2>&1 &
 fi
 

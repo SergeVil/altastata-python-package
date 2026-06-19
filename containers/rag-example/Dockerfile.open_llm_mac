@@ -49,7 +49,7 @@ ENV LOCAL_INDEX_PATH=/app/open_llm/local_index
 # Use Transformers by default (same as s390x). Override with -e LLM_PROVIDER=ollama if using Ollama on host.
 ENV LLM_PROVIDER=transformers
 
-# Optional Console UI on :9877; off by default (set ENABLE_ALTASTATA_CONSOLE_UI=1).
+# Console UI on :9877 (default on). Set ENABLE_ALTASTATA_CONSOLE_UI=0 to disable.
 # Host-side must use `-p 127.0.0.1:9877:9877`. See mycloud/altastata-grpc/TLS_DESIGN.md.
 ENV ALTASTATA_GRPC_BIND_ADDRESS=0.0.0.0
 
