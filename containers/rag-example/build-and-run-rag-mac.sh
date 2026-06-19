@@ -47,10 +47,10 @@ RUN_OPTS=(
   -v "$ACCOUNT_PARENT:/altastata_account:ro"
   -v "$INDEX_VOLUME:/app/open_llm/local_index"
 )
-# Opt-in Console UI. Host port defaults to 9878 so RAG can co-exist with
+# Console UI on by default. Host port defaults to 9878 so RAG can co-exist with
 # Jupyter (which defaults to 9877). Override with ALTASTATA_CONSOLE_UI_HOST_PORT.
-#   ENABLE_ALTASTATA_CONSOLE_UI=1 ./build-and-run-rag-mac.sh
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+#   ENABLE_ALTASTATA_CONSOLE_UI=0 ./build-and-run-rag-mac.sh  # disable
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
   CONSOLE_UI_HOST_PORT="${ALTASTATA_CONSOLE_UI_HOST_PORT:-9878}"
   RUN_OPTS+=(-p "127.0.0.1:${CONSOLE_UI_HOST_PORT}:9877" -e "ENABLE_ALTASTATA_CONSOLE_UI=1")
 fi
@@ -81,7 +81,7 @@ docker run "${RUN_OPTS[@]}" "$IMAGE_NAME"
 echo "Container started. To follow logs: docker logs -f $CONTAINER_NAME"
 
 echo "Done. Open http://localhost:$WEB_PORT/"
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
   echo "AltaStata Console UI: http://127.0.0.1:${CONSOLE_UI_HOST_PORT}/  (only reachable from this machine; bound to host loopback)"
 fi
 echo "Index is in volume $INDEX_VOLUME (persists across restarts). Wait 1–2 min on first run for indexer + server startup, then query."

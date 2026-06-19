@@ -140,8 +140,8 @@ docker exec altastata-jupyter tail -f /tmp/altastata-grpc-server.log
 #   the same machine — RAG defaults to 9878).
 # - For a plain `docker run` (no compose), pass both:
 #     -p 127.0.0.1:9877:9877 -e ENABLE_ALTASTATA_CONSOLE_UI=1
-#   The image still ships with ENABLE_ALTASTATA_CONSOLE_UI off, so a bare
-#   `docker run` gives you Jupyter only — no JVM, no Console UI.
+#   Console UI is on by default (entrypoint + compose); set
+#   ENABLE_ALTASTATA_CONSOLE_UI=0 to skip the JVM.
 # See mycloud/altastata-grpc/TLS_DESIGN.md (§10).
 ```
 

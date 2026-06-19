@@ -56,7 +56,7 @@ if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
 fi
 
 # Optional Console UI on :9877. See mycloud/altastata-grpc/TLS_DESIGN.md.
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
   if [ -n "$ALTASTATA_ACCOUNT_DIR" ] && [ -d "$ALTASTATA_ACCOUNT_DIR" ]; then
     echo "[entrypoint] Starting altastata-grpc-server on :9877."
     altastata-grpc-server > /tmp/altastata-grpc-server.log 2>&1 &

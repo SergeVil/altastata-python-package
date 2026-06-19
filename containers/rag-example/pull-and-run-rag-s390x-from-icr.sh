@@ -89,13 +89,13 @@ LLAMA_OPTS=""
 [ -n "${LLAMA_CPP_N_CTX:-}" ]      && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_N_CTX=$LLAMA_CPP_N_CTX"
 [ -n "${LLAMA_CPP_MAX_TOKENS:-}" ] && LLAMA_OPTS="$LLAMA_OPTS -e LLAMA_CPP_MAX_TOKENS=$LLAMA_CPP_MAX_TOKENS"
 
-# Opt-in Console UI. Host port defaults to 9878 so RAG can co-exist with
+# Console UI on by default. Host port defaults to 9878 so RAG can co-exist with
 # Jupyter (which defaults to 9877). Override with ALTASTATA_CONSOLE_UI_HOST_PORT.
 # Bound to host loopback on the server; reach from your laptop via
 # `ssh -L <port>:127.0.0.1:<port> ...`.
 CONSOLE_UI_OPTS=""
 CONSOLE_UI_HOST_PORT="${ALTASTATA_CONSOLE_UI_HOST_PORT:-9878}"
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
   CONSOLE_UI_OPTS="-p 127.0.0.1:${CONSOLE_UI_HOST_PORT}:9877 -e ENABLE_ALTASTATA_CONSOLE_UI=1"
 fi
 
@@ -138,7 +138,7 @@ ssh $SSH_OPTS "$SSH_HOST" "curl -s --max-time $((QUERY_TIMEOUT + 60)) -X POST ht
 echo ""
 echo "Done. Container $CONTAINER_NAME is running on the server (port 8000)."
 echo "Open http://<server-ip>:8000/ or stop: ssh $SSH_OPTS $SSH_HOST 'docker stop $CONTAINER_NAME; docker rm $CONTAINER_NAME'"
-if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-0}" = "1" ]; then
+if [ "${ENABLE_ALTASTATA_CONSOLE_UI:-1}" = "1" ]; then
   echo "AltaStata Console UI is bound to 127.0.0.1:${CONSOLE_UI_HOST_PORT} on $SSH_HOST."
   echo "Reach it from your laptop with an SSH tunnel:"
   echo "  ssh $SSH_OPTS -L ${CONSOLE_UI_HOST_PORT}:127.0.0.1:${CONSOLE_UI_HOST_PORT} $SSH_HOST"
