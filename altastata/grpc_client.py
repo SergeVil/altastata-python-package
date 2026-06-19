@@ -14,6 +14,8 @@ import uuid
 import pkg_resources
 import platform
 
+from altastata.java_runtime import resolve_java_memory_opts
+
 
 def _default_client_hint() -> str:
     """
@@ -875,7 +877,7 @@ def _resolve_local_grpc_startup_command(
         if bundled_uber_jar is not None:
             classpath = _build_bundled_grpc_classpath(bundled_uber_jar)
             main_class = _grpc_main_class_for_jar(bundled_uber_jar)
-            grpc_server_command = ["java", "-cp", classpath, main_class]
+            grpc_server_command = ["java", *resolve_java_memory_opts(), "-cp", classpath, main_class]
             if resolved_working_dir is None:
                 resolved_working_dir = os.path.dirname(bundled_uber_jar)
         else:
@@ -954,7 +956,7 @@ def _build_grpc_subprocess_env() -> Dict[str, str]:
     gRPC gateway from Python.
 
     Inherits the parent environment so callers can keep influencing Java
-    tuning via ``JAVA_OPTS`` and similar, then exports
+    tuning via ``JAVA_TOOL_OPTIONS`` / ``JAVA_OPTS``, then exports
     ``ALTASTATA_WEB_UI_DIR`` pointing at the bundled SPA bundle (when one is
     present in this wheel) so the Java gateway also serves the AltaStata
     Console UI on the gRPC port. The variable is set only if the caller has
