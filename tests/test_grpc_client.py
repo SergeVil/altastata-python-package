@@ -302,7 +302,15 @@ class GrpcClientTests(unittest.TestCase):
         # env is built by _build_grpc_subprocess_env (covered separately) and
         # is forwarded to Popen so the Java side can pick up the bundled SPA.
         mock_popen.assert_called_once_with(
-            ["java", "-cp", "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar", "com.altastata.services.AltaStataServicesApplication"],
+            [
+                "java",
+                "-Xms1g",
+                "-Xmx4g",
+                "-XX:ThreadStackSize=256k",
+                "-cp",
+                "/tmp/a.jar:/tmp/b.jar:/tmp/altastata-services-1.0.0-uber.jar",
+                "com.altastata.services.AltaStataServicesApplication",
+            ],
             cwd="/tmp",
             env=unittest.mock.ANY,
             stdout=unittest.mock.ANY,
@@ -397,6 +405,56 @@ class GrpcClientTests(unittest.TestCase):
             ):
                 from altastata.grpc_client import _find_bundled_console_ui_dir
                 self.assertEqual(_find_bundled_console_ui_dir(), os.path.abspath(ui_dir))
+
+    @patch("altastata.grpc_client.subprocess.Popen")
+    @patch("altastata.grpc_client._find_bundled_grpc_uber_jar")
+    @patch("altastata.grpc_client._build_bundled_grpc_classpath")
+    def test_start_local_grpc_service_defers_to_java_tool_options(
+        self,
+        mock_build_cp,
+        mock_find_uber,
+        mock_popen,
+    ):
+        mock_find_uber.return_value = "/tmp/altastata-services-1.0.0-uber.jar"
+        mock_build_cp.return_value = "/tmp/altastata-services-1.0.0-uber.jar"
+        mock_popen.return_value = MagicMock()
+
+        from altastata.grpc_client import _start_local_grpc_service
+        with patch.dict(
+            os.environ,
+            {"JAVA_TOOL_OPTIONS": "-Xmx2g -Xms512m -XX:ThreadStackSize=256k"},
+            clear=False,
+        ):
+            _start_local_grpc_service()
+
+        mock_popen.assert_called_once_with(
+            [
+                "java",
+                "-cp",
+                "/tmp/altastata-services-1.0.0-uber.jar",
+                "com.altastata.services.AltaStataServicesApplication",
+            ],
+            cwd="/tmp",
+            env=unittest.mock.ANY,
+            stdout=unittest.mock.ANY,
+            stderr=unittest.mock.ANY,
+        )
+
+    def test_resolve_java_memory_opts_embeds_defaults_without_env(self):
+        from altastata.java_runtime import DEFAULT_JAVA_MEMORY_OPTS, resolve_java_memory_opts
+
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(resolve_java_memory_opts(), DEFAULT_JAVA_MEMORY_OPTS)
+
+    def test_resolve_java_memory_opts_skips_when_java_tool_options_sets_heap(self):
+        from altastata.java_runtime import resolve_java_memory_opts
+
+        with patch.dict(
+            os.environ,
+            {"JAVA_TOOL_OPTIONS": "-Xmx2g -Xms512m -XX:ThreadStackSize=256k"},
+            clear=True,
+        ):
+            self.assertEqual(resolve_java_memory_opts(), [])
 
 
 if __name__ == "__main__":

@@ -7,6 +7,8 @@ from py4j.java_gateway import JavaGateway, GatewayParameters, CallbackServerPara
 from threading import Thread
 import platform
 
+from altastata.java_runtime import resolve_java_memory_opts
+
 class BaseGateway:
     def __init__(self, port=25333, enable_callback_server=True, callback_server_port=None):
         self.port = port
@@ -101,13 +103,11 @@ class BaseGateway:
         java_command = [
             'java',
             '--add-opens', 'java.base/java.util=ALL-UNNAMED',
-            '-Xms1g',                    # Initial heap size
-            '-Xmx4g',                    # Max heap size
+            *resolve_java_memory_opts(),
             #'-XX:+UseZGC',               # Use ZGC for very low pause times - !!! crashes on IBM Z and LinuxONE !!!
             '-XX:+UnlockExperimentalVMOptions',
             '-XX:+UseStringDeduplication', # Reduce memory usage for strings
             '-Xlog:gc*:file=gc.log:time,uptime:filecount=5,filesize=10M', # GC logging
-            '-XX:ThreadStackSize=256k',  # Reduce thread stack size
             '-XX:+DisableExplicitGC',    # Prevent explicit GC calls
             '-cp', classpath,
             'py4j.GatewayServer',

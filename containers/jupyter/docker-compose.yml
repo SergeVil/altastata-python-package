@@ -54,6 +54,8 @@ services:
       # passwords or decrypted material — all sensitive bytes are still
       # encrypted by the user password (see S3Controller.getConfigurableFilePath).
       - ALTASTATA_USERDATA_FILE=${ALTASTATA_USERDATA_FILE:-/home/jovyan/work/altastata-userdata.json}
+      # Embedded altastata-services JVM (altastata-grpc-server). Merged with image defaults.
+      - JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS:--Xmx4g -Xms1g -XX:ThreadStackSize=256k}
     networks:
       - altastata-network
     restart: unless-stopped

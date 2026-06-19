@@ -18,6 +18,7 @@ services:
       - JUPYTER_ENABLE_LAB=yes
       - JUPYTER_TOKEN=
       - JUPYTER_ALLOW_INSECURE_WRITES=1
+      - JAVA_TOOL_OPTIONS=${JAVA_TOOL_OPTIONS:--Xmx4g -Xms1g -XX:ThreadStackSize=256k}
     networks:
       - altastata-network
     restart: unless-stopped
