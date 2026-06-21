@@ -26,7 +26,7 @@ The Event Listener feature allows you to receive real-time notifications when fi
                        │ Python Callback
                        │
 ┌──────────────────────▼──────────────────────────────┐
-│            AltaStataEventListener (py4j)            │
+│      AltaStata gRPC EventsService.Watch adapter      │
 │                                                      │
 │  notify(altastata_event):                           │
 │      event_name = event.getEventName()              │
@@ -52,7 +52,7 @@ The Event Listener feature allows you to receive real-time notifications when fi
 
 ### 1. Install Requirements
 
-The event listener functionality requires py4j with callback support (already configured):
+The event listener functionality is implemented through gRPC streaming:
 
 ```python
 from altastata.altastata_functions import AltaStataFunctions
@@ -83,13 +83,12 @@ def my_event_handler(event_name, data):
 ### 3. Register Listener
 
 ```python
-# Initialize AltaStata with callback server enabled
+# Initialize AltaStata gRPC client
 altastata = AltaStataFunctions.from_account_dir(
     'path/to/account',
-    enable_callback_server=True,
-    callback_server_port=25334  # Or let it auto-select with port=0
+    transport="grpc",
+    password="your_password",
 )
-altastata.set_password("your_password")
 
 # Register event listener
 listener = altastata.add_event_listener(my_event_handler)
@@ -248,15 +247,15 @@ def rag_updater(event_name, data):
 
 ### How It Works
 
-1. **Callback Server**: py4j starts a callback server on a specified port (or auto-selects)
-2. **Java Interface**: Python class implements `com.altastata.api.AltaStataEventListener`
+1. **Event Stream**: gRPC `EventsService.Watch` emits typed event payloads
+2. **Compatibility Mapping**: The Python client maps event payloads to legacy callback pairs
 3. **Event Polling**: Java `SecureCloudEventProcessor` polls cloud storage for changes (~5 second interval)
-4. **Event Flow**: Java detects changes, fires events, and calls Python's `notify()` method via Py4J callback
-5. **Thread Safety**: Events are delivered on Java's event thread
+4. **Event Flow**: Java emits stream events and Python invokes your callback
+5. **Thread Safety**: Event worker thread serializes callback delivery
 
 ### Performance
 
-- **Low overhead**: Direct Java→Python callback (no polling)
+- **Low overhead**: gRPC stream delivery to Python callback
 - **Asynchronous**: Events delivered as they occur
 - **Thread-safe**: Callback handling is thread-safe
 
@@ -296,7 +295,7 @@ See [TWO_USER_TEST.md](TWO_USER_TEST.md) for complete instructions.
 
 ### Events Not Firing
 
-1. **Check callback server**: Ensure py4j callback server is enabled (should be automatic)
+1. **Check gRPC stream**: Ensure the client connected and watch stream is active
 2. **Check event names**: Verify the Java side is firing events with expected names
 3. **Add debug logging**: Print messages in your handler to confirm it's being called
 

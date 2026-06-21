@@ -1,0 +1,211 @@
+# altastata-console
+
+Web console for [AltaStata](https://altastata.com) — a Finder-style file browser
+for cloud accounts, modeled after the JavaFX desktop app
+(`mycloud/altastata-ui`).
+
+This repo is a React client for AltaStata Java gRPC (`mycloud/altastata-grpc`)
+and follows the same RPC flows as `altastata-python-package/tests/js-grpc-ui`.
+
+## Architecture
+
+```
+              ┌──────────────────────────────┐
+ browser  →   │  altastata-grpc :9877        │
+ (Vite dev)   │  Users/FileOps/Attrs/Sharing │
+              └──────────────┬───────────────┘
+                             │ JVM
+                             ▼
+                      AltaStata cloud
+```
+
+For local development, Vite serves the frontend and calls Java gRPC directly.
+
+## Repo layout
+
+```
+altastata-console/
+├── frontend/          React + TypeScript + Vite + MUI
+│   └── src/
+│       ├── components/
+│       │   ├── MillerColumns.tsx   ← Finder-style 3-pane layout
+│       │   ├── FileColumn.tsx      ← single column of files/folders
+│       │   ├── PreviewPane.tsx     ← right pane: preview + metadata
+│       │   ├── BottomToolbar.tsx   ← upload/download/share/lock/...
+│       │   └── LogDialog.tsx       ← in-app UI-log panel
+│       ├── utils/logBuffer.ts      ← console.* ring buffer for LogDialog
+│       ├── api/altastata.ts        ← typed API client (gRPC-Web), events
+│       ├── theme/index.ts          ← MUI theme matching JavaFX look
+│       └── types/index.ts          ← shared TS types
+├── scripts/
+│   └── prevent-secrets-commit.sh   ← optional pre-commit secret guard
+└── docs/architecture.md
+```
+
+## Quick start (development)
+
+Prereqs: Node 20+, Java 17+.
+Ensure AltaStata gRPC server is available on `127.0.0.1:9877`
+(same as `altastata-python-package/tests/js-grpc-ui`).
+
+```bash
+# Frontend
+cd frontend
+npm install
+npm run dev   # → http://localhost:5173
+```
+
+Open <http://localhost:5173>.
+
+Open the top-right settings button in the app and provide runtime values:
+
+- gRPC base URL
+- account ID
+- user name
+- user properties
+- private key
+- password
+
+Then use **Save & Run Bootstrap** to run:
+
+1. `SetUserProperties`
+2. `SetPrivateKey`
+3. `SetPasswordForUser`
+
+This is now the preferred flow for local development.
+
+The Settings dialog header also shows the bundle's build version and ISO
+timestamp (baked in at build time via Vite `define`) so it is unambiguous
+which dist the browser is serving — handy when chasing cache-busting issues.
+
+### Live updates (events)
+
+While the UI is open it keeps a long-running gRPC server-streaming call to
+`altastata.v1.EventsService/Watch`. The Java backend forwards
+`SecureCloudEventProcessor` notifications as typed `Event` payloads
+(`FileSharedEvent` when another user shares a file with the current user,
+`FileUnsharedEvent` when access is revoked or a shared file is deleted) and
+the UI auto-refreshes the current view so the file list never goes stale.
+The stream auto-reconnects on transient failures with the last seen
+`since_sequence` to replay any missed events from the per-user ring buffer,
+and a follow-up refresh is scheduled ~7s after every event to absorb the
+gap between the event dispatch and the backend's "Finishing shot"
+finalisation.
+
+### UI log panel
+
+The terminal icon next to the settings button opens a "UI log" dialog
+showing recent `console.*` output captured by an in-app ring buffer
+(`frontend/src/utils/logBuffer.ts`). It's intended for debugging gRPC /
+auth issues without forcing the user to open browser DevTools, and shows
+the same lines that appear in the real console.
+
+### Generate keys (GenerateKeys)
+
+The **key** icon in the top bar opens **Generate keys**:
+
+1. Pick key type (RSA, PQC, or HPCS (RSA)). HPCS requires GREP11 on the gateway (`GREP11_YAML` / populated `grep11client.yaml`).
+2. Optional folder name (e.g. `rsa.myuser`) and password (RSA/PQC only).
+3. **Generate keys** → **Download zip** (`<folder>.altastata.zip`).
+4. Unpack under `~/.altastata/accounts/`, send `public.key` to your org admin, save
+   the returned `*user.properties` into the same folder, then **Settings → Sign in**.
+
+Requires a gateway with `AccountSetupService.GenerateKeys` (local dev:
+`altastata-services` on port **9880**, not the older Docker image on 9877).
+
+You can still prefill defaults via `frontend/.env.local` (safe placeholders only):
+
+```bash
+VITE_ALTASTATA_GRPC_BASE_URL=http://127.0.0.1:9877
+VITE_ALTASTATA_ACCOUNT_ID=amazon.rsa.<user>
+VITE_ALTASTATA_GRPC_USER_NAME=<user>
+# Password is entered manually in Settings each session.
+# Sign in: choose account folder (*user.properties + private keys) → LoginV2 upload.
+VITE_ALTASTATA_AUTO_BOOTSTRAP=true
+```
+
+## Secrets policy
+
+- Never commit real account key files or `password`.
+- Account material (`*user.properties`, private keys) is held in memory only — not localStorage.
+- `password` is not persisted to browser localStorage by the app.
+- Keep sensitive values in local runtime settings and/or local `.env.local`.
+- `.env.local` is gitignored in this repo, but always verify with `git status` before committing.
+- If a secret is accidentally committed, rotate it immediately.
+
+### Optional pre-commit secret guard
+
+This repo includes `scripts/prevent-secrets-commit.sh` to block common mistakes
+before commit.
+
+Enable it locally:
+
+```bash
+cd /path/to/altastata-console
+ln -sf ../../scripts/prevent-secrets-commit.sh .git/hooks/pre-commit
+```
+
+What it blocks:
+
+- staging `.env`-style files and common key files (`.pem`, `private.key`)
+- staged diff lines that look like private keys or password fields
+
+Intentional override (rare):
+
+```bash
+ALLOW_SECRETS_COMMIT=1 git commit -m "..."
+```
+
+## Production build
+
+```bash
+cd frontend
+npm install
+npm run build   # → frontend/dist/
+```
+
+`frontend/dist/` is the only artifact this repo produces. It is a
+static SPA that talks to `altastata-grpc` directly via gRPC-Web; no
+Python, FastAPI, or Node runtime is required at runtime.
+
+### Distribution
+
+The bundle ships inside the [`altastata` Python package][pyalt] under
+`altastata/lib/altastata-console-static/`. Any image that already
+includes `altastata` therefore already includes the UI, and the Java
+gRPC server (`mycloud/altastata-grpc`) serves those static files
+directly on `:9877` — no separate web container is needed.
+
+[pyalt]: https://github.com/SergeVil/altastata-python-package
+
+The bundle is **not committed** to the Python package repo
+(`altastata/lib/` is gitignored, same policy as
+`altastata-grpc-*-uber.jar`). It is rebuilt locally before each
+release by
+[`altastata-python-package/scripts/build-bundled-artifacts.sh`][buildscript],
+which runs `npm run build` here, then copies `frontend/dist/` into
+`altastata-python-package/altastata/lib/altastata-console-static/`.
+
+[buildscript]: https://github.com/SergeVil/altastata-python-package/blob/openshift/scripts/build-bundled-artifacts.sh
+
+There is no Docker step in this repo.
+
+## Why a separate repo?
+
+- `altastata` (Python package) is a library imported by data-science code.
+  Its consumers don't want a node toolchain pulled in via `pip install`.
+- Console release cadence is independent (UI fixes ship more often than
+  library API changes).
+- Mirrors the pattern already established in `mycloud/`:
+  `altastata-admin-ui` / `altastata-admin-api` are similarly split.
+
+## Reference UI
+
+The visual target is `mycloud/altastata-ui` (JavaFX desktop, "AltaStata
+Cloud File Explorer" v1.0.6) — three columns (folders → files → preview),
+account name in the title bar, action toolbar at the bottom, light theme.
+See `docs/architecture.md` for screenshots and mapping to web components.
+
+## License
+
+TBD — copy from `altastata` repo when finalizing.

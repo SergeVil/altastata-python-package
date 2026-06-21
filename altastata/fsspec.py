@@ -18,7 +18,7 @@ except ImportError:
 
 
 class AltaStataFileSystem(AbstractFileSystem):
-    """Generic fsspec filesystem for AltaStata using py4j."""
+    """Generic fsspec filesystem for AltaStata using gRPC."""
     
     protocol = "altastata"
     

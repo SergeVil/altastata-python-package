@@ -114,9 +114,7 @@ class AliceUploader:
         # Connect Alice
         print("\n1️⃣  Connecting Alice...")
         self.alice_altastata = AltaStataFunctions.from_account_dir(
-            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.alice222',
-            port=25555,
-            enable_callback_server=False
+            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.alice222'
         )
         self.alice_altastata.set_password("123")
         print("✅ Alice connected")

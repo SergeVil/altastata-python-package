@@ -11,13 +11,11 @@ not commit to git:
 
 - `altastata/lib/altastata-services-<ver>-uber.jar` (built from
   `mycloud/altastata-services` — the unified Micronaut app that hosts gRPC,
-  the S3 gateway, and py4j under `com.altastata.services.AltaStataServicesApplication`)
+  and the S3 gateway under `com.altastata.services.AltaStataServicesApplication`)
 - `altastata/lib/altastata-console-static/` (built from `altastata-console/frontend`)
 
-Only `altastata/lib/py4j0.10.9.5.jar` is tracked in git, since it is a fixed
-upstream artifact rather than something we build. Everything else under
-`altastata/lib/` is gitignored (`lib/` rule in `.gitignore`) and must be
-populated locally before `pip install -e .` or `python -m build`.
+Everything under `altastata/lib/` is gitignored (`lib/` rule in `.gitignore`)
+and must be populated locally before `pip install -e .` or `python -m build`.
 
 #### Quick start (recommended)
 
@@ -28,10 +26,10 @@ them under `altastata/lib/`:
 bash scripts/build-bundled-artifacts.sh
 ```
 
-The script assumes the sibling layout `mycloud/` and `altastata-console/`
-next to this repo. Override with `ALTASTATA_MYCLOUD_DIR` /
-`ALTASTATA_CONSOLE_DIR` if your layout differs, or pass `SKIP_GRPC=1` /
-`SKIP_UI=1` to leave one side untouched.
+The script assumes the sibling layout `mycloud/` next to this repo and
+builds the Console SPA from `altastata-console/frontend/` in this repo.
+Override with `ALTASTATA_MYCLOUD_DIR` / `ALTASTATA_CONSOLE_DIR` if your
+layout differs, or pass `SKIP_GRPC=1` / `SKIP_UI=1` to leave one side untouched.
 
 #### Manual fallback
 
@@ -48,21 +46,13 @@ If you prefer to drive each build yourself:
 
 2. Build the Console SPA in `altastata-console/frontend`:
    ```bash
-   (cd ../altastata-console/frontend && npm install && npm run build)
+   (cd altastata-console/frontend && npm install && npm run build)
    rm -rf altastata/lib/altastata-console-static
    mkdir -p altastata/lib/altastata-console-static
-   cp -R ../altastata-console/frontend/dist/. altastata/lib/altastata-console-static/
+   cp -R altastata-console/frontend/dist/. altastata/lib/altastata-console-static/
    ```
 
-3. Verify py4j integrity (only relevant if you suspect corruption):
-   ```bash
-   jar tf altastata/lib/py4j0.10.9.5.jar | grep GatewayServer
-   # If corrupted, fetch a fresh copy
-   wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar \
-        -O altastata/lib/py4j0.10.9.5.jar
-   ```
-
-4. Run the server (Java + bundled SPA on the same port):
+3. Run the server (Java + bundled SPA on the same port):
    ```bash
    altastata-grpc-server
    # gRPC + UI both on http://127.0.0.1:9877
@@ -91,7 +81,7 @@ the gRPC path. See `mycloud/altastata-grpc/CONSOLE_ACCOUNT_SETUP_DESIGN.md` §2.
 ## boto3 / `aws` CLI against the bundled S3 gateway
 
 The `altastata-services` JVM hosts the S3-compatible REST API on port `9876`
-inside the same process that backs py4j (and gRPC). When the S3 gate is on
+inside the same process that backs gRPC. When the S3 gate is on
 (`ALTASTATA_SERVICES_S3GATEWAY_ENABLED=true`, default in the Jupyter docker
 compose), `boto3` can hit the gateway directly and reads/writes will resolve
 to the **same** `AltaStataFileSystem` instance the Python API uses, via the
