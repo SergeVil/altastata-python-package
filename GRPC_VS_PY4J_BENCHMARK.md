@@ -1,8 +1,8 @@
-# gRPC vs Py4J Benchmark
+# gRPC vs Legacy Transport Benchmark
 
 This benchmark compares control-plane latency for equivalent calls:
 
-- Py4J: `get_file_attribute(file_path, None, "size")`
+- Legacy transport: `get_file_attribute(file_path, None, "size")`
 - gRPC: `GetAttribute(file_path, "size")`
 
 ## Exact Commands
@@ -46,7 +46,7 @@ python3 scripts/generate_grpc_stubs.py
 ### 4) Run benchmark
 
 ```bash
-python3 examples/benchmark_grpc_vs_py4j.py \
+python3 examples/<control-plane benchmark script>.py \
   --account-dir "/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123" \
   --password "123" \
   --user-name "bob123" \
@@ -57,21 +57,21 @@ python3 examples/benchmark_grpc_vs_py4j.py \
 
 ## Latest Local Run
 
-- Py4J avg: `51.504 ms` (p50 `43.665`, p95 `117.801`)
+- Legacy transport avg: `51.504 ms` (p50 `43.665`, p95 `117.801`)
 - gRPC avg: `53.668 ms` (p50 `45.773`, p95 `124.328`)
-- Speedup (Py4J/gRPC avg): `0.96x` for this specific attribute call
+- Speedup (legacy/gRPC avg): `0.96x` for this specific attribute call
 
 Notes:
 - This is a control-plane benchmark (`GetAttribute`), not data-plane throughput.
 - File upload/download should continue to use S3/boto3 paths.
 
-## getBuffer Benchmark (Py4J vs gRPC)
+## getBuffer Benchmark (legacy transport vs gRPC)
 
 ### Exact Command
 
 ```bash
 cd /Users/sergevilvovsky/eclipse-workspace/mcloud/altastata-python-package
-python3 examples/benchmark_getbuffer_grpc_vs_py4j.py \
+python3 examples/<getbuffer benchmark script>.py \
   --account-dir "/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123" \
   --password "123" \
   --user-name "bob123" \
@@ -83,14 +83,14 @@ python3 examples/benchmark_getbuffer_grpc_vs_py4j.py \
 
 ### Latest Local Run
 
-- text 1MB: Py4J `116.663 ms`, gRPC `95.730 ms`, speedup `1.22x`
-- binary 1MB: Py4J `94.159 ms`, gRPC `88.411 ms`, speedup `1.07x`
-- text 4MB: Py4J `219.119 ms`, gRPC `177.481 ms`, speedup `1.23x`
-- binary 4MB: Py4J `209.982 ms`, gRPC `183.634 ms`, speedup `1.14x`
-- text 12MB: Py4J `1169.160 ms`, gRPC `854.483 ms`, speedup `1.37x`
-- binary 12MB: Py4J `1018.798 ms`, gRPC `925.517 ms`, speedup `1.10x`
-- text 18MB: Py4J `1504.720 ms`, gRPC `1132.824 ms`, speedup `1.33x`
-- binary 18MB: Py4J `1477.364 ms`, gRPC `1419.787 ms`, speedup `1.04x`
+- text 1MB: legacy `116.663 ms`, gRPC `95.730 ms`, speedup `1.22x`
+- binary 1MB: legacy `94.159 ms`, gRPC `88.411 ms`, speedup `1.07x`
+- text 4MB: legacy `219.119 ms`, gRPC `177.481 ms`, speedup `1.23x`
+- binary 4MB: legacy `209.982 ms`, gRPC `183.634 ms`, speedup `1.14x`
+- text 12MB: legacy `1169.160 ms`, gRPC `854.483 ms`, speedup `1.37x`
+- binary 12MB: legacy `1018.798 ms`, gRPC `925.517 ms`, speedup `1.10x`
+- text 18MB: legacy `1504.720 ms`, gRPC `1132.824 ms`, speedup `1.33x`
+- binary 18MB: legacy `1477.364 ms`, gRPC `1419.787 ms`, speedup `1.04x`
 
 Summary from this run:
 - Overall average speedup: `1.19x`

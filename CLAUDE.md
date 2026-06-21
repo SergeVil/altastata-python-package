@@ -15,10 +15,10 @@ This is the Altastata Python package - a library for cloud-based data processing
 ## Core Architecture
 
 ### Java Gateway System
-- **BaseGateway** (`altastata/base_gateway.py`): Manages Java subprocess and Py4J gateway connection
 - **AltaStataFunctions** (`altastata/altastata_functions.py`): Main API class for cloud operations
+- **AltaStataGrpcClient** (`altastata/grpc_client.py`): gRPC transport/auth client
 - Java JARs in `altastata/lib/`: Contains required dependencies for cloud operations
-- Port 25333: Default gateway port for Java communication
+- Port 9877: Default gRPC gateway port for Java communication
 
 ### Dataset Integration Pattern
 - **Account Registry**: Global dictionaries store AltaStataFunctions instances by account ID
@@ -79,11 +79,8 @@ docker run -d -p 8888:8888 \
 
 ### JAR Management
 ```bash
-# Verify JAR integrity
-jar tf altastata/lib/py4j0.10.9.5.jar | grep GatewayServer
-
-# Download fresh py4j JAR if corrupted
-wget https://repo1.maven.org/maven2/net/sf/py4j/py4j/0.10.9.5/py4j-0.10.9.5.jar -O altastata/lib/py4j0.10.9.5.jar
+# Verify bundled services runtime JAR
+jar tf altastata/lib/altastata-services-*-uber.jar | head
 
 # Build AltaStata Hadoop JAR (external dependency)
 # Note: -PnoGCP=true is no longer needed as the increased the size for altastata package

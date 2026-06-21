@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='altastata',
-    version='0.0.2',
+    version='0.0.3',
     author='Serge Vilvovsky',
     author_email='serge.vilvovsky@altastata.com',
     description='A Python package for Altastata data processing and machine learning integration',
@@ -15,16 +15,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        # The lib/* glob captures the bundled altastata-grpc uber jar plus
-        # py4j and Bouncy Castle runtime jars. The two altastata-console-static
-        # patterns walk the SPA bundle one and two levels deep (Vite emits
-        # only an `assets/` subdir, so two levels is enough today; the second
-        # glob future-proofs against deeper nesting). All these binary
-        # artifacts are gitignored under altastata/lib/ and are populated
-        # locally by scripts/build-bundled-artifacts.sh before
-        # `python -m build`.
+        # Bundle the unified mycloud runtime uber jar plus signed Bouncy Castle
+        # jars, and include the packaged Console UI static bundle.
         'altastata': [
-            'lib/*.jar',
+            'lib/altastata-services-*-uber.jar',
+            'lib/bc*.jar',
             'grpc/v1/*.py',
             'lib/altastata-console-static/*',
             'lib/altastata-console-static/*/*',
@@ -38,7 +33,6 @@ setup(
     ],
     python_requires='>=3.8',
     install_requires=[
-        'py4j==0.10.9.5',
         'fsspec>=2023.1.0',
         'grpcio>=1.69.0',
         'protobuf>=4.28.3',

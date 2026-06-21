@@ -61,8 +61,6 @@ def startup():
             print("[web_app] Connecting to AltaStata...")
             _altastata_af = AltaStataFunctions.from_account_dir(
                 ALTASTATA_ACCOUNT_DIR,
-                callback_server_port=0,
-                enable_callback_server=False,
             )
             if not ALTASTATA_USE_HPCS:
                 _altastata_af.set_password(ALTASTATA_PASSWORD)

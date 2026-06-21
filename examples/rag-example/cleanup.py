@@ -80,9 +80,7 @@ class CleanupService:
         
         try:
             altastata = AltaStataFunctions.from_account_dir(
-                account_path,
-                enable_callback_server=False,
-                port=25666
+                account_path
             )
             altastata.set_password(password)
             

@@ -6,8 +6,7 @@ import numpy as np
 import io
 import os
 import sys
-import json
-from typing import Dict, Any
+from typing import Dict
 from altastata.altastata_functions import AltaStataFunctions
 import fnmatch
 
@@ -197,7 +196,7 @@ class AltaStataPyTorchDataset(Dataset):
                 # Immutable file: skip the separate size GET. get_buffer's stream
                 # trusts the cached size (size=-1 reads the whole file).
                 return altastata_functions.get_buffer(path, None, 0, 4, -1, trust_cached_size=True)
-            # Two Py4J calls: size first, then get_buffer (streams for >8 MB)
+            # Two gRPC calls: size first, then get_buffer.
             size_str = altastata_functions.get_file_attribute(path, None, "size")
             try:
                 size = int(size_str) if size_str else 0

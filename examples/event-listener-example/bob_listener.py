@@ -64,8 +64,7 @@ def main():
     print("\n1️⃣  Connecting to AltaStata as bob123...")
     try:
         bob_altastata = AltaStataFunctions.from_account_dir(
-            '/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123',
-            callback_server_port=25334  # Bob uses port 25334 for callbacks
+            '/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.bob123'
         )
         bob_altastata.set_password("123")
         print("✅ Bob connected successfully")

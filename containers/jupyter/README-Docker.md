@@ -827,7 +827,7 @@ For more details, see:
 ## Notes
 
 - The container runs as user `1001` for OpenShift compatibility
-- Java 17 is installed for Py4J integration with JAR files
+- Java 17 is installed for gRPC gateway integration with JAR files
 - PyTorch CPU-only version is installed to reduce image size
 - Jupyter token is auto-generated at container startup (see [Jupyter Token Authentication](#jupyter-token-authentication))
 - All examples and source code are mounted as volumes for live editing

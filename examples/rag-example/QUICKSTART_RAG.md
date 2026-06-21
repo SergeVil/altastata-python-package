@@ -55,7 +55,6 @@ python bob_indexer.py
 ✅ Connected to Vertex AI Vector Search
 
 3️⃣  Connecting Bob...
-✅ Callback server started on 127.0.0.1:25334
 ✅ Bob connected
 
 4️⃣  Registering event listener...
@@ -229,7 +228,7 @@ python cleanup.py
 - **Vector Store**: Vertex AI Vector Search (Matching Engine on e2-standard-2 VMs)
 - **LLM**: Gemini 2.5 Flash
 - **Orchestration**: LangChain document processing
-- **Events**: AltaStata event listeners (Py4J callbacks + SecureCloudEventProcessor)
+- **Events**: AltaStata event listeners (gRPC `EventsService.Watch` + SecureCloudEventProcessor)
 
 ## 📝 Files
 
@@ -263,7 +262,7 @@ To scale to production:
 - Bob must be running (`bob_indexer.py`) before Alice uploads
 - Vectors stored on Vertex AI (cloud), chunks stored in AltaStata (encrypted)
 - Uses Azure accounts (`azure.rsa.bob123`, `azure.rsa.alice222`)
-- Bob uses callback port `25334`, Alice uses gateway port `25555`
+- Bob and Alice both connect through the default gRPC gateway endpoint
 
 ## ❓ Troubleshooting
 

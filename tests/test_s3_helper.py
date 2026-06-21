@@ -1,9 +1,8 @@
 """Unit tests for AltaStataFunctions S3 / boto3 helper surface.
 
 These tests do not boot a real JVM. They mock out:
-  * the py4j gateway construction (via AltaStataFunctions.__new__ + manual
-    field assignment), so we do not depend on a running altastata-services
-    process,
+  * AltaStataFunctions instance construction (via ``__new__`` + manual field
+    assignment), so we do not depend on a running altastata-services process,
   * the bootstrap PUTs (via the module-level ``_http_put_text`` symbol),
   * and ``boto3.client`` (so ``boto3`` does not need to be installed for the
     test suite).
@@ -27,11 +26,10 @@ from altastata.altastata_functions import (
 )
 
 
-def _make_instance(transport: str = "py4j") -> AltaStataFunctions:
+def _make_instance(transport: str = "grpc") -> AltaStataFunctions:
     """Build an AltaStataFunctions without touching any real JVM / gRPC.
 
-    We bypass __init__ since it spins up a py4j gateway in py4j mode and we
-    only care about the helper surface in unit tests.
+    We bypass __init__ and only care about the helper surface in unit tests.
     """
     inst = AltaStataFunctions.__new__(AltaStataFunctions)
     inst.transport = transport
@@ -76,8 +74,8 @@ class ParseUserNameTests(unittest.TestCase):
 
 
 class ResolveS3EndpointTests(unittest.TestCase):
-    def test_py4j_defaults_to_loopback(self):
-        inst = _make_instance("py4j")
+    def test_default_endpoint_falls_back_to_loopback(self):
+        inst = _make_instance("grpc")
         self.assertEqual("http://127.0.0.1:9876", inst._resolve_s3_endpoint())
 
     def test_grpc_uses_grpc_host(self):
@@ -91,7 +89,7 @@ class ResolveS3EndpointTests(unittest.TestCase):
 
 class ReadBootstrapMaterialTests(unittest.TestCase):
     def test_from_credentials_mode_returns_stored_strings(self):
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PRIVATE_KEY_BYTES"
         user_name, props, key = inst._read_bootstrap_material()
@@ -109,7 +107,7 @@ class ReadBootstrapMaterialTests(unittest.TestCase):
             with open(os.path.join(tmpdir, "private.key"), "w", encoding="utf-8") as f:
                 f.write("PK_PEM")
 
-            inst = _make_instance("py4j")
+            inst = _make_instance("grpc")
             inst._account_dir_path = tmpdir
             user_name, props, key = inst._read_bootstrap_material()
             self.assertEqual("bob", user_name)
@@ -117,13 +115,13 @@ class ReadBootstrapMaterialTests(unittest.TestCase):
             self.assertEqual("PK_PEM", key)
 
     def test_missing_material_raises(self):
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         with self.assertRaises(RuntimeError):
             inst._read_bootstrap_material()
 
     def test_account_dir_missing_properties_raises(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            inst = _make_instance("py4j")
+            inst = _make_instance("grpc")
             inst._account_dir_path = tmpdir
             with self.assertRaises(FileNotFoundError):
                 inst._read_bootstrap_material()
@@ -149,7 +147,7 @@ class S3CredentialsTests(unittest.TestCase):
     @patch("altastata.altastata_functions._http_put_text")
     def test_returns_boto3_kwargs(self, mock_put):
         mock_put.side_effect = self._put_responder()
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PRIVATE_KEY"
         inst._cached_password = "123"
@@ -179,7 +177,7 @@ class S3CredentialsTests(unittest.TestCase):
     @patch("altastata.altastata_functions._http_put_text")
     def test_password_is_url_encoded(self, mock_put):
         mock_put.side_effect = self._put_responder()
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         # Password with characters that MUST be URL-escaped to survive a
@@ -198,7 +196,7 @@ class S3CredentialsTests(unittest.TestCase):
     @patch("altastata.altastata_functions._http_put_text")
     def test_caches_result_per_endpoint(self, mock_put):
         mock_put.side_effect = self._put_responder()
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "p"
@@ -211,7 +209,7 @@ class S3CredentialsTests(unittest.TestCase):
     @patch("altastata.altastata_functions._http_put_text")
     def test_explicit_endpoint_override(self, mock_put):
         mock_put.side_effect = self._put_responder()
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "p"
@@ -253,7 +251,7 @@ class S3CredentialsTests(unittest.TestCase):
 
         mock_put.side_effect = _put
 
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "123"
@@ -263,7 +261,7 @@ class S3CredentialsTests(unittest.TestCase):
         self.assertEqual(3, calls["n"])
 
     def test_missing_password_raises(self):
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         with self.assertRaises(ValueError):
@@ -272,7 +270,7 @@ class S3CredentialsTests(unittest.TestCase):
     @patch("altastata.altastata_functions._http_put_text")
     def test_explicit_password_overrides_cache(self, mock_put):
         mock_put.side_effect = self._put_responder()
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "wrong"
@@ -290,7 +288,7 @@ class S3CredentialsTests(unittest.TestCase):
             return 200, b'{"status":"success"}'
         mock_put.side_effect = _put
 
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "p"
@@ -326,7 +324,7 @@ class Boto3ClientTests(unittest.TestCase):
         fake_boto3 = MagicMock()
         fake_boto3.client.return_value = "<s3-client>"
         with patch.dict(sys.modules, {"boto3": fake_boto3}):
-            inst = _make_instance("py4j")
+            inst = _make_instance("grpc")
             inst._user_properties = "myuser=bob\n"
             inst._private_key_encrypted = "PK"
             inst._cached_password = "p"
@@ -343,7 +341,7 @@ class Boto3ClientTests(unittest.TestCase):
         self.assertIs(False, call_kwargs["verify"])
 
     def test_boto3_s3_missing_dependency_raises_importerror(self):
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "p"
@@ -372,7 +370,7 @@ class InstallAwsEnvTests(unittest.TestCase):
             return 200, b'{"status":"success"}'
         mock_put.side_effect = _put
 
-        inst = _make_instance("py4j")
+        inst = _make_instance("grpc")
         inst._user_properties = "myuser=bob\n"
         inst._private_key_encrypted = "PK"
         inst._cached_password = "p"
