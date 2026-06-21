@@ -30,7 +30,7 @@ RUN pip install --no-cache-dir torch torchvision torchaudio
 COPY setup.py pyproject.toml README.md /src/altastata-python-package/
 COPY altastata /src/altastata-python-package/altastata
 RUN pip install --no-cache-dir /src/altastata-python-package
-# gRPC stubs in altastata.v1 are generated with grpcio-tools 1.80.x.
+# gRPC stubs in altastata.grpc.v1 are generated with grpcio-tools 1.80.x.
 # boto3 lets notebooks drive AltaStataFunctions.boto3_s3() and the AWS CLI
 # against the local S3 gateway on :9876 without an extra `pip install`.
 RUN pip install --no-cache-dir "grpcio>=1.80.0" boto3

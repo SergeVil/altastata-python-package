@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from altastata.v1 import events_pb2 as altastata_dot_v1_dot_events__pb2
+from altastata.grpc.v1 import events_pb2 as altastata_dot_grpc_dot_v1_dot_events__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in altastata/v1/events_pb2_grpc.py depends on'
+        + ' but the generated code in altastata/grpc/v1/events_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -53,8 +53,8 @@ class EventsServiceStub(object):
         """
         self.Watch = channel.unary_stream(
                 '/altastata.v1.EventsService/Watch',
-                request_serializer=altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_events__pb2.Event.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_events__pb2.Event.FromString,
                 _registered_method=True)
 
 
@@ -93,8 +93,8 @@ def add_EventsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Watch': grpc.unary_stream_rpc_method_handler(
                     servicer.Watch,
-                    request_deserializer=altastata_dot_v1_dot_events__pb2.WatchRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_events__pb2.Event.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_events__pb2.WatchRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_events__pb2.Event.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -139,8 +139,8 @@ class EventsService(object):
             request,
             target,
             '/altastata.v1.EventsService/Watch',
-            altastata_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
-            altastata_dot_v1_dot_events__pb2.Event.FromString,
+            altastata_dot_grpc_dot_v1_dot_events__pb2.WatchRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_events__pb2.Event.FromString,
             options,
             channel_credentials,
             insecure,

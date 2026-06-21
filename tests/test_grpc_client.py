@@ -38,7 +38,8 @@ class DummyAuthStub:
 class GrpcClientTests(unittest.TestCase):
     def setUp(self):
         # Create fake generated modules so client can be instantiated in unit tests.
-        pkg = types.ModuleType("altastata.v1")
+        pkg = types.ModuleType("altastata.grpc.v1")
+        grpc_pkg = types.ModuleType("altastata.grpc")
         auth_pb2 = types.ModuleType("auth_pb2")
         users_pb2 = types.ModuleType("users_pb2")
         sharing_pb2 = types.ModuleType("sharing_pb2")
@@ -59,23 +60,24 @@ class GrpcClientTests(unittest.TestCase):
         fileops_pb2_grpc.FileOpsServiceStub = DummyFileOpsStub
         events_pb2_grpc.EventsServiceStub = DummyEventsStub
 
-        sys.modules["altastata.v1"] = pkg
-        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
-        sys.modules["altastata.v1.users_pb2"] = users_pb2
-        sys.modules["altastata.v1.sharing_pb2"] = sharing_pb2
-        sys.modules["altastata.v1.attributes_pb2"] = attributes_pb2
-        sys.modules["altastata.v1.fileops_pb2"] = fileops_pb2
-        sys.modules["altastata.v1.events_pb2"] = events_pb2
-        sys.modules["altastata.v1.auth_pb2_grpc"] = auth_pb2_grpc
-        sys.modules["altastata.v1.users_pb2_grpc"] = users_pb2_grpc
-        sys.modules["altastata.v1.sharing_pb2_grpc"] = sharing_pb2_grpc
-        sys.modules["altastata.v1.attributes_pb2_grpc"] = attributes_pb2_grpc
-        sys.modules["altastata.v1.fileops_pb2_grpc"] = fileops_pb2_grpc
-        sys.modules["altastata.v1.events_pb2_grpc"] = events_pb2_grpc
+        sys.modules["altastata.grpc"] = grpc_pkg
+        sys.modules["altastata.grpc.v1"] = pkg
+        sys.modules["altastata.grpc.v1.auth_pb2"] = auth_pb2
+        sys.modules["altastata.grpc.v1.users_pb2"] = users_pb2
+        sys.modules["altastata.grpc.v1.sharing_pb2"] = sharing_pb2
+        sys.modules["altastata.grpc.v1.attributes_pb2"] = attributes_pb2
+        sys.modules["altastata.grpc.v1.fileops_pb2"] = fileops_pb2
+        sys.modules["altastata.grpc.v1.events_pb2"] = events_pb2
+        sys.modules["altastata.grpc.v1.auth_pb2_grpc"] = auth_pb2_grpc
+        sys.modules["altastata.grpc.v1.users_pb2_grpc"] = users_pb2_grpc
+        sys.modules["altastata.grpc.v1.sharing_pb2_grpc"] = sharing_pb2_grpc
+        sys.modules["altastata.grpc.v1.attributes_pb2_grpc"] = attributes_pb2_grpc
+        sys.modules["altastata.grpc.v1.fileops_pb2_grpc"] = fileops_pb2_grpc
+        sys.modules["altastata.grpc.v1.events_pb2_grpc"] = events_pb2_grpc
 
     def tearDown(self):
         for name in list(sys.modules.keys()):
-            if name.startswith("altastata.v1"):
+            if name.startswith("altastata.grpc.v1") or name == "altastata.grpc":
                 sys.modules.pop(name, None)
 
     @patch("altastata.grpc_client.grpc.insecure_channel")
@@ -236,8 +238,8 @@ class GrpcClientTests(unittest.TestCase):
         auth_pb2 = types.ModuleType("auth_pb2")
         auth_pb2.LoginV2Request = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
         auth_pb2.LoginV2Upload = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
-        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
-        sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
+        sys.modules["altastata.grpc.v1.auth_pb2"] = auth_pb2
+        sys.modules["altastata.grpc.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
             return_value=auth_stub_mock,
         )
 
@@ -263,8 +265,8 @@ class GrpcClientTests(unittest.TestCase):
         auth_pb2 = types.ModuleType("auth_pb2")
         auth_pb2.LoginV2Request = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
         auth_pb2.LoginV2Upload = MagicMock(side_effect=lambda **kw: MagicMock(**kw))
-        sys.modules["altastata.v1.auth_pb2"] = auth_pb2
-        sys.modules["altastata.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
+        sys.modules["altastata.grpc.v1.auth_pb2"] = auth_pb2
+        sys.modules["altastata.grpc.v1.auth_pb2_grpc"].AuthServiceStub = MagicMock(
             return_value=auth_stub_mock,
         )
 

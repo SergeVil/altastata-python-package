@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-# Note: proto/ files are the canonical AltaStata gRPC contracts and must stay
-# byte-identical with mycloud/altastata-grpc/src/main/proto/. Sync that
-# directory before regenerating stubs so server and client never drift.
+# Note: proto/altastata/grpc/v1/ files are the AltaStata gRPC contracts and
+# must stay in sync with mycloud/altastata-grpc/src/main/proto/altastata/grpc/v1/.
+# Sync that directory before regenerating stubs so server and client never drift.
+# The protobuf package remains altastata.v1 (wire API version); only the file
+# path uses grpc/v1 for clarity in Python and Java build trees.
 import subprocess
 import sys
 from pathlib import Path
@@ -12,7 +14,7 @@ def main() -> int:
     proto_root = repo_root / "proto"
     out_root = repo_root
 
-    proto_files = sorted((proto_root / "altastata" / "v1").glob("*.proto"))
+    proto_files = sorted((proto_root / "altastata" / "grpc" / "v1").glob("*.proto"))
     if not proto_files:
         print("No proto files found.", file=sys.stderr)
         return 1

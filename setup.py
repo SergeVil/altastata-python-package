@@ -25,7 +25,7 @@ setup(
         # `python -m build`.
         'altastata': [
             'lib/*.jar',
-            'v1/*.py',
+            'grpc/v1/*.py',
             'lib/altastata-console-static/*',
             'lib/altastata-console-static/*/*',
         ],

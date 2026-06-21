@@ -3,7 +3,8 @@
 import grpc
 import warnings
 
-from altastata.v1 import sharing_pb2 as altastata_dot_v1_dot_sharing__pb2
+from altastata.grpc.v1 import attributes_pb2 as altastata_dot_grpc_dot_v1_dot_attributes__pb2
+from altastata.grpc.v1 import users_pb2 as altastata_dot_grpc_dot_v1_dot_users__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
@@ -18,14 +19,14 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in altastata/v1/sharing_pb2_grpc.py depends on'
+        + ' but the generated code in altastata/grpc/v1/attributes_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
     )
 
 
-class SharingServiceStub(object):
+class AttributesServiceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -34,91 +35,91 @@ class SharingServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
-        self.Share = channel.unary_unary(
-                '/altastata.v1.SharingService/Share',
-                request_serializer=altastata_dot_v1_dot_sharing__pb2.ShareRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_sharing__pb2.ShareResult.FromString,
+        self.GetAttribute = channel.unary_unary(
+                '/altastata.v1.AttributesService/GetAttribute',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributeRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.Attribute.FromString,
                 _registered_method=True)
-        self.Revoke = channel.unary_unary(
-                '/altastata.v1.SharingService/Revoke',
-                request_serializer=altastata_dot_v1_dot_sharing__pb2.RevokeRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_sharing__pb2.RevokeResult.FromString,
+        self.GetAttributes = channel.unary_unary(
+                '/altastata.v1.AttributesService/GetAttributes',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributesRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.AttributeMap.FromString,
                 _registered_method=True)
-        self.ShareByQuery = channel.unary_unary(
-                '/altastata.v1.SharingService/ShareByQuery',
-                request_serializer=altastata_dot_v1_dot_sharing__pb2.ShareByQueryRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_sharing__pb2.ShareResult.FromString,
+        self.SetAttribute = channel.unary_unary(
+                '/altastata.v1.AttributesService/SetAttribute',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.SetAttributeRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.FromString,
                 _registered_method=True)
-        self.RevokeByQuery = channel.unary_unary(
-                '/altastata.v1.SharingService/RevokeByQuery',
-                request_serializer=altastata_dot_v1_dot_sharing__pb2.RevokeByQueryRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_sharing__pb2.RevokeResult.FromString,
+        self.DeleteAttribute = channel.unary_unary(
+                '/altastata.v1.AttributesService/DeleteAttribute',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.DeleteAttributeRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.FromString,
                 _registered_method=True)
 
 
-class SharingServiceServicer(object):
+class AttributesServiceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
-    def Share(self, request, context):
+    def GetAttribute(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def Revoke(self, request, context):
+    def GetAttributes(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def ShareByQuery(self, request, context):
+    def SetAttribute(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def RevokeByQuery(self, request, context):
+    def DeleteAttribute(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
 
-def add_SharingServiceServicer_to_server(servicer, server):
+def add_AttributesServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'Share': grpc.unary_unary_rpc_method_handler(
-                    servicer.Share,
-                    request_deserializer=altastata_dot_v1_dot_sharing__pb2.ShareRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_sharing__pb2.ShareResult.SerializeToString,
+            'GetAttribute': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetAttribute,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributeRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.Attribute.SerializeToString,
             ),
-            'Revoke': grpc.unary_unary_rpc_method_handler(
-                    servicer.Revoke,
-                    request_deserializer=altastata_dot_v1_dot_sharing__pb2.RevokeRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_sharing__pb2.RevokeResult.SerializeToString,
+            'GetAttributes': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetAttributes,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributesRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.AttributeMap.SerializeToString,
             ),
-            'ShareByQuery': grpc.unary_unary_rpc_method_handler(
-                    servicer.ShareByQuery,
-                    request_deserializer=altastata_dot_v1_dot_sharing__pb2.ShareByQueryRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_sharing__pb2.ShareResult.SerializeToString,
+            'SetAttribute': grpc.unary_unary_rpc_method_handler(
+                    servicer.SetAttribute,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.SetAttributeRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.SerializeToString,
             ),
-            'RevokeByQuery': grpc.unary_unary_rpc_method_handler(
-                    servicer.RevokeByQuery,
-                    request_deserializer=altastata_dot_v1_dot_sharing__pb2.RevokeByQueryRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_sharing__pb2.RevokeResult.SerializeToString,
+            'DeleteAttribute': grpc.unary_unary_rpc_method_handler(
+                    servicer.DeleteAttribute,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_attributes__pb2.DeleteAttributeRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'altastata.v1.SharingService', rpc_method_handlers)
+            'altastata.v1.AttributesService', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('altastata.v1.SharingService', rpc_method_handlers)
+    server.add_registered_method_handlers('altastata.v1.AttributesService', rpc_method_handlers)
 
 
  # This class is part of an EXPERIMENTAL API.
-class SharingService(object):
+class AttributesService(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
-    def Share(request,
+    def GetAttribute(request,
             target,
             options=(),
             channel_credentials=None,
@@ -131,9 +132,9 @@ class SharingService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/altastata.v1.SharingService/Share',
-            altastata_dot_v1_dot_sharing__pb2.ShareRequest.SerializeToString,
-            altastata_dot_v1_dot_sharing__pb2.ShareResult.FromString,
+            '/altastata.v1.AttributesService/GetAttribute',
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributeRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.Attribute.FromString,
             options,
             channel_credentials,
             insecure,
@@ -145,7 +146,7 @@ class SharingService(object):
             _registered_method=True)
 
     @staticmethod
-    def Revoke(request,
+    def GetAttributes(request,
             target,
             options=(),
             channel_credentials=None,
@@ -158,9 +159,9 @@ class SharingService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/altastata.v1.SharingService/Revoke',
-            altastata_dot_v1_dot_sharing__pb2.RevokeRequest.SerializeToString,
-            altastata_dot_v1_dot_sharing__pb2.RevokeResult.FromString,
+            '/altastata.v1.AttributesService/GetAttributes',
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.GetAttributesRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.AttributeMap.FromString,
             options,
             channel_credentials,
             insecure,
@@ -172,7 +173,7 @@ class SharingService(object):
             _registered_method=True)
 
     @staticmethod
-    def ShareByQuery(request,
+    def SetAttribute(request,
             target,
             options=(),
             channel_credentials=None,
@@ -185,9 +186,9 @@ class SharingService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/altastata.v1.SharingService/ShareByQuery',
-            altastata_dot_v1_dot_sharing__pb2.ShareByQueryRequest.SerializeToString,
-            altastata_dot_v1_dot_sharing__pb2.ShareResult.FromString,
+            '/altastata.v1.AttributesService/SetAttribute',
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.SetAttributeRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
@@ -199,7 +200,7 @@ class SharingService(object):
             _registered_method=True)
 
     @staticmethod
-    def RevokeByQuery(request,
+    def DeleteAttribute(request,
             target,
             options=(),
             channel_credentials=None,
@@ -212,9 +213,9 @@ class SharingService(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/altastata.v1.SharingService/RevokeByQuery',
-            altastata_dot_v1_dot_sharing__pb2.RevokeByQueryRequest.SerializeToString,
-            altastata_dot_v1_dot_sharing__pb2.RevokeResult.FromString,
+            '/altastata.v1.AttributesService/DeleteAttribute',
+            altastata_dot_grpc_dot_v1_dot_attributes__pb2.DeleteAttributeRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.FromString,
             options,
             channel_credentials,
             insecure,
