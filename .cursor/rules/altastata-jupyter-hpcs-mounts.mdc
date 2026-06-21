@@ -1,0 +1,62 @@
+---
+description: Always include HPCS bind mounts when starting/restarting the altastata-jupyter container so user_properties with key-protection=HPCS work.
+alwaysApply: true
+---
+
+# altastata-jupyter container: HPCS mounts are required
+
+When starting or restarting the `altastata-jupyter` Docker container, the gRPC
+server inside the container reads HPCS files referenced by user properties:
+
+- `hpcs-yaml-path` (default in user_properties: `/etc/ep11client/grep11client.yaml`)
+- `hpcs-priv-key-blob-path` (default: `/home/jovyan/hpcs-privkey.blob`)
+
+These files live on the host (outside the repo) and are NOT in the committed
+`docker-compose.yml`. They are bind-mounted via a personal, gitignored
+override at `containers/jupyter/docker-compose.override.yml`. Compose merges
+the override file when it's passed explicitly with `-f`.
+
+## CRITICAL: mount the POPULATED grep11client.yaml, not the placeholder
+
+There are usually two `grep11client.yaml` files on the host. They look similar.
+Only one has real HPCS values (instance ID, address, apikey); the other is a
+template with `<your-...>` placeholders. Mounting the placeholder one makes the
+GREP11 client fail silently to load, which causes the server to fall through
+to the PKCS#11 (.so) branch — that branch needs `pkcs11-grep11-arm64.so` which
+doesn't exist on Mac, so `AuthService.Login` rejects every login as
+`UNAUTHENTICATED "Invalid credentials"` (the real exception is hidden from
+the client and only visible in `/tmp/altastata-grpc-server.log`).
+
+Before mounting, verify the YAML is populated:
+
+```bash
+rg -c '<your-' /path/to/grep11client.yaml   # should print 0
+```
+
+For Serge's accounts, the populated file is
+`mycloud/altastata-admin/grep11client.yaml` (NOT `altastata-core/...`).
+
+## Always use BOTH compose files
+
+Run the container with both `-f` flags so the override is merged:
+
+```bash
+ARCH=arm64 VERSION=2026e_latest docker compose \
+  -f containers/jupyter/docker-compose.yml \
+  -f containers/jupyter/docker-compose.override.yml \
+  up -d
+```
+
+After the container starts, verify the HPCS mounts before declaring success:
+
+```bash
+docker inspect altastata-jupyter --format \
+  '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}' \
+  | rg -i 'hpcs|grep11'
+```
+
+If the override file is missing, do NOT silently fall back to the main compose
+alone — calls like `from_credentials(..., transport="grpc")` for HPCS accounts
+will fail with `FAILED_PRECONDITION: HPCS configuration errors: ... not found`.
+Instead, recreate the override with the user's real host paths for
+`grep11client.yaml` and `hpcs-privkey.blob`, then bring the stack up.
