@@ -242,7 +242,7 @@ mkdir -p /Users/sergevilvovsky/.altastata/accounts/amazon.rsa.alice222
 
 2. **Different event names** - The Java side might use different event names. Check Bob's output for actual event names received.
 
-3. **Callback server issue** - Verify py4j callback server is enabled (should be automatic)
+3. **Event stream issue** - Verify gRPC event streaming is connected and active
 
 4. **Network/timing** - Add longer delays in `alice_sender.py` between operations
 

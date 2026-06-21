@@ -104,9 +104,6 @@ class AltaStataEventListener:
 class AltaStataFunctions:
     def __init__(
         self,
-        port=25333,
-        enable_callback_server=True,
-        callback_server_port=None,
         *,
         transport: str = "grpc",
         grpc_client: Optional[AltaStataGrpcClient] = None,
@@ -114,11 +111,6 @@ class AltaStataFunctions:
         """
         Base initialization. This should not be called directly.
         Use from_account_dir or from_credentials instead.
-        
-        Args:
-            port (int): Port number for the gateway
-            enable_callback_server (bool): Enable callback server for event listeners
-            callback_server_port (int, optional): Custom port for callback server. None = auto-select
         """
         self.transport = "grpc"
         if transport.lower() != "grpc":
@@ -128,9 +120,6 @@ class AltaStataFunctions:
                 DeprecationWarning,
                 stacklevel=2,
             )
-        del port
-        del enable_callback_server
-        del callback_server_port
         self.grpc_client = grpc_client
         self._event_listeners = []  # Track registered listeners
 
@@ -151,9 +140,6 @@ class AltaStataFunctions:
     def from_account_dir(
         cls,
         account_dir_path,
-        port=25333,
-        enable_callback_server=True,
-        callback_server_port=None,
         *,
         transport: str = "grpc",
         password: Optional[str] = None,
@@ -167,9 +153,6 @@ class AltaStataFunctions:
         
         Args:
             account_dir_path (str): Path to the account directory
-            port (int, optional): Port number for the gateway. Defaults to 25333.
-            enable_callback_server (bool, optional): Enable callback server for event listeners. Defaults to True.
-            callback_server_port (int, optional): Custom port for callback server. None = auto-select. Defaults to None.
             
         Returns:
             AltaStataFunctions: New instance initialized with account directory
@@ -187,9 +170,6 @@ class AltaStataFunctions:
             auto_start_server=grpc_auto_start_server,
         )
         instance = cls(
-            port=port,
-            enable_callback_server=enable_callback_server,
-            callback_server_port=callback_server_port,
             transport=transport,
             grpc_client=client,
         )
@@ -202,9 +182,6 @@ class AltaStataFunctions:
         cls,
         user_properties,
         private_key_encrypted,
-        port=25333,
-        enable_callback_server=True,
-        callback_server_port=None,
         *,
         transport: str = "grpc",
         password: Optional[str] = None,
@@ -219,9 +196,6 @@ class AltaStataFunctions:
         Args:
             user_properties (str): User properties string
             private_key_encrypted (str): Encrypted private key
-            port (int, optional): Port number for the gateway. Defaults to 25333.
-            enable_callback_server (bool, optional): Enable callback server for event listeners. Defaults to True.
-            callback_server_port (int, optional): Custom port for callback server. None = auto-select. Defaults to None.
             
         Returns:
             AltaStataFunctions: New instance initialized with credentials
@@ -238,9 +212,6 @@ class AltaStataFunctions:
             auto_start_server=grpc_auto_start_server,
         )
         instance = cls(
-            port=port,
-            enable_callback_server=enable_callback_server,
-            callback_server_port=callback_server_port,
             transport=transport,
             grpc_client=client,
         )

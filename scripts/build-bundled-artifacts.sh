@@ -7,7 +7,7 @@
 #     1. altastata-services-<ver>-uber.jar  (built from sibling
 #        mycloud/altastata-services — the unified Micronaut app that hosts
 #        gRPC + S3 + py4j under com.altastata.services.AltaStataServicesApplication)
-#     2. altastata/lib/altastata-console-static/  (built from sibling altastata-console)
+#     2. altastata/lib/altastata-console-static/  (built from altastata-console/frontend)
 #   Both are deliberately gitignored under altastata/lib/ so the repo stays
 #   text-only. They are populated locally before `python -m build` so they
 #   end up inside the wheel published to PyPI.
@@ -19,7 +19,7 @@
 #   ALTASTATA_MYCLOUD_DIR   override path to the mycloud checkout
 #                           (default: ../mycloud relative to this repo)
 #   ALTASTATA_CONSOLE_DIR   override path to the altastata-console checkout
-#                           (default: ../altastata-console relative to this repo)
+#                           (default: altastata-console/ in this repo)
 #   SKIP_GRPC=1             skip the altastata-services Gradle build (use existing
 #                           altastata-services-*-uber.jar already present in lib/)
 #   SKIP_UI=1               skip the altastata-console npm build (use existing
@@ -40,7 +40,7 @@ LIB_DIR="$PKG_DIR/altastata/lib"
 STATIC_DIR="$LIB_DIR/altastata-console-static"
 
 MYCLOUD_DIR="${ALTASTATA_MYCLOUD_DIR:-$(cd "$PKG_DIR/../mycloud" 2>/dev/null && pwd || true)}"
-CONSOLE_DIR="${ALTASTATA_CONSOLE_DIR:-$(cd "$PKG_DIR/../altastata-console" 2>/dev/null && pwd || true)}"
+CONSOLE_DIR="${ALTASTATA_CONSOLE_DIR:-$(cd "$PKG_DIR/altastata-console" 2>/dev/null && pwd || true)}"
 
 mkdir -p "$LIB_DIR"
 
@@ -84,7 +84,7 @@ fi
 if [[ -z "${SKIP_UI:-}" ]]; then
     if [[ -z "$CONSOLE_DIR" || ! -d "$CONSOLE_DIR" ]]; then
         echo "ERROR: altastata-console directory not found." >&2
-        echo "       Set ALTASTATA_CONSOLE_DIR or place altastata-console next to this repo." >&2
+        echo "       Set ALTASTATA_CONSOLE_DIR or ensure altastata-console/ exists in this repo." >&2
         exit 1
     fi
     echo "==> Building altastata-console SPA in $CONSOLE_DIR/frontend"

@@ -26,7 +26,6 @@ from config import (
     ALTASTATA_ACCOUNT_DIR,
     ALTASTATA_PASSWORD,
     ALTASTATA_ACCOUNT_ID,
-    ALTASTATA_CALLBACK_PORT,
     ALTASTATA_USE_HPCS,
     EMBEDDING_MODEL,
     CHUNK_SIZE,
@@ -176,7 +175,6 @@ class OpenRAGIndexer:
         print("[indexer] Connecting to AltaStata (from_account_dir + set_password)...")
         self.altastata = AltaStataFunctions.from_account_dir(
             ALTASTATA_ACCOUNT_DIR,
-            callback_server_port=ALTASTATA_CALLBACK_PORT,
         )
         if not ALTASTATA_USE_HPCS:
             self.altastata.set_password(ALTASTATA_PASSWORD)

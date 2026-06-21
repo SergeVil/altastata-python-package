@@ -90,3 +90,7 @@ containers/rag-example/llama-3.2-1b-instruct-be.f16.gguf
 containers/rag-example/*.user.properties
 rag-zdnn-build.log
 containers/jupyter/docker-compose.override.yml
+
+# Vendored altastata-console SPA (source tracked; build artifacts not)
+altastata-console/frontend/node_modules/
+altastata-console/frontend/dist/

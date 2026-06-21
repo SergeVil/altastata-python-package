@@ -3,7 +3,7 @@
 **Audience:** an implementing engineer/model executing the change.
 **Repo:** `altastata-python-package`
 **Companion docs:** `grpc-migration-design.md` (decision & phases),
-`performance-java-to-python-optimization.md` (Py4J tiering background),
+`performance-java-to-python-optimization.md` (legacy tiering background),
 `GRPC_VS_PY4J_BENCHMARK.md` (benchmark commands).
 
 This spec is **self-contained**. Do exactly what is written here. Do **not**
@@ -13,8 +13,8 @@ redesign, do **not** add new dependencies, do **not** introduce Apache Arrow.
 
 ## 0. Context (read first)
 
-We are standardizing the Java ↔ Python transport on **gRPC** and deprecating
-Py4J. This task is **Phase 1: harden the gRPC data plane** in the Python
+We are standardizing the Java ↔ Python transport on **gRPC**. This task is
+**Phase 1: harden the gRPC data plane** in the Python
 client. It is purely client-side Python (the Java gateway already implements
 the `ReadStream` RPC — see `tests/js-grpc-ui` "read stream").
 
@@ -358,7 +358,7 @@ python -m pytest tests/ -q
 ## 6. Out of scope (do NOT do here)
 
 - Flipping the default `transport` to `grpc` (later phase).
-- Removing the Py4J path / `base_gateway.py` (later phase).
+- Removing deprecated legacy bridge notes (later phase).
 - Server-side Unix-socket binding and UDS-aware auto-start (mycloud follow-up).
 - Apache Arrow / Arrow Flight (deferred; see `grpc-migration-design.md` §9).
 - Compression, shared memory, `memfd` (only if profiling later justifies them).

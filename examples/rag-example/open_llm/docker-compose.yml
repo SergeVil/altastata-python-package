@@ -55,13 +55,10 @@ services:
       - ALTASTATA_ACCOUNT_DIR=/altastata_account
       - ALTASTATA_PASSWORD=${ALTASTATA_PASSWORD:-123}
       - ALTASTATA_ACCOUNT_ID=${ALTASTATA_ACCOUNT_ID:-bob123}
-      - ALTASTATA_CALLBACK_PORT=25334
       - RAG_INDEX_PATH=${RAG_INDEX_PATH:-RAGDocs/policies}
     volumes:
       - ${ALTASTATA_ACCOUNT_DIR:-/tmp/altastata-account-must-set-in-env}:/altastata_account:ro
       - local_index_data:/app/open_llm/local_index
-    ports:
-      - "127.0.0.1:25334:25334"
     command: ["python", "indexer.py"]
     restart: unless-stopped
 

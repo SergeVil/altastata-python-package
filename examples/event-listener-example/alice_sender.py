@@ -30,9 +30,7 @@ def main():
     print("\n1️⃣  Connecting to AltaStata as alice222...")
     try:
         alice_altastata = AltaStataFunctions.from_account_dir(
-            '/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.alice222',
-            port=25555,  # Alice uses a different gateway port (separate JVM from Bob)
-            enable_callback_server=False  # Alice doesn't need to listen for events
+            '/Users/sergevilvovsky/.altastata/accounts/amazon.rsa.alice222'
         )
         alice_altastata.set_password("123")
         print("✅ Alice connected successfully")

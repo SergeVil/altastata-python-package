@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-The AltaStata Python package transfers data from cloud storage through a Java/Scala core (via Py4J gateway) into Python. Profiling revealed several bottlenecks in this pipeline that caused excessive memory usage, unnecessary data copies, and underutilized parallelism. For files ≤ 64 MB, all data transfers happen in-memory (no decrypted data on disk). For files > 64 MB, a temporary file with strict cleanup is used for performance.
+The AltaStata Python package transfers data from cloud storage through a Java/Scala core into Python. Profiling revealed several bottlenecks in this pipeline that caused excessive memory usage, unnecessary data copies, and underutilized parallelism. For files ≤ 64 MB, all data transfers happen in-memory (no decrypted data on disk). For files > 64 MB, a temporary file with strict cleanup is used for performance.
 
 ## Architecture
 
@@ -32,7 +32,7 @@ Cloud Storage
 │  │  • getFileInputStream()    │  │
 │  └────────────────────────────┘  │
 └──────────────┬───────────────────┘
-               │  Py4J (TCP socket)
+               │  Legacy bridge (TCP socket)
                │  Base64 String transfer
                ▼
 ┌──────────────────────────────────┐
@@ -53,11 +53,11 @@ Cloud Storage
 
 ## Bottlenecks Identified
 
-### 1. Py4J byte[] serialization (Critical)
+### 1. Legacy bridge byte[] serialization (Critical)
 
-Py4J's internal handling of Java `byte[]` is slow. Even though Py4J uses Base64 internally for byte arrays, the encoding/decoding and string concatenation overhead in the protocol layer makes large `byte[]` transfers very expensive (~5-20 MB/s). In contrast, returning a pre-encoded `String` from Java bypasses this overhead entirely — Py4J transfers `String` values as a single bulk UTF-8 blob (~500+ MB/s).
+The legacy bridge's internal handling of Java `byte[]` is slow. Even though it uses Base64 internally for byte arrays, the encoding/decoding and string concatenation overhead in the protocol layer makes large `byte[]` transfers very expensive (~5-20 MB/s). In contrast, returning a pre-encoded `String` from Java bypasses this overhead entirely — string values transfer as a single bulk UTF-8 blob (~500+ MB/s).
 
-**Before:** All data transferred as `byte[]` through Py4J's slow internal encoding.
+**Before:** All data transferred as `byte[]` through the legacy bridge's slow internal encoding.
 
 ### 2. Decrypted data written to local filesystem without cleanup (Security)
 
@@ -73,7 +73,7 @@ The Java `AltaStataChunkedInputStream` had a commented-out `Future` block for pr
 
 ### 5. fsspec uses 1024-byte reads (Medium)
 
-`AltaStataFile.read(-1)` called `get_buffer_from_input_stream(stream, 1024)` — for a 10 MB file this would require ~10,000 Py4J round-trips. Also, `seek()` used Java `mark()` incorrectly (mark is for reset, not seeking).
+`AltaStataFile.read(-1)` called `get_buffer_from_input_stream(stream, 1024)` — for a 10 MB file this would require ~10,000 bridge round-trips. Also, `seek()` used Java `mark()` incorrectly (mark is for reset, not seeking).
 
 ### 6. TensorFlow training bypasses cache (Medium)
 
@@ -95,9 +95,9 @@ Both datasets parsed the `✹` version suffix from file paths to extract timesta
 
 ### Phase 1: Core Transfer Layer (`altastata_functions.py`)
 
-#### Base64 String transfer (bypasses Py4J byte[] bottleneck)
+#### Base64 String transfer (bypasses legacy bridge byte[] bottleneck)
 
-The single biggest win. We Base64-encode on the Java side and return a `String`, which Py4J transfers efficiently as a single bulk value. This bypasses Py4J's slow internal `byte[]` handling entirely.
+The single biggest win. We Base64-encode on the Java side and return a `String`, which the legacy bridge transfers efficiently as a single bulk value. This bypasses slow internal `byte[]` handling entirely.
 
 ```java
 // Java: single-call Base64 for small files
@@ -115,7 +115,7 @@ public String getBufferAsBase64(String cloudFilePath, ...) throws IOException {
 |-----------|----------|-----|
 | ≤ 8 MB (1 chunk) | `getBufferAsBase64()` — single Base64 call | One chunk — no pipelining benefit; minimal round-trips |
 | 8–64 MB | Streaming Base64 per chunk via `readBufferFromInputStreamAsBase64()` | Independent chunks pipelined; bounded Java heap (~19 MB); no temp file |
-| > 64 MB | `streamToFile()` — Java streams to temp file, Python reads + deletes | Faster for large files (1.2x vs streaming); avoids 267+ Py4J round-trips for a 2 GB file |
+| > 64 MB | `streamToFile()` — Java streams to temp file, Python reads + deletes | Faster for large files (1.2x vs streaming); avoids 267+ bridge round-trips for a 2 GB file |
 
 The streaming path uses a pre-allocated `bytearray` with `memoryview` to avoid reallocations. The temp file path uses Java's `streamToFile()` which copies directly from `AltaStataChunkedInputStream` to `FileOutputStream` in 8 MB chunks (never loads the full file into Java heap):
 
@@ -160,7 +160,7 @@ public long streamToFile(String outputFilePath, String cloudFilePath,
 
 #### Security: controlled temp-file usage with strict cleanup
 
-Files ≤ 64 MB transfer entirely in-memory through the Py4J gateway — no decrypted data touches disk. The old `fillMappedFile` / `fillMappedFileDirect` / `get_buffer_via_mapped_file` methods (which left temp files around) were removed.
+Files ≤ 64 MB transfer entirely in-memory through the legacy gateway — no decrypted data touches disk. The old `fillMappedFile` / `fillMappedFileDirect` / `get_buffer_via_mapped_file` methods (which left temp files around) were removed.
 
 For files > 64 MB, the new `streamToFile` approach creates a temporary file that is immediately deleted after Python reads it (in a `try...finally` block). The temp file is created via `tempfile.mkstemp` with a unique name and removed even if an exception occurs. This trades a brief disk presence for significantly better performance (1.2x faster than pure streaming for large files).
 
@@ -214,7 +214,7 @@ if path in self.file_content_cache:
 
 #### File reads use `get_file_attribute` + `get_buffer`
 
-Both datasets get the file size via `get_file_attribute`, then call `get_buffer` which uses the tiered strategy (single Base64 for ≤8 MB, streaming for >8 MB). This is two Py4J calls per file, but enables streaming for large files.
+Both datasets get the file size via `get_file_attribute`, then call `get_buffer` which uses the tiered strategy (single Base64 for ≤8 MB, streaming for >8 MB). This is two control calls per file, but enables streaming for large files.
 
 #### Version parsing removed from Python
 
@@ -252,9 +252,9 @@ For callers that need true streaming without loading everything into memory, `ge
 
 | Scenario | Before | After | Improvement |
 |----------|--------|-------|-------------|
-| **10 MB file via Py4J** | `byte[]` through slow Py4J handling (~5-20 MB/s) | Base64 `String` (~500+ MB/s) | **~25-100x faster transfer** |
-| **64 MB file, Java heap** | ~150 MB (byte[] + Py4J overhead) | ~19 MB (one 8 MB chunk + Base64 at a time) | **~8x less Java memory** |
-| **2.1 GB file via temp file** | Base64 streaming: 234s / 9.3 MB/s (267 Py4J round-trips) | `streamToFile` + temp file: 196s / 11.1 MB/s | **1.2x faster, fewer round-trips** |
+| **10 MB file via legacy bridge** | `byte[]` through slow bridge handling (~5-20 MB/s) | Base64 `String` (~500+ MB/s) | **~25-100x faster transfer** |
+| **64 MB file, Java heap** | ~150 MB (byte[] + bridge overhead) | ~19 MB (one 8 MB chunk + Base64 at a time) | **~8x less Java memory** |
+| **2.1 GB file via temp file** | Base64 streaming: 234s / 9.3 MB/s (267 round-trips) | `streamToFile` + temp file: 196s / 11.1 MB/s | **1.2x faster, fewer round-trips** |
 | **fsspec `read(-1)` on 10 MB file** | ~10,000 round-trips (1 KB each) | 1-2 calls via `get_buffer` | **~10,000x fewer round-trips** |
 | **TF training, 2nd+ epoch** | Re-fetches all files from cloud | Served from LRU cache | **Near-zero I/O** |
 | **Cache full, new files needed** | New files cannot be cached | LRU eviction makes room | **Continuous caching** |
@@ -267,19 +267,19 @@ For callers that need true streaming without loading everything into memory, `ge
 | **Download (temp file, >64 MB tier)** | 195.9s | 11.1 MB/s |
 | **Download (Base64 streaming, forced)** | 234.0s | 9.3 MB/s |
 
-Both download methods verified data integrity against the local source file. The temp file approach avoids 267 Py4J round-trips (one per 8 MB chunk) and lets Java write contiguously to disk at I/O speed.
+Both download methods verified data integrity against the local source file. The temp file approach avoids 267 round-trips (one per 8 MB chunk) and lets Java write contiguously to disk at I/O speed.
 
-## Why Base64 String instead of byte[]?
+## Why Base64 String instead of byte[] on the legacy bridge?
 
-Py4J uses a text-based protocol. While it does handle `byte[]` arrays (via internal Base64), the overhead of string concatenation and encoding/decoding within Py4J's protocol layer makes large `byte[]` transfers slow. By Base64-encoding on the Java side and returning a `String`, we bypass this overhead — Py4J transfers `String` values as a single bulk UTF-8 blob.
+The legacy bridge uses a text-based protocol. While it does handle `byte[]` arrays (via internal Base64), the overhead of string concatenation and encoding/decoding within the protocol layer makes large `byte[]` transfers slow. By Base64-encoding on the Java side and returning a `String`, we bypass this overhead — strings transfer as a single bulk UTF-8 blob.
 
-This limitation is specific to Py4J. Other Java interop mechanisms transfer byte arrays efficiently. The Java API exposes both `getBuffer()` (raw byte[]) and `getBufferAsBase64()` (String) so clients can choose the optimal path for their bridge.
+This limitation is specific to the old bridge layer. Other Java interop mechanisms transfer byte arrays efficiently. The Java API exposes both `getBuffer()` (raw byte[]) and `getBufferAsBase64()` (String) so clients can choose the optimal path for their bridge.
 
 | Bridge type | Best method | Why |
 |-------------|-------------|-----|
-| Py4J (Python) | `getBufferAsBase64` / `readBufferFromInputStreamAsBase64` | String is bulk, byte[] is slow |
+| Legacy Python bridge | `getBufferAsBase64` / `readBufferFromInputStreamAsBase64` | String is bulk, byte[] is slow |
 | JNI / native (.NET IKVM) | `getBuffer` | byte[] via pointer, no serialization |
-| gRPC / REST | `getBuffer` | Binary frames, no Py4J overhead |
+| gRPC / REST | `getBuffer` | Binary frames, no legacy bridge overhead |
 | Shared memory | Direct write | Zero-copy |
 
 ## Files Changed
@@ -309,11 +309,11 @@ This limitation is specific to Py4J. Other Java interop mechanisms transfer byte
 
 ### Batch multi-file reads
 
-A Java method like `getFilesWithSize(String[] paths)` that returns multiple files in one Py4J call would reduce round-trips proportionally for dataset loading.
+A Java method like `getFilesWithSize(String[] paths)` that returns multiple files in one call would reduce round-trips proportionally for dataset loading.
 
-### Bypass Py4J for data transfer
+### Bypass legacy bridge for data transfer
 
-The `streamToFile` temp-file approach already bypasses Py4J for the bulk data path (>64 MB), reducing it to a single Py4J control call. For further improvement:
+The `streamToFile` temp-file approach already bypasses the legacy bridge for the bulk data path (>64 MB), reducing it to a single control call. For further improvement:
 - **Unix domain socket**: Java writes raw bytes, Python reads directly. ~3-5 GB/s.
 - **`memfd_create`** (Linux): anonymous memory-only file descriptors that never touch disk. Zero-copy, secure.
 - **gRPC sidecar**: binary protobuf frames with built-in streaming. Well-supported in both languages.

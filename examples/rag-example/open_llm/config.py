@@ -16,7 +16,6 @@ ALTASTATA_PASSWORD = _raw_password if (_raw_password and str(_raw_password).stri
 # HPCS (IBM Hyper Protect) accounts use key blobs/GREP11, not a password; skip set_password when set
 ALTASTATA_USE_HPCS = os.getenv("ALTASTATA_USE_HPCS", "").strip().lower() in ("1", "true", "yes")
 ALTASTATA_ACCOUNT_ID = os.getenv("ALTASTATA_ACCOUNT_ID", "bob123")
-ALTASTATA_CALLBACK_PORT = int(os.getenv("ALTASTATA_CALLBACK_PORT", "25334"))
 
 # Vector store: simple (pure Python + numpy, s390x-safe)
 LOCAL_INDEX_PATH = os.getenv("LOCAL_INDEX_PATH", os.path.join(os.path.dirname(__file__), "local_index"))

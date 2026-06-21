@@ -275,8 +275,7 @@ class BobIndexer:
         # Connect to AltaStata
         print("\n3️⃣  Connecting Bob...")
         self.bob_altastata = AltaStataFunctions.from_account_dir(
-            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123',
-            callback_server_port=25334
+            '/Users/sergevilvovsky/.altastata/accounts/azure.rsa.bob123'
         )
         self.bob_altastata.set_password("123")
         self.fs = create_filesystem(self.bob_altastata, "bob123")
