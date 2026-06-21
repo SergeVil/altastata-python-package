@@ -18,7 +18,7 @@ pip install altastata
 | **Snowflake** external stages | S3 Gateway (port **9876**) or Snowpark Python + fsspec |
 | S3 tools (boto3, aws CLI, s3fs) | S3-compatible API on port **9876** |
 | gRPC API (Python `transport="grpc"`, JS clients) | `altastata-services` JVM on port **9877** |
-| Real-time share/delete events | gRPC `EventsService`, Py4J callback, or Web UI |
+| Real-time share/delete events | gRPC `EventsService` or Web UI |
 | **Web UI** — Finder-style file manager in the browser | http://127.0.0.1:9877 (same JVM as gRPC) |
 
 ---
@@ -127,22 +127,10 @@ One bundled Java process (`altastata-grpc-server` / `altastata-services`) listen
 |------|---------|
 | **9877** | gRPC (file ops, auth, events) + Web UI static files |
 | **9876** | S3-compatible REST API |
-| **25333** | Py4J (legacy in-process bridge to Python) |
 
 ### HPCS in Docker / Jupyter
 
 Mount a populated `grep11client.yaml` (e.g. `/etc/ep11client/grep11client.yaml`) and `hpcs-privkey.blob`. See [`containers/jupyter/README-Docker.md`](containers/jupyter/README-Docker.md).
-
----
-
-## Legacy Py4J transport (default)
-
-```python
-from altastata import AltaStataFunctions
-
-f = AltaStataFunctions.from_account_dir("/path/to/account")
-f.set_password("your_password")
-```
 
 ---
 
@@ -228,8 +216,11 @@ See `examples/pytorch-example/` and `examples/tensorflow-example/`.
 def on_event(name, data):
     print(name, data)
 
-f = AltaStataFunctions.from_account_dir("/path/to/account", enable_callback_server=True)
-f.set_password("secret")
+f = AltaStataFunctions.from_account_dir(
+    "/path/to/account",
+    transport="grpc",
+    password="secret",
+)
 f.add_event_listener(on_event)
 ```
 

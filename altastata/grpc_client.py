@@ -16,6 +16,13 @@ import platform
 
 from altastata.java_runtime import resolve_java_memory_opts
 
+# Files at/above this size are read via the server-streaming ReadStream RPC
+# instead of a single unary GetBuffer, so we never hit the 64 MB gRPC message
+# cap and never hold two full copies of a large payload at once. Kept well
+# under grpc.max_receive_message_length (64 MB) so the unary path's single
+# message (+ protobuf framing) always fits.
+GRPC_UNARY_MAX_SIZE = 32 * 1024 * 1024  # 32 MB
+
 
 def _default_client_hint() -> str:
     """
@@ -37,9 +44,14 @@ class GrpcEndpoint:
     host: str = "127.0.0.1"
     port: int = 9877
     secure: bool = False
+    # When set, connect over a Unix domain socket instead of TCP. Local-only,
+    # so `secure` is ignored. Example: socket_path="/tmp/altastata.sock".
+    socket_path: Optional[str] = None
 
     @property
     def target(self) -> str:
+        if self.socket_path:
+            return f"unix:{self.socket_path}"
         return f"{self.host}:{self.port}"
 
 
@@ -167,6 +179,7 @@ class AltaStataGrpcClient:
         resolved_user_name = user_name or _infer_user_name(account_dir, user_properties_path)
 
         started_process = None
+        # NOTE: auto-start / probe path currently assumes TCP host+port.
         if not _is_port_open(endpoint.host, endpoint.port) and auto_start_server:
             started_process = _start_local_grpc_service(
                 grpc_server_command=grpc_server_command,
@@ -220,6 +233,7 @@ class AltaStataGrpcClient:
         account_files = _account_files_from_private_key(private_key_encrypted)
 
         started_process = None
+        # NOTE: auto-start / probe path currently assumes TCP host+port.
         if not _is_port_open(endpoint.host, endpoint.port) and auto_start_server:
             started_process = _start_local_grpc_service(
                 grpc_server_command=grpc_server_command,
@@ -252,7 +266,7 @@ class AltaStataGrpcClient:
             ("grpc.max_send_message_length", 64 * 1024 * 1024),
             ("grpc.max_receive_message_length", 64 * 1024 * 1024),
         ]
-        if endpoint.secure:
+        if endpoint.secure and not endpoint.socket_path:
             creds = grpc.ssl_channel_credentials()
             return grpc.secure_channel(endpoint.target, creds, options=options)
         return grpc.insecure_channel(endpoint.target, options=options)
@@ -387,16 +401,56 @@ class AltaStataGrpcClient:
         parallel_chunks: int = 4,
         trust_cached_size: bool = False,
     ) -> bytes:
-        req = self._fileops_pb2.GetBufferRequest(
+        # Small, known-size reads: one unary call. Return resp.data directly —
+        # it is already an immutable `bytes`, so wrapping it in bytes() would
+        # only add a redundant full copy.
+        if 0 < size < GRPC_UNARY_MAX_SIZE:
+            req = self._fileops_pb2.GetBufferRequest(
+                file_path=file_path,
+                snapshot_time=snapshot_time,
+                start_position=start_position,
+                parallel_chunks=parallel_chunks,
+                size=size,
+                trust_cached_size=trust_cached_size,
+            )
+            resp = self._fileops_stub.GetBuffer(req, metadata=self._metadata)
+            return resp.data
+
+        # Large or unknown-size reads: stream and assemble. When the size is
+        # known we pre-allocate one bytearray and copy each chunk in once
+        # (single copy per byte); when it is unknown we fall back to join.
+        req = self._fileops_pb2.ReadStreamRequest(
             file_path=file_path,
             snapshot_time=snapshot_time,
             start_position=start_position,
             parallel_chunks=parallel_chunks,
-            size=size,
+            chunk_size=8 * 1024 * 1024,
             trust_cached_size=trust_cached_size,
         )
-        resp = self._fileops_stub.GetBuffer(req, metadata=self._metadata)
-        return bytes(resp.data)
+        stream = self._fileops_stub.ReadStream(req, metadata=self._metadata)
+
+        if size and size > 0:
+            buf = bytearray(size)
+            view = memoryview(buf)
+            offset = 0
+            for chunk in stream:
+                data = chunk.data
+                n = len(data)
+                end = offset + n
+                if end > size:
+                    # Server returned more than the declared size: stop being
+                    # clever and fall back to a safe concatenation.
+                    parts = [bytes(view[:offset]), bytes(data)]
+                    parts.extend(bytes(c.data) for c in stream)
+                    return b"".join(parts)
+                view[offset:end] = data
+                offset = end
+            if offset != size:
+                return bytes(view[:offset])
+            return bytes(buf)
+
+        parts = [bytes(chunk.data) for chunk in stream]
+        return b"".join(parts)
 
     def delete_files(
         self,
@@ -510,7 +564,7 @@ class AltaStataGrpcClient:
         for chunk in self._fileops_stub.ReadStream(req, metadata=self._metadata):
             yield bytes(chunk.data)
 
-    # ----- Py4J-compat aliases -----
+    # ----- AltaStataFunctions compatibility aliases -----
 
     def set_password(self, account_password: str):
         """
@@ -635,8 +689,8 @@ class AltaStataGrpcClient:
         )
 
     # Watch is the sole event RPC; FileSharedEvent / FileUnsharedEvent
-    # are translated back to the ('SHARE'|'DELETE', path) pair the old
-    # AltaStataEventListener / Py4J path used so existing user callbacks
+    # are translated back to the ('SHARE'|'DELETE', path) pair the legacy
+    # AltaStataEventListener path used so existing user callbacks
     # keep working unchanged. Other typed payloads (gap, session revoked)
     # had no legacy equivalent and are simply skipped.
     @staticmethod
@@ -911,7 +965,7 @@ def _find_bundled_grpc_uber_jar() -> Optional[str]:
 
     Preference order:
       1. ``altastata-services-*-uber.jar`` — the unified gateway shipped by
-         current mycloud builds (Micronaut + gRPC + S3 + py4j under
+         current mycloud builds (Micronaut + gRPC + S3 under
          ``com.altastata.services.AltaStataServicesApplication``).
       2. ``altastata-grpc-*-uber.jar`` — the legacy gRPC-only gateway
          (``com.altastata.grpc.GrpcApplication``). Kept so older wheels keep
