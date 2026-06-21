@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from altastata.v1 import fileops_pb2 as altastata_dot_v1_dot_fileops__pb2
+from altastata.grpc.v1 import fileops_pb2 as altastata_dot_grpc_dot_v1_dot_fileops__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in altastata/v1/fileops_pb2_grpc.py depends on'
+        + ' but the generated code in altastata/grpc/v1/fileops_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -36,53 +36,53 @@ class FileOpsServiceStub(object):
         """
         self.CreateFile = channel.unary_unary(
                 '/altastata.v1.FileOpsService/CreateFile',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.CreateFileRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.CreateFileResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileResponse.FromString,
                 _registered_method=True)
         self.GetBuffer = channel.unary_unary(
                 '/altastata.v1.FileOpsService/GetBuffer',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.GetBufferRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.GetBufferResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferResponse.FromString,
                 _registered_method=True)
         self.Delete = channel.unary_unary(
                 '/altastata.v1.FileOpsService/Delete',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.DeleteRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.DeleteResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteResponse.FromString,
                 _registered_method=True)
         self.ListVersions = channel.unary_stream(
                 '/altastata.v1.FileOpsService/ListVersions',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.ListVersionsRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.VersionEntry.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ListVersionsRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.VersionEntry.FromString,
                 _registered_method=True)
         self.AppendBufferToFile = channel.unary_unary(
                 '/altastata.v1.FileOpsService/AppendBufferToFile',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.FromString,
                 _registered_method=True)
         self.Store = channel.unary_unary(
                 '/altastata.v1.FileOpsService/Store',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.StoreRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.StoreResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreResponse.FromString,
                 _registered_method=True)
         self.Retrieve = channel.unary_unary(
                 '/altastata.v1.FileOpsService/Retrieve',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.RetrieveRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.RetrieveResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveResponse.FromString,
                 _registered_method=True)
         self.CopyFile = channel.unary_unary(
                 '/altastata.v1.FileOpsService/CopyFile',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.CopyFileRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.CopyFileResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileResponse.FromString,
                 _registered_method=True)
         self.ReadStream = channel.unary_stream(
                 '/altastata.v1.FileOpsService/ReadStream',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
                 _registered_method=True)
         self.DownloadDirectoryAsZip = channel.unary_stream(
                 '/altastata.v1.FileOpsService/DownloadDirectoryAsZip',
-                request_serializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
                 _registered_method=True)
 
 
@@ -154,53 +154,53 @@ def add_FileOpsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'CreateFile': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateFile,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.CreateFileRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.CreateFileResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileResponse.SerializeToString,
             ),
             'GetBuffer': grpc.unary_unary_rpc_method_handler(
                     servicer.GetBuffer,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.GetBufferRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.GetBufferResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferResponse.SerializeToString,
             ),
             'Delete': grpc.unary_unary_rpc_method_handler(
                     servicer.Delete,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.DeleteRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.DeleteResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteResponse.SerializeToString,
             ),
             'ListVersions': grpc.unary_stream_rpc_method_handler(
                     servicer.ListVersions,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.ListVersionsRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.VersionEntry.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ListVersionsRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.VersionEntry.SerializeToString,
             ),
             'AppendBufferToFile': grpc.unary_unary_rpc_method_handler(
                     servicer.AppendBufferToFile,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.SerializeToString,
             ),
             'Store': grpc.unary_unary_rpc_method_handler(
                     servicer.Store,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.StoreRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.StoreResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreResponse.SerializeToString,
             ),
             'Retrieve': grpc.unary_unary_rpc_method_handler(
                     servicer.Retrieve,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.RetrieveRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.RetrieveResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveResponse.SerializeToString,
             ),
             'CopyFile': grpc.unary_unary_rpc_method_handler(
                     servicer.CopyFile,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.CopyFileRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.CopyFileResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileResponse.SerializeToString,
             ),
             'ReadStream': grpc.unary_stream_rpc_method_handler(
                     servicer.ReadStream,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamChunk.SerializeToString,
             ),
             'DownloadDirectoryAsZip': grpc.unary_stream_rpc_method_handler(
                     servicer.DownloadDirectoryAsZip,
-                    request_deserializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -228,8 +228,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/CreateFile',
-            altastata_dot_v1_dot_fileops__pb2.CreateFileRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.CreateFileResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CreateFileResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -255,8 +255,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/GetBuffer',
-            altastata_dot_v1_dot_fileops__pb2.GetBufferRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.GetBufferResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.GetBufferResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -282,8 +282,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/Delete',
-            altastata_dot_v1_dot_fileops__pb2.DeleteRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.DeleteResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.DeleteResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -309,8 +309,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/ListVersions',
-            altastata_dot_v1_dot_fileops__pb2.ListVersionsRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.VersionEntry.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.ListVersionsRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.VersionEntry.FromString,
             options,
             channel_credentials,
             insecure,
@@ -336,8 +336,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/AppendBufferToFile',
-            altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.AppendBufferToFileResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -363,8 +363,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/Store',
-            altastata_dot_v1_dot_fileops__pb2.StoreRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.StoreResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.StoreResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -390,8 +390,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/Retrieve',
-            altastata_dot_v1_dot_fileops__pb2.RetrieveRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.RetrieveResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.RetrieveResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -417,8 +417,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/CopyFile',
-            altastata_dot_v1_dot_fileops__pb2.CopyFileRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.CopyFileResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CopyFileResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -444,8 +444,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/ReadStream',
-            altastata_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.ReadStreamChunk.FromString,
             options,
             channel_credentials,
             insecure,
@@ -471,8 +471,8 @@ class FileOpsService(object):
             request,
             target,
             '/altastata.v1.FileOpsService/DownloadDirectoryAsZip',
-            altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
-            altastata_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
             options,
             channel_credentials,
             insecure,

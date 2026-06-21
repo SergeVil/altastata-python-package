@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from altastata.v1 import auth_pb2 as altastata_dot_v1_dot_auth__pb2
+from altastata.grpc.v1 import auth_pb2 as altastata_dot_grpc_dot_v1_dot_auth__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in altastata/v1/auth_pb2_grpc.py depends on'
+        + ' but the generated code in altastata/grpc/v1/auth_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -48,23 +48,23 @@ class AuthServiceStub(object):
         """
         self.Login = channel.unary_unary(
                 '/altastata.v1.AuthService/Login',
-                request_serializer=altastata_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_auth__pb2.LoginResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginResponse.FromString,
                 _registered_method=True)
         self.LoginV2 = channel.unary_unary(
                 '/altastata.v1.AuthService/LoginV2',
-                request_serializer=altastata_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
                 _registered_method=True)
         self.Logout = channel.unary_unary(
                 '/altastata.v1.AuthService/Logout',
-                request_serializer=altastata_dot_v1_dot_auth__pb2.LogoutRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_auth__pb2.LogoutResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutResponse.FromString,
                 _registered_method=True)
         self.Refresh = channel.unary_unary(
                 '/altastata.v1.AuthService/Refresh',
-                request_serializer=altastata_dot_v1_dot_auth__pb2.RefreshRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_auth__pb2.RefreshResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshResponse.FromString,
                 _registered_method=True)
 
 
@@ -112,23 +112,23 @@ def add_AuthServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'Login': grpc.unary_unary_rpc_method_handler(
                     servicer.Login,
-                    request_deserializer=altastata_dot_v1_dot_auth__pb2.LoginRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_auth__pb2.LoginResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginResponse.SerializeToString,
             ),
             'LoginV2': grpc.unary_unary_rpc_method_handler(
                     servicer.LoginV2,
-                    request_deserializer=altastata_dot_v1_dot_auth__pb2.LoginV2Request.FromString,
-                    response_serializer=altastata_dot_v1_dot_auth__pb2.LoginV2Response.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Request.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Response.SerializeToString,
             ),
             'Logout': grpc.unary_unary_rpc_method_handler(
                     servicer.Logout,
-                    request_deserializer=altastata_dot_v1_dot_auth__pb2.LogoutRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_auth__pb2.LogoutResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutResponse.SerializeToString,
             ),
             'Refresh': grpc.unary_unary_rpc_method_handler(
                     servicer.Refresh,
-                    request_deserializer=altastata_dot_v1_dot_auth__pb2.RefreshRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_auth__pb2.RefreshResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -168,8 +168,8 @@ class AuthService(object):
             request,
             target,
             '/altastata.v1.AuthService/Login',
-            altastata_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
-            altastata_dot_v1_dot_auth__pb2.LoginResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -195,8 +195,8 @@ class AuthService(object):
             request,
             target,
             '/altastata.v1.AuthService/LoginV2',
-            altastata_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
-            altastata_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Request.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LoginV2Response.FromString,
             options,
             channel_credentials,
             insecure,
@@ -222,8 +222,8 @@ class AuthService(object):
             request,
             target,
             '/altastata.v1.AuthService/Logout',
-            altastata_dot_v1_dot_auth__pb2.LogoutRequest.SerializeToString,
-            altastata_dot_v1_dot_auth__pb2.LogoutResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.LogoutResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -249,8 +249,8 @@ class AuthService(object):
             request,
             target,
             '/altastata.v1.AuthService/Refresh',
-            altastata_dot_v1_dot_auth__pb2.RefreshRequest.SerializeToString,
-            altastata_dot_v1_dot_auth__pb2.RefreshResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_auth__pb2.RefreshResponse.FromString,
             options,
             channel_credentials,
             insecure,

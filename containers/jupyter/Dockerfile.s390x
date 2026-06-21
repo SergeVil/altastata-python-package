@@ -65,7 +65,7 @@ RUN if [ -n "${ALTASTATA_VERSION}" ]; then \
         echo "WARN: ALTASTATA_VERSION not set (build script overrides this). Installing latest from PyPI." && \
         pip install --no-cache-dir altastata ; \
     fi
-# gRPC stubs in altastata.v1 are generated with grpcio-tools 1.80.x.
+# gRPC stubs in altastata.grpc.v1 are generated with grpcio-tools 1.80.x.
 # boto3 lets notebooks drive AltaStataFunctions.boto3_s3() and the AWS CLI
 # against the local S3 gateway on :9876 without an extra `pip install`.
 RUN pip install --no-cache-dir "grpcio>=1.80.0" boto3

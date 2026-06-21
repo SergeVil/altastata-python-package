@@ -31,7 +31,7 @@ RUN pip install --no-cache-dir -r /app/requirements.txt
 COPY setup.py pyproject.toml README.md /src/altastata-python-package/
 COPY altastata /src/altastata-python-package/altastata
 RUN pip install --no-cache-dir /src/altastata-python-package
-# gRPC stubs in altastata.v1 are generated with grpcio-tools 1.80.x.
+# gRPC stubs in altastata.grpc.v1 are generated with grpcio-tools 1.80.x.
 RUN pip install --no-cache-dir "grpcio>=1.80.0"
 
 # App code (no sample_documents; documents come from AltaStata)

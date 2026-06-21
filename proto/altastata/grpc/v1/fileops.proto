@@ -6,7 +6,7 @@ option java_multiple_files = true;
 option java_package = "com.altastata.grpc.proto";
 option java_outer_classname = "FileOpsProto";
 
-import "altastata/v1/sharing.proto";
+import "altastata/grpc/v1/sharing.proto";
 
 message CreateFileRequest {
   string file_path = 1;

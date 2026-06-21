@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from altastata.v1 import users_pb2 as altastata_dot_v1_dot_users__pb2
+from altastata.grpc.v1 import users_pb2 as altastata_dot_grpc_dot_v1_dot_users__pb2
 
 GRPC_GENERATED_VERSION = '1.80.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in altastata/v1/users_pb2_grpc.py depends on'
+        + ' but the generated code in altastata/grpc/v1/users_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -42,33 +42,33 @@ class UsersServiceStub(object):
         """
         self.ListUsers = channel.unary_stream(
                 '/altastata.v1.UsersService/ListUsers',
-                request_serializer=altastata_dot_v1_dot_users__pb2.Empty.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.UserSummary.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.UserSummary.FromString,
                 _registered_method=True)
         self.GetUser = channel.unary_unary(
                 '/altastata.v1.UsersService/GetUser',
-                request_serializer=altastata_dot_v1_dot_users__pb2.GetUserRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.User.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.GetUserRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.User.FromString,
                 _registered_method=True)
         self.GetMyAccount = channel.unary_unary(
                 '/altastata.v1.UsersService/GetMyAccount',
-                request_serializer=altastata_dot_v1_dot_users__pb2.GetMyAccountRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.User.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.GetMyAccountRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.User.FromString,
                 _registered_method=True)
         self.SetPassword = channel.unary_unary(
                 '/altastata.v1.UsersService/SetPassword',
-                request_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
                 _registered_method=True)
         self.SetUserProperties = channel.unary_unary(
                 '/altastata.v1.UsersService/SetUserProperties',
-                request_serializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
                 _registered_method=True)
         self.SetPrivateKey = channel.unary_unary(
                 '/altastata.v1.UsersService/SetPrivateKey',
-                request_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
-                response_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
+                request_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
                 _registered_method=True)
 
 
@@ -122,33 +122,33 @@ def add_UsersServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ListUsers': grpc.unary_stream_rpc_method_handler(
                     servicer.ListUsers,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.Empty.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.UserSummary.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.UserSummary.SerializeToString,
             ),
             'GetUser': grpc.unary_unary_rpc_method_handler(
                     servicer.GetUser,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.GetUserRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.User.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.GetUserRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.User.SerializeToString,
             ),
             'GetMyAccount': grpc.unary_unary_rpc_method_handler(
                     servicer.GetMyAccount,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.GetMyAccountRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.User.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.GetMyAccountRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.User.SerializeToString,
             ),
             'SetPassword': grpc.unary_unary_rpc_method_handler(
                     servicer.SetPassword,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetPasswordRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.SetPasswordResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordResponse.SerializeToString,
             ),
             'SetUserProperties': grpc.unary_unary_rpc_method_handler(
                     servicer.SetUserProperties,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesResponse.SerializeToString,
             ),
             'SetPrivateKey': grpc.unary_unary_rpc_method_handler(
                     servicer.SetPrivateKey,
-                    request_deserializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.FromString,
-                    response_serializer=altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.SerializeToString,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -182,8 +182,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/ListUsers',
-            altastata_dot_v1_dot_users__pb2.Empty.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.UserSummary.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.Empty.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.UserSummary.FromString,
             options,
             channel_credentials,
             insecure,
@@ -209,8 +209,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/GetUser',
-            altastata_dot_v1_dot_users__pb2.GetUserRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.User.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.GetUserRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.User.FromString,
             options,
             channel_credentials,
             insecure,
@@ -236,8 +236,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/GetMyAccount',
-            altastata_dot_v1_dot_users__pb2.GetMyAccountRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.User.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.GetMyAccountRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.User.FromString,
             options,
             channel_credentials,
             insecure,
@@ -263,8 +263,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/SetPassword',
-            altastata_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetPasswordResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -290,8 +290,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/SetUserProperties',
-            altastata_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetUserPropertiesResponse.FromString,
             options,
             channel_credentials,
             insecure,
@@ -317,8 +317,8 @@ class UsersService(object):
             request,
             target,
             '/altastata.v1.UsersService/SetPrivateKey',
-            altastata_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
-            altastata_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_users__pb2.SetPrivateKeyResponse.FromString,
             options,
             channel_credentials,
             insecure,

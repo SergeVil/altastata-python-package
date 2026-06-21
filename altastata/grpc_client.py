@@ -95,12 +95,12 @@ class AltaStataGrpcClient:
 
         # Lazy import after channel creation for clearer error messaging.
         try:
-            from .v1 import attributes_pb2, attributes_pb2_grpc
-            from .v1 import auth_pb2, auth_pb2_grpc
-            from .v1 import sharing_pb2, sharing_pb2_grpc
-            from .v1 import users_pb2, users_pb2_grpc
-            from .v1 import fileops_pb2, fileops_pb2_grpc
-            from .v1 import events_pb2, events_pb2_grpc
+            from .grpc.v1 import attributes_pb2, attributes_pb2_grpc
+            from .grpc.v1 import auth_pb2, auth_pb2_grpc
+            from .grpc.v1 import sharing_pb2, sharing_pb2_grpc
+            from .grpc.v1 import users_pb2, users_pb2_grpc
+            from .grpc.v1 import fileops_pb2, fileops_pb2_grpc
+            from .grpc.v1 import events_pb2, events_pb2_grpc
         except Exception as exc:
             raise ImportError(
                 "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"
@@ -760,7 +760,7 @@ def _login_v2(
             raise ValueError("user_properties is required for LoginV2 upload")
 
     try:
-        from .v1 import auth_pb2, auth_pb2_grpc
+        from .grpc.v1 import auth_pb2, auth_pb2_grpc
     except Exception as exc:
         raise ImportError(
             "gRPC stubs are missing. Run: python scripts/generate_grpc_stubs.py"

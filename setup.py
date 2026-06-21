@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name='altastata',
-    version='0.0.1',
+    version='0.0.2',
     author='Serge Vilvovsky',
     author_email='serge.vilvovsky@altastata.com',
     description='A Python package for Altastata data processing and machine learning integration',
@@ -25,7 +25,7 @@ setup(
         # `python -m build`.
         'altastata': [
             'lib/*.jar',
-            'v1/*.py',
+            'grpc/v1/*.py',
             'lib/altastata-console-static/*',
             'lib/altastata-console-static/*/*',
         ],
