@@ -16,12 +16,11 @@ import platform
 
 from altastata.java_runtime import resolve_java_memory_opts
 
-# Files at/above this size are read via the server-streaming ReadStream RPC
-# instead of a single unary GetBuffer, so we never hit the 64 MB gRPC message
-# cap and never hold two full copies of a large payload at once. Kept well
-# under grpc.max_receive_message_length (64 MB) so the unary path's single
-# message (+ protobuf framing) always fits.
+# Files at/above this size switch from unary to chunked RPCs for both upload
+# and download paths. Kept well under 64 MB message limits so a unary payload
+# (+ protobuf framing) always fits when we intentionally stay on unary.
 GRPC_UNARY_MAX_SIZE = 32 * 1024 * 1024  # 32 MB
+DEFAULT_UPLOAD_CHUNK_SIZE = 8 * 1024 * 1024  # 8 MB
 
 
 def _default_client_hint() -> str:
@@ -388,9 +387,51 @@ class AltaStataGrpcClient:
     # ---------------- FileOps ----------------
 
     def create_file(self, file_path: str, content: bytes) -> Dict[str, str]:
-        req = self._fileops_pb2.CreateFileRequest(file_path=file_path, content=content)
-        resp = self._fileops_stub.CreateFile(req, metadata=self._metadata)
-        return self._status_to_dict(resp.status)
+        payload = content if content is not None else b""
+        if len(payload) < GRPC_UNARY_MAX_SIZE:
+            req = self._fileops_pb2.CreateFileRequest(file_path=file_path, content=payload)
+            resp = self._fileops_stub.CreateFile(req, metadata=self._metadata)
+            return self._status_to_dict(resp.status)
+        return self._create_file_chunked(file_path, payload)
+
+    def _create_file_chunked(self, file_path: str, content: bytes) -> Dict[str, str]:
+        begin_req = self._fileops_pb2.BeginUploadRequest(
+            cloud_path=file_path,
+            total_size=len(content),
+        )
+        begin_resp = self._fileops_stub.BeginUpload(begin_req, metadata=self._metadata)
+        upload_id = getattr(begin_resp, "upload_id", "")
+        if not upload_id:
+            raise RuntimeError("BeginUpload returned empty upload_id")
+        chunk_size = getattr(begin_resp, "chunk_size", 0) or DEFAULT_UPLOAD_CHUNK_SIZE
+        chunk_size = max(1, int(chunk_size))
+
+        completed = False
+        try:
+            offset = 0
+            while offset < len(content):
+                end = min(offset + chunk_size, len(content))
+                chunk = content[offset:end]
+                chunk_req = self._fileops_pb2.UploadChunkRequest(
+                    upload_id=upload_id,
+                    offset=offset,
+                    data=chunk,
+                )
+                self._fileops_stub.UploadChunk(chunk_req, metadata=self._metadata)
+                offset = end
+
+            complete_req = self._fileops_pb2.CompleteUploadRequest(upload_id=upload_id)
+            complete_resp = self._fileops_stub.CompleteUpload(complete_req, metadata=self._metadata)
+            completed = True
+            return self._status_to_dict(complete_resp.status)
+        finally:
+            if not completed:
+                try:
+                    abort_req = self._fileops_pb2.AbortUploadRequest(upload_id=upload_id)
+                    self._fileops_stub.AbortUpload(abort_req, metadata=self._metadata)
+                except Exception:
+                    # Best-effort cleanup; server-side upload TTL reaper handles leftovers.
+                    pass
 
     def get_buffer(
         self,
