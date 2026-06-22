@@ -119,6 +119,42 @@ message DownloadDirectoryAsZipChunk {
   bytes data = 1;
 }
 
+message BeginUploadRequest {
+  string cloud_path = 1;
+  int64 total_size = 2;
+}
+
+message BeginUploadResponse {
+  string upload_id = 1;
+  int32 chunk_size = 2;
+}
+
+message UploadChunkRequest {
+  string upload_id = 1;
+  int64 offset = 2;
+  bytes data = 3;
+}
+
+message UploadChunkResponse {
+  int64 bytes_received = 1;
+}
+
+message CompleteUploadRequest {
+  string upload_id = 1;
+}
+
+message CompleteUploadResponse {
+  FileStatus status = 1;
+}
+
+message AbortUploadRequest {
+  string upload_id = 1;
+}
+
+message AbortUploadResponse {
+  bool aborted = 1;
+}
+
 service FileOpsService {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc GetBuffer(GetBufferRequest) returns (GetBufferResponse);
@@ -130,4 +166,8 @@ service FileOpsService {
   rpc CopyFile(CopyFileRequest) returns (CopyFileResponse);
   rpc ReadStream(ReadStreamRequest) returns (stream ReadStreamChunk);
   rpc DownloadDirectoryAsZip(DownloadDirectoryAsZipRequest) returns (stream DownloadDirectoryAsZipChunk);
+  rpc BeginUpload(BeginUploadRequest) returns (BeginUploadResponse);
+  rpc UploadChunk(UploadChunkRequest) returns (UploadChunkResponse);
+  rpc CompleteUpload(CompleteUploadRequest) returns (CompleteUploadResponse);
+  rpc AbortUpload(AbortUploadRequest) returns (AbortUploadResponse);
 }

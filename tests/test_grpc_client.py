@@ -458,6 +458,66 @@ class GrpcClientTests(unittest.TestCase):
         ):
             self.assertEqual(resolve_java_memory_opts(), [])
 
+    @patch("altastata.grpc_client.grpc.insecure_channel")
+    def test_create_file_small_payload_uses_unary_createfile(self, mock_insecure_channel):
+        mock_insecure_channel.return_value = object()
+        from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint
+
+        client = AltaStataGrpcClient(
+            endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+            bearer_token="sess-small",
+            user_name="alice",
+        )
+        client._fileops_pb2 = types.SimpleNamespace(
+            CreateFileRequest=lambda **kw: types.SimpleNamespace(**kw),
+        )
+        client._fileops_stub = MagicMock()
+        client._fileops_stub.CreateFile.return_value = types.SimpleNamespace(
+            status=types.SimpleNamespace(file_path="x", operation_state="DONE", error="")
+        )
+
+        out = client.create_file("StoreTest/small.bin", b"abc")
+
+        self.assertEqual("DONE", out["operation_state"])
+        client._fileops_stub.CreateFile.assert_called_once()
+        client._fileops_stub.BeginUpload.assert_not_called()
+
+    @patch("altastata.grpc_client.grpc.insecure_channel")
+    def test_create_file_large_payload_uses_chunked_upload_rpcs(self, mock_insecure_channel):
+        mock_insecure_channel.return_value = object()
+        from altastata.grpc_client import AltaStataGrpcClient, GrpcEndpoint, GRPC_UNARY_MAX_SIZE
+
+        client = AltaStataGrpcClient(
+            endpoint=GrpcEndpoint(host="127.0.0.1", port=9877, secure=False),
+            bearer_token="sess-large",
+            user_name="alice",
+        )
+        client._fileops_pb2 = types.SimpleNamespace(
+            BeginUploadRequest=lambda **kw: types.SimpleNamespace(**kw),
+            UploadChunkRequest=lambda **kw: types.SimpleNamespace(**kw),
+            CompleteUploadRequest=lambda **kw: types.SimpleNamespace(**kw),
+            AbortUploadRequest=lambda **kw: types.SimpleNamespace(**kw),
+            CreateFileRequest=lambda **kw: types.SimpleNamespace(**kw),
+        )
+        client._fileops_stub = MagicMock()
+        client._fileops_stub.BeginUpload.return_value = types.SimpleNamespace(
+            upload_id="upl-test",
+            chunk_size=8 * 1024 * 1024,
+        )
+        client._fileops_stub.CompleteUpload.return_value = types.SimpleNamespace(
+            status=types.SimpleNamespace(file_path="x", operation_state="DONE", error="")
+        )
+
+        payload = b"a" * GRPC_UNARY_MAX_SIZE
+        out = client.create_file("StoreTest/large.bin", payload)
+
+        self.assertEqual("DONE", out["operation_state"])
+        client._fileops_stub.CreateFile.assert_not_called()
+        client._fileops_stub.BeginUpload.assert_called_once()
+        self.assertGreater(client._fileops_stub.UploadChunk.call_count, 1)
+        client._fileops_stub.CompleteUpload.assert_called_once()
+        client._fileops_stub.AbortUpload.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()
