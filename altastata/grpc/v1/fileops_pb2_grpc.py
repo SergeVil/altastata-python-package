@@ -84,6 +84,26 @@ class FileOpsServiceStub(object):
                 request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
                 response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
                 _registered_method=True)
+        self.BeginUpload = channel.unary_unary(
+                '/altastata.v1.FileOpsService/BeginUpload',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadResponse.FromString,
+                _registered_method=True)
+        self.UploadChunk = channel.unary_unary(
+                '/altastata.v1.FileOpsService/UploadChunk',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkResponse.FromString,
+                _registered_method=True)
+        self.CompleteUpload = channel.unary_unary(
+                '/altastata.v1.FileOpsService/CompleteUpload',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadResponse.FromString,
+                _registered_method=True)
+        self.AbortUpload = channel.unary_unary(
+                '/altastata.v1.FileOpsService/AbortUpload',
+                request_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadRequest.SerializeToString,
+                response_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadResponse.FromString,
+                _registered_method=True)
 
 
 class FileOpsServiceServicer(object):
@@ -149,6 +169,30 @@ class FileOpsServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def BeginUpload(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def UploadChunk(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CompleteUpload(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def AbortUpload(self, request, context):
+        """Missing associated documentation comment in .proto file."""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_FileOpsServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -201,6 +245,26 @@ def add_FileOpsServiceServicer_to_server(servicer, server):
                     servicer.DownloadDirectoryAsZip,
                     request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.FromString,
                     response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.SerializeToString,
+            ),
+            'BeginUpload': grpc.unary_unary_rpc_method_handler(
+                    servicer.BeginUpload,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadResponse.SerializeToString,
+            ),
+            'UploadChunk': grpc.unary_unary_rpc_method_handler(
+                    servicer.UploadChunk,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkResponse.SerializeToString,
+            ),
+            'CompleteUpload': grpc.unary_unary_rpc_method_handler(
+                    servicer.CompleteUpload,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadResponse.SerializeToString,
+            ),
+            'AbortUpload': grpc.unary_unary_rpc_method_handler(
+                    servicer.AbortUpload,
+                    request_deserializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadRequest.FromString,
+                    response_serializer=altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -473,6 +537,114 @@ class FileOpsService(object):
             '/altastata.v1.FileOpsService/DownloadDirectoryAsZip',
             altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipRequest.SerializeToString,
             altastata_dot_grpc_dot_v1_dot_fileops__pb2.DownloadDirectoryAsZipChunk.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def BeginUpload(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.FileOpsService/BeginUpload',
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.BeginUploadResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def UploadChunk(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.FileOpsService/UploadChunk',
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.UploadChunkResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def CompleteUpload(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.FileOpsService/CompleteUpload',
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.CompleteUploadResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def AbortUpload(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/altastata.v1.FileOpsService/AbortUpload',
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadRequest.SerializeToString,
+            altastata_dot_grpc_dot_v1_dot_fileops__pb2.AbortUploadResponse.FromString,
             options,
             channel_credentials,
             insecure,
