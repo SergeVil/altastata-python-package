@@ -20,7 +20,7 @@
 # work. Separating the tags keeps each image's history truthful and avoids
 # end-user confusion ("did Jupyter change between 2026e and 2026g?" — no).
 
-JUPYTER_VERSION="2026i_latest"
+JUPYTER_VERSION="2026j_latest"
 RAG_VERSION="2026k_latest"
 
 # Resolve repo root from this script's location so callers can `source version.sh`
